@@ -1,0 +1,454 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{amsmath,amssymb,mathtools,bm}
+\usepackage{booktabs,longtable,array,tabularx}
+\usepackage{graphicx}
+\usepackage[table]{xcolor}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{fancyhdr}
+\usepackage{lastpage}
+\usepackage{titlesec}
+\usepackage{siunitx}
+\usepackage{caption}
+\usepackage{mdframed}
+\usepackage{seqsplit}
+\hypersetup{colorlinks=true,linkcolor=blue!50!black,urlcolor=blue!50!black,citecolor=blue!50!black}
+\definecolor{accent}{RGB}{32,73,117}
+\definecolor{lightaccent}{RGB}{232,239,247}
+\definecolor{softgray}{RGB}{245,246,248}
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{RadiationEffects\_proj2}
+\rhead{Module 3 Physics Note}
+\cfoot{\thepage\ of \pageref{LastPage}}
+\titleformat{\section}{\large\bfseries\color{accent}}{\thesection}{0.6em}{}
+\titleformat{\subsection}{\normalsize\bfseries\color{accent}}{\thesubsection}{0.6em}{}
+\setlength{\headheight}{14pt}
+\setlist[itemize]{topsep=4pt,itemsep=2pt,leftmargin=1.5em}
+\setlist[enumerate]{topsep=4pt,itemsep=2pt,leftmargin=1.7em}
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+\newcommand{\splitpath}[1]{{\ttfamily\footnotesize\seqsplit{#1}}}
+\newcommand{\dd}{\mathrm{d}}
+\newcommand{\pd}[2]{\frac{\partial #1}{\partial #2}}
+\newcommand{\pdd}[2]{\frac{\partial^2 #1}{\partial #2^2}}
+\newcommand{\grad}{\nabla}
+\newcommand{\lap}{\nabla^2}
+\begin{document}
+
+\begin{titlepage}
+\centering
+\vspace*{1.8cm}
+{\Huge\bfseries\color{accent} Module 3: 2D Defect Evolution in Silicon\par}
+\vspace{0.4cm}
+{\Large\bfseries Diffusion-Reaction Model, Numerics, and Verification\par}
+\vspace{1.0cm}
+\begin{mdframed}[backgroundcolor=lightaccent,linecolor=accent,linewidth=1pt,roundcorner=6pt,leftmargin=1.2cm,rightmargin=1.2cm]
+\noindent\textbf{Project context.} This note defines the first two-dimensional implementation target for Module 3 in \texttt{RadiationEffects\_proj2}. The purpose of Module 3 is to evolve radiation-induced defect populations in silicon after their creation by Module 1, so that later modules can compute defect-modified electrostatics, temperature response, and carrier transport.
+\end{mdframed}
+\vfill
+\begin{tabular}{rl}
+Project: & Radiation-Induced Defect Evolution and Device Degradation in Silicon \\
+Document: & \texttt{module3\_2d\_defect\_evolution.tex/.pdf} \\
+Role in roadmap: & First 2D physics solver on the MATLAB side \\
+Implementation level: & Structured 2D Cartesian baseline before more general discretizations
+\end{tabular}
+\vfill
+{\large \today\par}
+\end{titlepage}
+
+\section{Purpose and scope}
+Module 3 is the first post-radiation evolution model in the project. Module 1 tells us where radiation deposited energy and, after additional modeling assumptions, where defects were created. Module 3 answers the next question: once defects exist inside silicon, how do they move and transform with time?
+
+The first implementation target is intentionally narrow and rigorous:
+\begin{itemize}
+    \item two spatial dimensions, \(x\) and \(y\), on a structured Cartesian grid,
+    \item one defect concentration field \(C(x,y,t)\),
+    \item diffusion of defects through the silicon,
+    \item first-order annealing as the simplest reaction channel,
+    \item zero-normal-flux boundary conditions for a closed-material baseline, and
+    \item verification cases that isolate diffusion and annealing separately.
+\end{itemize}
+
+This note is written so that the physics and the MATLAB implementation stay tightly connected. The equations are stated first, then reduced to the specific numerical form we will actually solve.
+
+\section{Physical picture}
+A radiation event can displace atoms, create vacancies and interstitials, and generate more complicated defect structures. Immediately after the event, the damage is not yet a final material state. Defects can:
+\begin{itemize}
+    \item migrate through the lattice,
+    \item recombine with complementary defects,
+    \item form clusters,
+    \item dissociate from larger complexes, or
+    \item anneal away as the system moves toward a lower-energy configuration.
+\end{itemize}
+
+The full physics can become chemically and crystallographically rich. The first 2D solver deliberately starts below that complexity. It asks for the evolution of a coarse-grained defect concentration field, not the trajectory of each atom. In that coarse-grained description, the two most important mechanisms to represent first are:
+\begin{enumerate}
+    \item \textbf{Diffusion:} defects spread from regions of high concentration toward regions of lower concentration.
+    \item \textbf{Annealing:} defects disappear from the tracked population at a rate controlled by local kinetics.
+\end{enumerate}
+
+That gives a model that is simple enough to verify analytically, but still physically meaningful as a bridge between the radiation source map and later device-level degradation calculations.
+
+\section{Governing equation}
+\subsection{Conservation statement}
+Let \(C(x,y,t)\) denote the concentration of one defect species. For a small material area element, conservation requires
+\begin{equation}
+\pd{C}{t} = -\grad \cdot \bm{J} + R,
+\label{eq:conservation}
+\end{equation}
+where \(\bm{J}\) is the defect flux vector and \(R\) is the net local reaction term.
+
+Equation~\eqref{eq:conservation} is the cleanest starting point because it states the physics directly:
+\begin{itemize}
+    \item the concentration changes because defects flow in or out of a region, and/or
+    \item the concentration changes because defects are created or removed by local reactions.
+\end{itemize}
+
+\subsection{Diffusive flux}
+For the first implementation, we assume Fickian diffusion:
+\begin{equation}
+\bm{J} = -D\,\grad C,
+\label{eq:fick}
+\end{equation}
+where \(D\) is the defect diffusion coefficient.
+
+Substituting Equation~\eqref{eq:fick} into Equation~\eqref{eq:conservation} gives
+\begin{equation}
+\pd{C}{t} = \grad\cdot\left(D\,\grad C\right) + R.
+\label{eq:general_diffusion_reaction}
+\end{equation}
+
+If \(D\) is spatially uniform, this reduces to
+\begin{equation}
+\pd{C}{t} = D\lap C + R.
+\label{eq:uniformD}
+\end{equation}
+
+In 2D Cartesian coordinates,
+\begin{equation}
+\pd{C}{t} = \frac{\partial}{\partial x}\left(D\pd{C}{x}\right) + \frac{\partial}{\partial y}\left(D\pd{C}{y}\right) + R.
+\label{eq:2d_general}
+\end{equation}
+
+For constant \(D\),
+\begin{equation}
+\pd{C}{t} = D\left(\pdd{C}{x}+\pdd{C}{y}\right) + R.
+\label{eq:2d_constantD}
+\end{equation}
+
+\subsection{First-order annealing model}
+The first reaction model is first-order annealing:
+\begin{equation}
+R = -k_{\mathrm{ann}} C,
+\label{eq:first_order_ann}
+\end{equation}
+where \(k_{\mathrm{ann}}\) is the annealing rate constant.
+
+Then the governing equation becomes
+\begin{equation}
+\boxed{\pd{C}{t} = D\left(\pdd{C}{x}+\pdd{C}{y}\right) - k_{\mathrm{ann}} C.}
+\label{eq:final_pde}
+\end{equation}
+
+This is the baseline PDE for the first 2D Module 3 implementation.
+
+\section{Why this model is the right first step}
+This first PDE is not the final defect-chemistry model. It is the correct first step because it gives all of the following at once:
+\begin{itemize}
+    \item a direct way to consume a 2D damage map from Module 1,
+    \item a physically meaningful time evolution of damage,
+    \item a field \(C(x,y,t)\) that later modules can map into charge, recombination, and thermal effects,
+    \item analytic limiting cases for verification, and
+    \item a clean extension path to multiple defect species \(C_i\), nonlinear reactions \(R_i\), and temperature-dependent kinetics.
+\end{itemize}
+
+In other words, Equation~\eqref{eq:final_pde} is simple enough to debug and strong enough to become infrastructure.
+
+\section{Boundary and initial conditions}
+\subsection{Boundary conditions}
+The first implementation uses zero-normal-flux boundary conditions:
+\begin{equation}
+\bm{n}\cdot\bm{J}=0,
+\end{equation}
+where \(\bm{n}\) is the outward unit normal vector at the boundary.
+
+Using \(\bm{J}=-D\grad C\), this becomes
+\begin{equation}
+\bm{n}\cdot\grad C=0.
+\label{eq:neumann_bc}
+\end{equation}
+
+Physically, this means defects do not leave the computational domain through the outer boundary in the baseline case.
+
+\subsection{Initial condition}
+The initial condition can come from either a synthetic verification profile or a processed Geant4-derived map:
+\begin{equation}
+C(x,y,0)=C_0(x,y).
+\end{equation}
+
+For verification, two convenient choices are:
+\begin{itemize}
+    \item a 2D Gaussian cloud, and
+    \item a spatially uniform field.
+\end{itemize}
+
+\section{Analytic limiting cases for verification}
+\subsection{Pure annealing}
+If diffusion is switched off, so that \(D=0\), Equation~\eqref{eq:final_pde} reduces to
+\begin{equation}
+\pd{C}{t} = -k_{\mathrm{ann}} C.
+\end{equation}
+
+At every spatial point, the solution is
+\begin{equation}
+C(x,y,t)=C(x,y,0)\,e^{-k_{\mathrm{ann}}t}.
+\label{eq:pure_anneal_solution}
+\end{equation}
+
+If the initial field is uniform, the field stays uniform for all time and decays exponentially. This is an excellent code test because any spatial structure that appears is numerical error.
+
+\subsection{Pure diffusion}
+If annealing is switched off, so that \(k_{\mathrm{ann}}=0\), Equation~\eqref{eq:final_pde} becomes
+\begin{equation}
+\pd{C}{t} = D\lap C.
+\end{equation}
+
+For a localized initial cloud in an effectively large domain, the defect distribution broadens with time while conserving total defect amount,
+\begin{equation}
+M(t)=\iint C(x,y,t)\,\dd x\,\dd y = \text{constant},
+\label{eq:mass_conservation}
+\end{equation}
+provided the boundary flux is zero.
+
+A Gaussian profile remains Gaussian under pure diffusion, with a width that grows in time. Even if the finite computational domain and boundaries modify the exact analytic shape, the qualitative signatures are robust:
+\begin{itemize}
+    \item peak concentration decreases,
+    \item cloud width increases,
+    \item total mass remains nearly constant.
+\end{itemize}
+
+\section{Temperature dependence and future coupling}
+Even though the first version may hold temperature fixed, Module 3 is fundamentally temperature sensitive. In many defect processes, both the diffusion coefficient and the annealing rate are thermally activated. A common form is Arrhenius-like behavior:
+\begin{align}
+D(T) &= D_0\exp\!\left(-\frac{E_D}{k_B T}\right), \\
+ k_{\mathrm{ann}}(T) &= k_0\exp\!\left(-\frac{E_a}{k_B T}\right),
+\end{align}
+where \(D_0\) and \(k_0\) are prefactors, \(E_D\) is a diffusion activation energy, \(E_a\) is an annealing activation energy, and \(k_B\) is Boltzmann's constant.
+
+This matters for the project roadmap because Module 4 will provide the temperature field \(T(x,y,t)\). Once that happens, Module 3 can be upgraded from constant-parameter kinetics to locally temperature-dependent kinetics without changing the overall conservation form of the solver.
+
+\section{Numerical implementation strategy}
+\subsection{Why a structured 2D Cartesian baseline}
+The project-level roadmap refers to diffusion-reaction finite element modeling, which is a reasonable long-term direction for arbitrary geometries and heterogeneous materials. For the first implementation, however, a structured 2D Cartesian discretization is the better engineering choice because it is:
+\begin{itemize}
+    \item easier to implement correctly,
+    \item easier to verify against analytic limits,
+    \item easier to visualize and debug, and
+    \item fully adequate for the first rectangular silicon-domain studies.
+\end{itemize}
+
+So the immediate implementation should be understood as a \textbf{2D structured baseline} that establishes the physics and software interface before a more general discretization is introduced.
+
+\subsection{Grid}
+Let the computational domain be discretized by \(N_x\) points in the \(x\)-direction and \(N_y\) points in the \(y\)-direction, with spacings
+\begin{equation}
+\Delta x = x_{i+1}-x_i,
+\qquad
+\Delta y = y_{j+1}-y_j.
+\end{equation}
+
+The discrete approximation to the concentration field is written as \(C_{i,j}^n\), meaning the value at grid location \((i,j)\) and time step \(n\).
+
+\subsection{Spatial discretization}
+For uniform \(D\), the standard second-order central-difference Laplacian is
+\begin{equation}
+\lap C\big|_{i,j} \approx
+\frac{C_{i+1,j}-2C_{i,j}+C_{i-1,j}}{\Delta x^2}
++
+\frac{C_{i,j+1}-2C_{i,j}+C_{i,j-1}}{\Delta y^2}.
+\label{eq:lap_discrete}
+\end{equation}
+
+With mirrored ghost-cell logic for the Neumann boundary condition, the derivative normal to the boundary is forced to zero.
+
+\subsection{Time stepping}
+The first implementation can use an explicit forward-Euler update,
+\begin{equation}
+C_{i,j}^{n+1} = C_{i,j}^{n} + \Delta t\left[D\,\lap_h C_{i,j}^{n} - k_{\mathrm{ann}} C_{i,j}^{n}\right],
+\label{eq:explicit_update}
+\end{equation}
+where \(\lap_h\) denotes the discrete Laplacian.
+
+This is straightforward and good for verification, but it carries a diffusion stability restriction. A practical estimate is
+\begin{equation}
+\Delta t \lesssim \frac{1}{2D\left(\frac{1}{\Delta x^2}+\frac{1}{\Delta y^2}\right)}.
+\label{eq:dt_limit}
+\end{equation}
+
+Equation~\eqref{eq:dt_limit} is crucial. When the grid is refined, the stable explicit time step decreases rapidly. That is acceptable for the first verification stage, but it is also the reason the project should later consider:
+\begin{itemize}
+    \item implicit diffusion solves,
+    \item operator splitting, or
+    \item sparse linear-system formulations.
+\end{itemize}
+
+\subsection{Mass and positivity checks}
+For the pure-diffusion case with zero-flux boundaries, the discrete total mass should remain approximately constant:
+\begin{equation}
+M^n = \sum_{i,j} C_{i,j}^n\,\Delta x\,\Delta y.
+\end{equation}
+
+For the pure-annealing case, the spatially uniform initial state should remain uniform and follow Equation~\eqref{eq:pure_anneal_solution}. In practice, it is also reasonable to clamp tiny negative values caused by explicit time stepping and roundoff, but that should be treated as a numerical safeguard, not as a substitute for a stable update scheme.
+
+\section{Recommended file map for the first 2D Module 3 implementation}
+The following file map matches the coding direction already discussed for the MATLAB side:
+
+\begin{center}
+\rowcolors{2}{softgray}{white}
+\begin{tabularx}{\textwidth}{p{0.44\textwidth}Y}
+\toprule
+\textnormal{File or folder} & \textnormal{Purpose} \\
+\midrule
+\splitpath{matlab/main\_module3\_2d\_defect\_evolution.m} & Main driver for 2D defect evolution runs \\
+\splitpath{matlab/cases/case\_module3\_gaussian\_diffusion\_2d.m} & Verification case for pure diffusion from a localized cloud \\
+\splitpath{matlab/cases/case\_module3\_pure\_annealing\_2d.m} & Verification case for spatially uniform exponential decay \\
+\splitpath{matlab/src/grid/make\_grid\_2d.m} & Grid generation for the 2D Cartesian domain \\
+\splitpath{matlab/src/module3\_defects/initialize\_defect\_field\_2d.m} & Builds the initial concentration field \\
+\splitpath{matlab/src/module3\_defects/laplacian\_2d\_neumann.m} & Discrete Laplacian with zero-normal-gradient boundaries \\
+\splitpath{matlab/src/module3\_defects/step\_defect\_diffusion\_reaction\_2d.m} & One time step of the diffusion-reaction update \\
+\splitpath{matlab/src/io/save\_history\_2d.m} & Stores snapshots, total mass, and extrema \\
+\splitpath{matlab/src/plot/plot\_field\_2d.m} & Visualizes the 2D concentration field \\
+\splitpath{matlab/tests/test\_module3\_gaussian\_diffusion\_2d.m} & Test wrapper for the diffusion verification case \\
+\splitpath{matlab/tests/test\_module3\_pure\_annealing\_2d.m} & Test wrapper for the annealing verification case \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\section{Verification plan}
+The first 2D Module 3 implementation should not begin with full Geant4-coupled runs. It should begin with controlled tests.
+
+\subsection{Verification Case A: 2D Gaussian diffusion}
+\textbf{Setup:}
+\begin{itemize}
+    \item initial condition: localized 2D Gaussian,
+    \item diffusion coefficient \(D>0\),
+    \item annealing rate \(k_{\mathrm{ann}}=0\),
+    \item zero-flux boundaries.
+\end{itemize}
+
+\textbf{Expected behavior:}
+\begin{itemize}
+    \item the peak concentration decreases,
+    \item the profile broadens,
+    \item the total defect mass remains nearly constant.
+\end{itemize}
+
+\subsection{Verification Case B: uniform-state preservation}
+\textbf{Setup:}
+\begin{itemize}
+    \item initial condition: \(C(x,y,0)=C_0\),
+    \item diffusion coefficient \(D>0\),
+    \item annealing rate \(k_{\mathrm{ann}}=0\).
+\end{itemize}
+
+\textbf{Expected behavior:}
+\begin{itemize}
+    \item the field remains uniform to numerical precision.
+\end{itemize}
+
+This test is especially useful for catching boundary-condition mistakes or indexing bugs in the discrete Laplacian.
+
+\subsection{Verification Case C: pure annealing}
+\textbf{Setup:}
+\begin{itemize}
+    \item initial condition: uniform or nonuniform,
+    \item diffusion coefficient \(D=0\),
+    \item annealing rate \(k_{\mathrm{ann}}>0\).
+\end{itemize}
+
+\textbf{Expected behavior:}
+\begin{itemize}
+    \item every grid point decays as \(e^{-k_{\mathrm{ann}}t}\),
+    \item a uniform field stays uniform,
+    \item numerical results can be directly compared against Equation~\eqref{eq:pure_anneal_solution}.
+\end{itemize}
+
+\subsection{Verification Case D: imported damage map}
+Only after Cases A-C are behaving correctly should the code ingest a processed 2D damage map derived from Module 1. At that stage, the key checks are not analytic exactness, but rather:
+\begin{itemize}
+    \item consistent data import,
+    \item sensible physical smoothing and decay,
+    \item reproducible saved history, and
+    \item readiness for coupling to Module 2 and Module 4.
+\end{itemize}
+
+\section{How Module 3 connects to the rest of the project}
+Module 3 is not an isolated math exercise. Its output feeds directly into later modules:
+\begin{itemize}
+    \item \textbf{Module 2:} defect concentration can be mapped into defect charge or trap density, which changes the space-charge field and electrostatic potential.
+    \item \textbf{Module 4:} temperature modifies diffusion and annealing rates, so the thermal solver supplies \(T(x,y,t)\) back into Module 3.
+    \item \textbf{Module 5:} evolving defect populations alter recombination, trapping, and carrier lifetime, which changes electrical response.
+    \item \textbf{Module 6:} the full coupled solver iterates among these effects self-consistently.
+\end{itemize}
+
+That is why building Module 3 first is strategically correct. It establishes the first dynamic material-state variable in the MATLAB side of the project.
+
+\section{Planned extensions beyond the first solver}
+Once the baseline 2D single-species solver is working and verified, the next upgrades are natural:
+\begin{enumerate}
+    \item multiple defect species \(C_i\),
+    \item nonlinear reaction channels \(R_i(C_1,C_2,\ldots)\),
+    \item temperature-dependent \(D(T)\) and \(k_{\mathrm{ann}}(T)\),
+    \item spatially varying material parameters,
+    \item implicit or semi-implicit time integration, and
+    \item more general geometries and discretizations.
+\end{enumerate}
+
+In short, the first 2D solver is not a detour. It is the foundation on which the richer defect-physics model will be built.
+
+\section{Variables and symbols}
+\rowcolors{2}{softgray}{white}
+\begin{longtable}{p{0.17\textwidth}p{0.24\textwidth}p{0.50\textwidth}}
+\toprule
+\textbf{Symbol} & \textbf{Name} & \textbf{Meaning} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Symbol} & \textbf{Name} & \textbf{Meaning} \\
+\midrule
+\endhead
+\(C(x,y,t)\) & defect concentration & Concentration of the tracked defect species as a function of position and time \\
+\(\bm{J}\) & defect flux & Flow of defect concentration through the material \\
+\(R\) & reaction term & Net local source or sink due to annealing, recombination, clustering, or related kinetics \\
+\(D\) & diffusion coefficient & Parameter controlling the rate of defect spreading in space \\
+\(k_{\mathrm{ann}}\) & annealing rate constant & First-order rate constant for removal of the tracked defect population \\
+\(x,y\) & spatial coordinates & In-plane coordinates for the 2D computational domain \\
+\(t\) & time & Evolution time \\
+\(\grad\) & gradient operator & Spatial derivative operator \(\left(\pd{}{x},\pd{}{y}\right)\) in 2D \\
+\(\lap\) & Laplacian operator & Sum of second spatial derivatives, \(\pdd{}{x}+\pdd{}{y}\), in 2D Cartesian coordinates \\
+\(\bm{n}\) & outward unit normal & Unit vector normal to the boundary \\
+\(C_0(x,y)\) & initial condition & Defect concentration field at \(t=0\) \\
+\(M(t)\) & total defect mass & Domain integral of defect concentration; conserved in pure diffusion with zero-flux boundaries \\
+\(T\) & temperature & Local temperature field, later supplied by Module 4 \\
+\(D_0\) & diffusion prefactor & Pre-exponential factor in the Arrhenius diffusion model \\
+\(k_0\) & annealing prefactor & Pre-exponential factor in the Arrhenius annealing model \\
+\(E_D\) & diffusion activation energy & Energy barrier for defect migration \\
+\(E_a\) & annealing activation energy & Energy barrier for annealing kinetics \\
+\(k_B\) & Boltzmann constant & Constant connecting temperature to thermal energy \\
+\(N_x,N_y\) & grid counts & Number of grid points in the \(x\)- and \(y\)-directions \\
+\(\Delta x,\Delta y\) & grid spacings & Spatial step sizes of the structured 2D grid \\
+\(C_{i,j}^n\) & discrete concentration & Numerical approximation to \(C\) at grid point \((i,j)\) and time step \(n\) \\
+\(\Delta t\) & time step & Numerical time increment between updates \\
+\(\lap_h\) & discrete Laplacian & Finite-difference approximation to the continuous Laplacian operator \\
+\bottomrule
+\end{longtable}
+
+\section{Immediate implementation recommendation}
+The next coding step should be to implement the 2D Module 3 skeleton exactly at the level described in this note, run the verification cases, and only then connect the solver to imported damage maps from Module 1. Once that baseline is stable, the project can move to 2D Module 2 electrostatics with a clean defect-field interface already in place.
+
+\end{document}

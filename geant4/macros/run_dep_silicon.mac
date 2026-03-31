@@ -1,0 +1,14 @@
+# Example Geant4 macro for silicon deposition study
+# This file is included as a repository placeholder/example.
+
+/control/verbose 1
+/run/verbose 1
+/event/verbose 0
+/tracking/verbose 0
+
+# Example initialization sequence
+/run/initialize
+
+# Example beam/run command
+# Replace with the actual primary generator and scoring setup used in your Geant4 application.
+/run/beamOn 1000

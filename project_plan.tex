@@ -1,0 +1,387 @@
+\documentclass[11pt]{article}
+\usepackage[margin=0.85in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{xcolor}
+\usepackage{amsmath,amssymb,mathtools,bm}
+\usepackage{siunitx}
+\usepackage{booktabs,array,longtable,tabularx}
+\usepackage{enumitem}
+\usepackage{titlesec}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+\usepackage[most]{tcolorbox}
+\usepackage{graphicx}
+\usepackage{parskip}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,shapes.geometric}
+\usepackage{pifont}
+\usepackage{pdflscape}
+\usepackage{array}
+\usepackage{ragged2e}
+\usepackage{multirow}
+\setlength{\parindent}{0pt}
+\allowdisplaybreaks
+
+\definecolor{accent}{RGB}{22,74,124}
+\definecolor{accent2}{RGB}{236,242,248}
+\definecolor{accent3}{RGB}{244,247,250}
+\definecolor{accent4}{RGB}{216,230,243}
+\definecolor{darkgray2}{RGB}{80,86,92}
+
+\hypersetup{colorlinks=true, linkcolor=accent, urlcolor=accent}
+\titleformat{\section}{\large\bfseries\color{accent}}{\thesection.}{0.5em}{}
+\titleformat{\subsection}{\normalsize\bfseries\color{accent}}{\thesubsection.}{0.5em}{}
+\titleformat{\subsubsection}{\normalsize\bfseries\color{accent}}{\thesubsubsection.}{0.5em}{}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{Radiation Effects Project 2}
+\fancyhead[R]{Project Plan}
+\fancyfoot[C]{\thepage}
+\setlength{\headheight}{14pt}
+
+\newtcolorbox{keybox}{colback=accent2,colframe=accent,boxrule=0.6pt,arc=2pt,left=8pt,right=8pt,top=6pt,bottom=6pt}
+\newtcolorbox{notebox}{colback=accent3,colframe=accent!55!black,boxrule=0.4pt,arc=2pt,left=8pt,right=8pt,top=6pt,bottom=6pt}
+\newtcolorbox{warnbox}{colback=white,colframe=accent!70!black,boxrule=0.6pt,arc=2pt,left=8pt,right=8pt,top=6pt,bottom=6pt}
+
+\newcommand{\moduletitle}[1]{\begin{center}{\LARGE\bfseries\color{accent} #1}\end{center}\vspace{0.35em}}
+\newcommand{\vect}[1]{\mathbf{#1}}
+\newcommand{\dd}{\mathrm{d}}
+\newcommand{\grad}{\nabla}
+\newcommand{\diver}{\nabla\!\cdot}
+\newcommand{\checkicon}{\textcolor{accent}{\ding{51}}}
+\newcommand{\xicon}{\textcolor{darkgray2}{\ding{55}}}
+\newcolumntype{Y}{>{\RaggedRight\arraybackslash}X}
+
+\begin{document}
+
+\moduletitle{Project Plan}
+
+\begin{keybox}
+\textbf{Purpose.} This document is the single top-level roadmap for \textbf{Radiation Effects Project 2}. It now replaces the separate ``module 0 overview'' plus the older project-plan split. It defines the physics scope, the repository map, the run-order workflow, the recommended build order, the dimensional assumptions, and the next expansion path.
+\end{keybox}
+
+\begin{notebox}
+\textbf{Major planning update in this revision.} Module 1 remains the Geant4 radiation-deposition module, while \textbf{Modules 2 through 6 are now planned as two-dimensional models}. The prior one-dimensional intermediate path is no longer the main target architecture. One-dimensional checks may still be used privately as verification subproblems, but the official module definitions and interfaces below are now \textbf{2D-first}.
+\end{notebox}
+
+\section{Project objective}
+The project title is \textbf{Radiation-Induced Defect Evolution and Device Degradation in Silicon}. The central question is how a microscopic radiation interaction inside silicon becomes a macroscopic change in device behavior.
+
+The physics chain is:
+\begin{enumerate}[leftmargin=1.6em]
+    \item incident radiation deposits energy in silicon,
+    \item deposited energy seeds point defects and defect complexes,
+    \item those defects migrate, react, cluster, and anneal,
+    \item charged defects alter the internal electrostatic landscape,
+    \item the changed field and trap population alter carrier transport,
+    \item thermal evolution modifies rates and mobilities,
+    \item the coupled system produces measurable device degradation.
+\end{enumerate}
+
+\section{Module roadmap}
+\begin{longtable}{p{0.06\linewidth} p{0.31\linewidth} p{0.55\linewidth}}
+\toprule
+\textbf{No.} & \textbf{Module} & \textbf{Purpose}\\
+\midrule
+1 & Geant4 radiation energy deposition in silicon & Compute where, when, and how much energy is deposited in silicon by the incident radiation field. Export a deposition map that seeds later material-damage or defect-generation models.\\
+2 & Two-dimensional electrostatics with defect-dependent space charge & Solve the two-dimensional electrostatic problem for a damaged silicon structure. Convert dopants and charged defects into electric potential, electric field, and depletion-structure changes.\\
+3 & Two-dimensional defect evolution: diffusion, reaction, migration, and annealing & Evolve vacancies, interstitials, complexes, and effective defect species in two spatial dimensions as functions of time and temperature.\\
+4 & Two-dimensional thermal transport coupled to defect evolution & Solve the temperature field in the device and use it to update diffusion coefficients, reaction rates, annealing rates, and other temperature-dependent physics.\\
+5 & Two-dimensional drift-diffusion carrier transport with defect-assisted recombination & Predict how the damaged device transports electrons and holes under the altered field and trap landscape.\\
+6 & Coupled two-dimensional multiphysics degradation model & Couple Modules 2--5 into a self-consistent simulator for defect evolution, field evolution, thermal evolution, and carrier-transport degradation.\\
+7 & Multiscale extrapolation and scalable prediction & Develop methods for making predictions on much larger spatial, temporal, or statistical scales than the direct high-fidelity simulation can afford. This module covers controlled approximations, quantified error bars, and statistical upscaling.\\
+\bottomrule
+\end{longtable}
+
+\section{Core architecture decision: 2D for Modules 2--6}
+\subsection{Why the move to 2D matters}
+The original one-dimensional path was numerically attractive, but it suppresses several effects that become important once the damage pattern is spatially structured:
+\begin{itemize}[leftmargin=1.5em]
+    \item lateral spreading of defect populations,
+    \item lateral field bending and edge effects,
+    \item nonuniform temperature fields near localized energy deposition,
+    \item current crowding and local carrier-flow rerouting,
+    \item spatial mismatch between Geant4 deposition structure and downstream device solvers.
+\end{itemize}
+
+A two-dimensional architecture is therefore the more faithful bridge between a realistic Geant4 source pattern and later electrostatic, thermal, and transport calculations.
+
+\subsection{Practical interpretation}
+``2D'' here means the main solvers are planned on an \((x,y)\) mesh. For time-dependent modules the fields become functions such as
+\[
+C(x,y,t), \qquad \phi(x,y,t), \qquad T(x,y,t), \qquad n(x,y,t), \qquad p(x,y,t).
+\]
+Module 1 can still export either a true 2D deposition map directly or a set of event/deposition products that are binned into a 2D source map before passing to MATLAB.
+
+\subsection{What still stays simple}
+The move to 2D does \emph{not} mean every solver should start maximally complex. The first versions should still keep:
+\begin{itemize}[leftmargin=1.5em]
+    \item simple rectangular domains,
+    \item structured grids,
+    \item small defect networks,
+    \item simple boundary conditions,
+    \item weak one-way coupling before self-consistent feedback.
+\end{itemize}
+
+\section{Run-order workflow for the project}
+The build order and the run order are related but not identical. The \textbf{run order} below is the logical flow of a coupled study.
+
+\begin{center}
+\begin{tikzpicture}[
+node distance=8mm and 6mm,
+box/.style={draw=accent, rounded corners=2pt, fill=accent2, minimum width=0.91\linewidth, text width=0.91\linewidth, align=left, inner sep=7pt},
+arrow/.style={-{Latex[length=2.4mm]}, very thick, draw=accent}
+]
+\node[box] (m1) {\textbf{Step 1. Module 1: Geant4 radiation transport}\\Run the Geant4 silicon geometry and score deposited energy, hit coordinates, optional timing information, and any derived damage-source products.};
+\node[box, below=of m1] (handoff) {\textbf{Step 2. Geant4-to-MATLAB handoff}\\Bin or interpolate the Geant4 output into a two-dimensional deposition map or initial defect-source map on a MATLAB-side grid.};
+\node[box, below=of handoff] (m3) {\textbf{Step 3. Module 3: defect evolution}\\Evolve the two-dimensional defect state under diffusion, reactions, clustering, dissociation, annealing, and optional source terms.};
+\node[box, below=of m3] (m4) {\textbf{Step 4. Module 4: thermal field}\\Solve or update the two-dimensional temperature field and use it to modify defect and transport coefficients.};
+\node[box, below=of m4] (m2) {\textbf{Step 5. Module 2: electrostatics}\\Build the net space-charge density from dopants and charged defects, then solve for electric potential and electric field.};
+\node[box, below=of m2] (m5) {\textbf{Step 6. Module 5: carrier transport}\\Solve the two-dimensional electron and hole transport problem with field-driven drift, concentration-driven diffusion, and defect-assisted recombination or trapping.};
+\node[box, below=of m5] (m6) {\textbf{Step 7. Module 6: coupled iteration}\\Iterate Modules 2--5 until the defect state, temperature field, electric field, and carrier state are mutually consistent to a chosen tolerance.};
+\node[box, below=of m6] (m7) {\textbf{Step 8. Module 7: scalable prediction}\\Apply reduced-order, approximation, or statistical-upscaling methods to extend the prediction to larger devices, larger domains, longer times, or rarer event statistics.};
+
+\draw[arrow] (m1) -- (handoff);
+\draw[arrow] (handoff) -- (m3);
+\draw[arrow] (m3) -- (m4);
+\draw[arrow] (m4) -- (m2);
+\draw[arrow] (m2) -- (m5);
+\draw[arrow] (m5) -- (m6);
+\draw[arrow] (m6) -- (m7);
+\end{tikzpicture}
+\end{center}
+
+\begin{warnbox}
+\textbf{Important distinction.} Module 4 does not always have to be solved before Module 2 in every simplified study. In the full intended workflow, however, the thermal field should be treated as available before the tightly coupled 2D solve, because temperature changes diffusion, annealing, mobility, and recombination parameters.
+\end{warnbox}
+
+\section{Recommended coding order}
+The most stable implementation order is still physics-driven rather than strictly numerical:
+\begin{enumerate}[leftmargin=1.6em]
+    \item \textbf{Module 1:} Geant4 geometry, scoring, and export format.
+    \item \textbf{Module 3:} two-dimensional defect evolution on a structured grid.
+    \item \textbf{Module 2:} two-dimensional electrostatics with prescribed charged defects.
+    \item \textbf{Module 4:} two-dimensional thermal solver plus temperature-dependent coefficients.
+    \item \textbf{Module 5:} two-dimensional drift-diffusion with prescribed electrostatic field and defect/trap fields.
+    \item \textbf{Module 6:} weak coupling, then stronger feedback and iterative convergence.
+    \item \textbf{Module 7:} scalable-prediction methods after at least one credible high-fidelity coupled workflow exists.
+\end{enumerate}
+
+This order starts with the damage-state evolution because later modules require the defect field. Electrostatics should be debugged before full carrier transport. Module 7 should come \emph{after} at least one trustworthy baseline exists, because any approximation or scaling strategy needs a reference solution against which its error can be measured.
+
+\section{File-map overview}
+The current repository already has the top-level structure shown below, with separate documentation, Geant4, and MATLAB areas. The repository presently includes top-level overview and plan files, a \texttt{docs/} folder with \texttt{implementation\_notes} and \texttt{physics\_notes}, a \texttt{geant4/} folder, and a \texttt{matlab/} folder. The MATLAB area already contains top-level module drivers plus source subfolders such as \texttt{config}, \texttt{constants}, \texttt{coupling}, \texttt{defects}, \texttt{electrostatics}, \texttt{thermal}, \texttt{transport}, and \texttt{utils}.\footnote{Observed from the public repository structure.}
+
+\subsection{Top-level map}
+\begin{longtable}{p{0.28\linewidth} p{0.64\linewidth}}
+\toprule
+\textbf{Path} & \textbf{Role}\\
+\midrule
+\path{project_plan.tex/.pdf} & Single living roadmap document: project objective, module definitions, run order, file map, interfaces, and roadmap updates.\\
+\path{README.md} & Public repository summary and high-level entry point.\\
+\path{docs/physics_notes/} & One large physics note per module, with derivations, symbol definitions, assumptions, and physical interpretation.\\
+\path{docs/implementation_notes/} & Module-by-module implementation specifications, solver notes, and interface notes.\\
+\path{geant4/} & Geant4-side setup, macros, and example outputs for Module 1.\\
+\path{matlab/} & MATLAB drivers, source code, tests, output files, and cross-module interfaces for Modules 2--7.\\
+\bottomrule
+\end{longtable}
+
+\subsection{Current MATLAB map plus planned 2D emphasis}
+\begin{longtable}{p{0.31\linewidth} p{0.61\linewidth}}
+\toprule
+\textbf{Path} & \textbf{Role in the updated 2D plan}\\
+\midrule
+\path{matlab/main_module2_electrostatics.m} & Top-level entry for the two-dimensional electrostatic solve.\\
+\path{matlab/main_module3_defect_evolution.m} & Top-level entry for the two-dimensional defect evolution solve.\\
+\path{matlab/main_module4_thermal.m} & Top-level entry for the two-dimensional thermal solve.\\
+\path{matlab/main_module5_drift_diffusion.m} & Top-level entry for the two-dimensional carrier-transport solve.\\
+\path{matlab/main_module6_multiphysics.m} & Top-level coupled driver that orchestrates Modules 2--5.\\
+\path{matlab/src/config/} & Parameter files, grid settings, boundary-condition flags, material data, and run controls.\\
+\path{matlab/src/defects/} & Two-dimensional diffusion-reaction operators, source-map importers, defect network logic, annealing models, and diagnostics.\\
+\path{matlab/src/electrostatics/} & Poisson operators, charge assembly, boundary conditions, and field postprocessing in two dimensions.\\
+\path{matlab/src/thermal/} & Two-dimensional heat equation assembly, thermal material properties, and thermal postprocessing.\\
+\path{matlab/src/transport/} & Drift-diffusion operators, recombination models, mobility models, flux assembly, and current extraction.\\
+\path{matlab/src/coupling/} & Inter-module interfaces, staggered-iteration logic, relaxation methods, and convergence checks.\\
+\path{matlab/src/utils/} & Shared helpers, interpolation, file I/O, plotting, and diagnostics.\\
+\path{matlab/tests/} & Verification problems and regression tests, including limiting-case checks.\\
+\path{matlab/output/} & Saved run products, snapshots, coupling interfaces, and histories.\\
+\bottomrule
+\end{longtable}
+
+\subsection{Planned Geant4 map}
+\begin{longtable}{p{0.28\linewidth} p{0.64\linewidth}}
+\toprule
+\textbf{Path} & \textbf{Role}\\
+\midrule
+\path{geant4/macros/} & Run macros for geometry, beam/source definition, physics-list configuration, scoring, and batch studies.\\
+\path{geant4/output_example/} & Example deposition outputs and exported files that illustrate the intended Geant4-to-MATLAB handoff.\\
+\path{geant4/README_geant4.txt} & Instructions for compiling, running, and interpreting the Geant4 deposition workflow.\\
+\bottomrule
+\end{longtable}
+
+\section{Module interfaces in the new 2D plan}
+\subsection{Module 1 to Module 3 handoff}
+The first strong interface should now be a \textbf{2D deposition or defect-source map}. A minimal handoff object should contain:
+\begin{itemize}[leftmargin=1.5em]
+    \item \path{x}: one-dimensional coordinate array in meters,
+    \item \path{y}: one-dimensional coordinate array in meters,
+    \item \path{Edep2D}: deposited-energy density field in \si{J.m^{-3}},
+    \item optional \path{tBins} and time-resolved source information,
+    \item metadata describing bin width, device geometry, radiation case, and units.
+\end{itemize}
+
+A clean first file target is
+\begin{center}
+\path{matlab/input/module1_to_module3_2d.mat}
+\end{center}
+so that the MATLAB side is not forced to parse raw Geant4 text every time.
+
+\subsection{Module 3 to Module 2 handoff}
+After a defect-evolution run, MATLAB should save
+\begin{center}
+\path{matlab/output/module3_to_module2_2d.mat}
+\end{center}
+containing at minimum:
+\begin{itemize}[leftmargin=1.5em]
+    \item \path{x}, \path{y},
+    \item \path{Cfinal(:,:,i)} for defect species or effective defect fields,
+    \item \path{chargedDefectDensity2D} in \si{m^{-3}},
+    \item \path{trapDensity2D} for later transport use,
+    \item time-history diagnostics for provenance.
+\end{itemize}
+
+\subsection{Module 2 and Module 4 to Module 5 handoff}
+Carrier transport should read:
+\begin{itemize}[leftmargin=1.5em]
+    \item electric potential \(\phi(x,y)\),
+    \item electric field components \(E_x(x,y), E_y(x,y)\),
+    \item temperature \(T(x,y)\),
+    \item trap or recombination parameters derived from the defect state.
+\end{itemize}
+
+\section{Verification strategy under the 2D architecture}
+The jump to 2D increases realism, but it also increases the number of ways a solver can fail. Each module therefore needs at least one low-complexity verification path.
+
+\begin{longtable}{p{0.16\linewidth} p{0.75\linewidth}}
+\toprule
+\textbf{Module} & \textbf{Verification logic}\\
+\midrule
+1 & Compare deposition trends against known silicon behavior and verify that the exported 2D binning is internally consistent.\\
+2 & Use manufactured or symmetric charge configurations whose 2D potential and field patterns are physically obvious; verify sign conventions and boundary-condition behavior.\\
+3 & Check pure diffusion, pure annealing, and symmetry-preserving source cases in 2D. Total inventory should behave correctly under the chosen boundaries.\\
+4 & Recover known 2D heat-conduction behavior on simple rectangular domains with simple source terms and boundary conditions.\\
+5 & Verify defect-free transport first, then turn on simple trap-assisted recombination. Check that zero-field or symmetric cases behave sensibly.\\
+6 & Confirm that decoupled or weakly coupled limits reduce to standalone solutions. Track iterative residuals and relaxation behavior.\\
+7 & Every scalable-prediction method must be benchmarked against a higher-fidelity reference. The benchmark should report both speedup and error metrics.\\
+\bottomrule
+\end{longtable}
+
+\section{Module 7: multiscale extrapolation and scalable prediction}
+\subsection{Why Module 7 is needed}
+A direct two-dimensional coupled simulation can become expensive when one tries to predict:
+\begin{itemize}[leftmargin=1.5em]
+    \item much larger device areas,
+    \item much longer annealing times,
+    \item many radiation realizations,
+    \item rare-event or tail-probability behavior,
+    \item large parameter sweeps over temperature, bias, dose, or geometry.
+\end{itemize}
+
+That is the motivation for a distinct roadmap item focused on scaling the predictive capability, not merely speeding up one code path.
+
+\subsection{Recommended name}
+A stronger title than ``scaling up methods of the simulation'' is:
+\begin{center}
+\textbf{Module 7. Multiscale Extrapolation and Scalable Prediction}
+\end{center}
+This name is better because it covers both controlled approximation and statistical scaling, without implying that the only objective is raw performance.
+
+\subsection{Option A: controlled reduced-fidelity approximation}
+This branch intentionally simplifies the physics or numerics to gain speed. Examples include:
+\begin{itemize}[leftmargin=1.5em]
+    \item coarser spatial meshes,
+    \item simplified defect networks,
+    \item operator splitting that neglects weak feedback terms in some iterations,
+    \item quasi-steady assumptions for the fastest-relaxing field,
+    \item reduced-order models built from high-fidelity snapshots,
+    \item approximate Green-function or homogenized closures for selected subproblems.
+\end{itemize}
+
+The key requirement is not merely to run faster, but to \textbf{quantify what fidelity is lost}. For that reason, Module 7 should define an error metric relative to a higher-fidelity reference.
+
+\subsubsection{Suggested error-bar framework}
+For any approximate model, report at least:
+\[
+\varepsilon_Q = \frac{\lVert Q_{\mathrm{approx}} - Q_{\mathrm{ref}} \rVert}{\lVert Q_{\mathrm{ref}} \rVert},
+\]
+where \(Q\) is a chosen quantity of interest, such as peak defect density, leakage current, charge-collection efficiency, depletion width, or a spatial field map. In addition, report a \textbf{speedup factor}
+\[
+S = \frac{t_{\mathrm{ref}}}{t_{\mathrm{approx}}}.
+\]
+A useful project-level trade plot is then \(\varepsilon_Q\) versus \(S\), rather than speed alone.
+
+For spatial fields one may also use weighted metrics such as
+\[
+\varepsilon_{w} = \frac{\left(\int w(\vect{r})\,|Q_{\mathrm{approx}}(\vect{r}) - Q_{\mathrm{ref}}(\vect{r})|^2\,\dd A\right)^{1/2}}{\left(\int w(\vect{r})\,|Q_{\mathrm{ref}}(\vect{r})|^2\,\dd A\right)^{1/2}},
+\]
+where the weight \(w(\vect{r})\) emphasizes physically important regions such as junctions, depletion edges, or high-field regions.
+
+\subsection{Option B: statistical approximation and upscaling}
+This branch keeps the local physics model but uses statistics to predict larger-scale behavior. Examples include:
+\begin{itemize}[leftmargin=1.5em]
+    \item using many smaller simulated tiles to infer a larger effective device response,
+    \item propagating event statistics rather than simulating every event explicitly,
+    \item surrogate distributions for defect-source fields,
+    \item rare-event estimators or importance-weighted sampling,
+    \item uncertainty propagation from source statistics to device-level degradation metrics.
+\end{itemize}
+
+This is especially relevant when the true goal is a prediction for a much larger area, a longer exposure, or a population-level reliability statement.
+
+\subsection{A third path worth keeping in view}
+There is a third useful category beyond the two branches above:
+\begin{center}
+\textbf{Hybrid multiresolution coupling}
+\end{center}
+In this approach, only the physically critical region is simulated at high fidelity, while surrounding regions are treated with a cheaper closure or coarser model. Examples include local mesh refinement, embedded fine-grid windows around damage hot spots, or domain decomposition in which only one subregion uses the full coupled physics.
+
+This third category often preserves more local fidelity than a globally reduced model, while still reducing cost significantly.
+
+\section{Immediate implications for the repository}
+Because of the change to 2D, the following top-level planning changes should now be treated as active:
+\begin{enumerate}[leftmargin=1.6em]
+    \item top-level \path{project_plan.pdf} becomes the single maintained roadmap document,
+    \item the old module-0 overview is folded into this document conceptually,
+    \item all new implementation notes for Modules 2--6 should assume 2D unless explicitly labeled as a verification subcase,
+    \item future file names and interfaces should use a naming convention that makes dimension explicit when needed, such as \path{*_2d.m}, \path{*2D}, or metadata fields describing dimensionality,
+    \item cross-module MAT files should be designed around 2D arrays and explicit coordinate vectors.
+\end{enumerate}
+
+\section{When this project-plan document should be updated}
+This document should be revised whenever any of the following change:
+\begin{itemize}[leftmargin=1.5em]
+    \item a module definition changes,
+    \item the dimensionality assumption changes,
+    \item a new top-level file or folder becomes part of the standard workflow,
+    \item an inter-module file format changes,
+    \item the run order changes,
+    \item a major verification strategy changes,
+    \item Module 7 gains a concrete benchmark or scaling method.
+\end{itemize}
+
+In practice, that means this file should be updated after any significant architectural change, not merely after cosmetic edits.
+
+\section{Near-term next steps after this revision}
+\begin{enumerate}[leftmargin=1.6em]
+    \item Update the repository so that this document is the only top-level planning PDF that must be maintained.
+    \item Rewrite the Module 3 implementation note around a 2D defect-evolution solver.
+    \item Define the first Geant4-to-MATLAB 2D handoff file and its units.
+    \item Update the Module 2, 4, and 5 implementation notes so their first solver architecture is 2D rather than 1D.
+    \item Decide the first benchmark quantity of interest for Module 7, so that future approximations can be measured against something physically meaningful.
+\end{enumerate}
+
+\end{document}
