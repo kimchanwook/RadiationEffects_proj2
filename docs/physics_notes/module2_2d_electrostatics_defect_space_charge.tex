@@ -1,0 +1,361 @@
+\documentclass[11pt]{article}
+\input{../shared/project_style.tex}
+\newcommand{\Evec}{\mathbf{E}}
+\newcommand{\Dvec}{\mathbf{D}}
+\newcommand{\xvec}{\mathbf{x}}
+\newcommand{\Jvec}{\mathbf{J}}
+\newcommand{\rhodef}{\rho_{\mathrm{def}}}
+\newcommand{\phib}{\phi}
+\newcommand{\epss}{\varepsilon_{\mathrm{Si}}}
+\newcommand{\qel}{q}
+\newcommand{\NA}{N_{\mathrm{A}}}
+\newcommand{\ND}{N_{\mathrm{D}}}
+\rhead{Module 2 Physics Note}
+
+\begin{document}
+
+\DocTitle{Module 2: Two-Dimensional Electrostatics with Defect-Dependent Space Charge}{Derivation-Focused Physics Note for \texttt{RadiationEffects\_proj2}}{Electrostatic bridge between evolving defect populations and carrier transport in silicon}
+
+\hrule
+\vspace{0.8em}
+
+\begin{overviewbox}
+\textbf{Purpose of this note.} This note develops the electrostatic module that connects radiation-induced defect populations to the internal electric field structure of a silicon device. The goal is to start from Gauss's law and the electrostatic limit of Maxwell's equations, derive Poisson's equation, then show carefully how electrons, holes, dopants, and charged defect populations combine into the space-charge density that drives the potential and electric field solved in Module 2. This module is the electrostatic bridge between the defect-evolution physics of Module 3 and the carrier-transport physics of Module 5.
+\end{overviewbox}
+
+\ProjectTOC
+
+
+\SymbolsAcronymsSection
+
+\renewcommand{\arraystretch}{1.25}
+\begin{longtable}{p{0.22\textwidth} p{0.56\textwidth} p{0.16\textwidth}}
+\toprule
+\textbf{Symbol} & \textbf{Meaning} & \textbf{Typical units} \\
+\midrule
+\endhead
+$\phi$ & Electrostatic potential & V \\
+$\Evec$ & Electric field & V/m \\
+$\Dvec$ & Electric displacement field & C/m$^2$ \\
+$\rho$ & Total space-charge density & C/m$^3$ \\
+$\rho_f$ & Free-charge density in Gauss's law & C/m$^3$ \\
+$\rho_{\mathrm{def}}$ & Charge density due to defects & C/m$^3$ \\
+$\varepsilon$, $\varepsilon_{\mathrm{Si}}$ & Permittivity, silicon permittivity & F/m \\
+$q$ & Elementary charge magnitude & C \\
+$n$ & Electron concentration & m$^{-3}$ \\
+$p$ & Hole concentration & m$^{-3}$ \\
+$N_D^+$ & Ionized donor concentration & m$^{-3}$ \\
+$N_A^-$ & Ionized acceptor concentration & m$^{-3}$ \\
+$C_i$ & Concentration of defect species $i$ & m$^{-3}$ \\
+$z_i$ & Effective charge number of defect species $i$ & dimensionless \\
+$x,y$ & Cartesian spatial coordinates & m \\
+$L$ & Characteristic device length scale & m \\
+$\phi_0$ & Characteristic potential scale & V \\
+$E_0$ & Characteristic electric-field scale & V/m \\
+\bottomrule
+\end{longtable}
+
+\section{Purpose of Module 2 and its role in the project}
+
+The overall project aims to connect a radiation event in silicon to eventual device degradation. The Geant4 module provides the deposited-energy map, Module 3 evolves the resulting defect population, Module 4 supplies the thermal field, and Module 5 solves carrier transport. Module 2 sits between the material-damage description and the electrical-transport description. Its job is to determine how charged defects and ionized dopants reshape the electrostatic potential and electric field inside the silicon device.
+
+This matters because carrier motion is not governed only by concentration gradients. It is also governed by the internal electric field. If radiation-induced defects add trap charge, compensate dopants, or otherwise modify the net space-charge density, then the potential profile $\phi(x,y)$ changes, the electric field $\Evec(x,y)$ changes, and therefore the carrier transport problem in Module 5 changes.
+
+Thus Module 2 is the electrostatic translation layer:
+\[
+\text{defect population} \longrightarrow \text{space charge} \longrightarrow \text{electrostatic potential} \longrightarrow \text{electric field}.
+\]
+
+\section{Starting point: electrostatics from Maxwell's equations}
+
+\subsection{Gauss's law in matter}
+
+The correct starting point is Gauss's law,
+\[
+\nabla \cdot \Dvec = \rho_f,
+\]
+where $\Dvec$ is the electric displacement field and $\rho_f$ is the free-charge density. In a linear dielectric,
+\[
+\Dvec = \varepsilon \Evec.
+\]
+For silicon treated as an isotropic medium with effective permittivity $\varepsilon$, this becomes
+\[
+\nabla \cdot (\varepsilon \Evec) = \rho.
+\]
+Here we use $\rho$ for the total charge density that enters the device-scale Poisson problem. At the module level, that charge density includes mobile carriers, ionized dopants, and charged defects.
+
+\subsection{Electrostatic limit}
+
+For the present module we assume the electrostatic limit. That means magnetic induction effects are neglected and the electric field is derivable from a scalar potential:
+\[
+\nabla \times \Evec = 0, \qquad \Evec = -\nabla \phi.
+\]
+Substituting into Gauss's law gives
+\[
+\nabla \cdot (\varepsilon (-\nabla \phi)) = \rho,
+\]
+or equivalently,
+\[
+\nabla \cdot (\varepsilon \nabla \phi) = -\rho.
+\]
+This is the general Poisson equation for electrostatics in an inhomogeneous dielectric.
+
+\subsection{Why Poisson's equation is the right equation here}
+
+Poisson's equation expresses a direct local statement: curvature in the electrostatic potential is produced by charge density. If the charge density is positive in a region, the potential bends one way; if negative, it bends the opposite way. In a device, the field is not imposed from nowhere. It is generated self-consistently by the charge distribution plus the boundary conditions set by contacts and external bias.
+
+This is why Module 2 must exist separately from Module 5. Carrier transport needs the electric field, but the electric field itself depends on the charge state of the device.
+
+\section{Building the semiconductor space-charge density}
+
+\subsection{Charge contributions in a semiconductor}
+
+In a semiconductor, the charge density is not just a single species. It is a sum of several contributions:
+\[
+\rho = \rho_{\text{holes}} + \rho_{\text{electrons}} + \rho_{\text{dopants}} + \rho_{\text{defects}}.
+\]
+Each term must be assigned the correct sign.
+
+\begin{itemize}
+    \item Holes carry charge $+q$, so their contribution is $+q p$.
+    \item Electrons carry charge $-q$, so their contribution is $-q n$.
+    \item Ionized donors are positively charged when ionized, giving $+q N_D^+$.
+    \item Ionized acceptors are negatively charged when ionized, giving $-q N_A^-$.
+    \item Charged defects contribute an additional term $\rho_{\mathrm{def}}$.
+\end{itemize}
+
+Therefore,
+\[
+\rho = q(p - n + N_D^+ - N_A^-) + \rho_{\mathrm{def}}.
+\]
+This is the central charge-density relation for Module 2.
+
+\subsection{Physical interpretation of each contribution}
+
+The signs are worth pausing on because they are easy to write mechanically and easy to misunderstand physically.
+
+A hole is the absence of an electron in a valence-band state. At the continuum device level it behaves as a mobile positive carrier. An electron is a mobile negative carrier. Ionized donors are donor atoms that have donated an electron to the conduction process and are left positively charged. Ionized acceptors are acceptor atoms that have captured an electron and therefore are negatively charged.
+
+Radiation-induced defects complicate this familiar picture because they can act like trap centers with charge states that depend on local occupancy and local electrochemical conditions. Thus $\rho_{\mathrm{def}}$ is not merely a bookkeeping term. It is the place where material damage enters the electrostatics.
+
+\section{How defect populations enter the electrostatic problem}
+
+\subsection{Defect species and charge states}
+
+Suppose Module 3 evolves several defect concentrations,
+\[
+C_1(x,y,t),\; C_2(x,y,t),\; \dots,\; C_M(x,y,t).
+\]
+Each species may possess one or more possible charge states. At the reduced project level, the cleanest way to map defects into electrostatics is to assign each defect species an effective average charge number $z_i$ and write
+\[
+\rho_{\mathrm{def}} = q \sum_{i=1}^{M} z_i C_i.
+\]
+If $z_i>0$, the species contributes positive charge on average. If $z_i<0$, it contributes negative charge on average. If $z_i=0$, the species is electrostatically neutral in the reduced model.
+
+This is not yet the most microscopic treatment because a full trap-occupancy model would make $z_i$ depend on Fermi level, temperature, and capture/emission kinetics. But for the present project architecture, the above equation is the correct reduced bridge from Module 3 to Module 2.
+
+\subsection{Single-species reduced form}
+
+For a first implementation with a single effective defect concentration $C(x,y,t)$ and charge factor $z_{\mathrm{def}}$, we may write
+\[
+\rho_{\mathrm{def}} = q z_{\mathrm{def}} C.
+\]
+Then the full charge density becomes
+\[
+\rho = q(p - n + N_D^+ - N_A^- + z_{\mathrm{def}}C).
+\]
+This compact equation is often sufficient to explore how defect accumulation or annealing alters depletion and field profiles.
+
+\section{Derivation of the project Poisson equation}
+
+Starting from the general electrostatic equation,
+\[
+\nabla \cdot (\varepsilon \nabla \phi) = -\rho,
+\]
+and substituting the semiconductor charge density gives
+\[
+\nabla \cdot (\varepsilon \nabla \phi)
+= -\left[q(p - n + N_D^+ - N_A^-) + \rho_{\mathrm{def}}\right].
+\]
+For silicon with an approximately uniform effective permittivity $\varepsilon = \varepsilon_{\mathrm{Si}}$, we may bring $\varepsilon_{\mathrm{Si}}$ outside the divergence,
+\[
+\varepsilon_{\mathrm{Si}} \nabla^2 \phi = -\rho,
+\]
+so that
+\[
+\nabla^2 \phi = -\frac{1}{\varepsilon_{\mathrm{Si}}}
+\left[q(p - n + N_D^+ - N_A^-) + \rho_{\mathrm{def}}\right].
+\]
+With the effective-charge mapping for defects,
+\[
+\nabla^2 \phi = -\frac{q}{\varepsilon_{\mathrm{Si}}}
+\left[p - n + N_D^+ - N_A^- + \sum_{i=1}^{M} z_i C_i\right].
+\]
+This is the device-scale electrostatic core of Module 2.
+
+\section{Reduction to the two-dimensional project geometry}
+
+\subsection{Why a two-dimensional model}
+
+The project has moved from the original 1D baseline to a 2D architecture for Modules 2--6. The reason is physical rather than cosmetic. A 1D model can represent variation through a device thickness or along a single line, but it cannot represent lateral nonuniformity in energy deposition, defect generation, heating, or bias-driven field shaping. A 2D model is the smallest geometry that can represent both depth variation and lateral structure.
+
+\subsection{Cartesian reduction}
+
+In Cartesian coordinates $(x,y)$, the Laplacian becomes
+\[
+\nabla^2 \phi = \pdv[2]{\phi}{x} + \pdv[2]{\phi}{y}.
+\]
+Therefore the 2D Module 2 equation is
+\[
+\pdv[2]{\phi}{x} + \pdv[2]{\phi}{y}
+= -\frac{1}{\varepsilon_{\mathrm{Si}}}
+\left[q(p - n + N_D^+ - N_A^-) + \rho_{\mathrm{def}}\right].
+\]
+Or, using the effective defect-charge representation,
+\[
+\pdv[2]{\phi}{x} + \pdv[2]{\phi}{y}
+= -\frac{q}{\varepsilon_{\mathrm{Si}}}
+\left[p - n + N_D^+ - N_A^- + \sum_i z_i C_i\right].
+\]
+Once $\phi$ is solved, the electric field follows from
+\[
+\Evec = -\nabla \phi
+= -\hat{\mathbf{x}}\,\pdv{\phi}{x} - \hat{\mathbf{y}}\,\pdv{\phi}{y}.
+\]
+
+\section{Useful limiting cases and physical intuition}
+
+\subsection{Charge-neutral region}
+
+If the net charge density is nearly zero,
+\[
+\rho \approx 0,
+\]
+then Poisson's equation reduces to Laplace's equation,
+\[
+\nabla^2 \phi = 0.
+\]
+In that regime the field is controlled mainly by boundary conditions rather than by internal space charge.
+
+\subsection{Uniform fixed space charge}
+
+If $\rho$ is approximately uniform, then the potential has quadratic spatial curvature. This is the familiar origin of parabolic potential profiles in depletion approximations. The stronger the magnitude of $\rho$, the stronger the curvature.
+
+\subsection{Effect of positive and negative defect charge}
+
+A positively charged defect population acts, from the electrostatic point of view, like an added donor-like contribution. It tends to increase positive space charge and strengthen field curvature in the corresponding direction. A negatively charged defect population acts more like an added acceptor-like contribution. It tends to compensate positive space charge or add negative space charge.
+
+This is why defect charge can change depletion width, barrier shape, leakage pathways, and charge-collection efficiency, even before one solves the carrier transport in detail.
+
+\section{Boundary conditions and their physical meaning}
+
+The Poisson problem requires boundary conditions. In this project, the most useful classes are the following.
+
+\subsection{Dirichlet boundary condition}
+
+A Dirichlet condition specifies the potential directly:
+\[
+\phi = \phi_b \quad \text{on a boundary.}
+\]
+Physically, this represents a contact or boundary held at a prescribed bias. For example, one contact may be set to \,SI{0}{V} and another to an applied reverse-bias voltage.
+
+\subsection{Neumann boundary condition}
+
+A Neumann condition specifies the normal electric displacement or, for constant permittivity, the normal derivative of the potential:
+\[
+\pdv{\phi}{n} = g \quad \text{on a boundary.}
+\]
+If $g=0$, the normal electric field component vanishes at the boundary. This can represent a symmetry plane or an insulating idealization.
+
+\subsection{Mixed physical picture}
+
+Many device problems are naturally mixed: contacts use Dirichlet conditions, while symmetry edges or outer truncated computational boundaries may use Neumann conditions. The boundary choices are not mere numerics; they encode the experimental or operational configuration being modeled.
+
+\section{Scaling arguments and characteristic magnitudes}
+
+Let $L$ be a characteristic device length scale and let $\rho_0$ be a characteristic charge-density scale. Dimensional reasoning applied to
+\[
+\nabla^2 \phi \sim -\frac{\rho_0}{\varepsilon_{\mathrm{Si}}}
+\]
+suggests
+\[
+\frac{\phi_0}{L^2} \sim \frac{\rho_0}{\varepsilon_{\mathrm{Si}}},
+\]
+so the characteristic potential scale is
+\[
+\phi_0 \sim \frac{\rho_0 L^2}{\varepsilon_{\mathrm{Si}}}.
+\]
+The associated field scale is then
+\[
+E_0 \sim \frac{\phi_0}{L} \sim \frac{\rho_0 L}{\varepsilon_{\mathrm{Si}}}.
+\]
+These relations are useful because they show immediately that the electrostatic impact of defects scales with both the amount of net defect charge and the spatial extent over which that charge persists.
+
+\section{How Module 2 couples to the rest of the project}
+
+\subsection{Input from Module 3}
+
+Module 3 provides the evolving defect concentrations $C_i(x,y,t)$. Module 2 converts these into $\rho_{\mathrm{def}}$ through the effective charge-state map. Thus any diffusion, clustering, or annealing event in Module 3 modifies the electrostatic source term in Module 2.
+
+\subsection{Input from Module 4}
+
+Temperature from Module 4 can influence defect charge states and carrier statistics. In a reduced first pass, one may keep the defect charge map fixed or temperature-independent. In a richer model, temperature can change occupancies or ionization fractions.
+
+\subsection{Output to Module 5}
+
+Module 5 needs the electric field. Once Module 2 solves for $\phi(x,y)$, the electric field is obtained from
+\[
+\Evec = -\nabla \phi.
+\]
+That field enters the drift terms in the electron and hole continuity equations. Thus Module 2 provides one of the essential inputs to carrier transport.
+
+\section{Verification logic for Module 2}
+
+A derivation-heavy note should also state how the module can be checked.
+
+\subsection{Uniform zero-charge test}
+
+If $\rho=0$ and consistent constant Dirichlet boundary conditions are imposed, the solution should be constant potential and zero field.
+
+\subsection{Linear-potential test}
+
+If opposite sides are held at different fixed potentials and the interior charge density is zero, the solution in a rectangular domain should reduce to the corresponding harmonic solution. In a simple one-direction variation, this becomes a linear potential profile.
+
+\subsection{Uniform space-charge test}
+
+For a known uniform charge density in a simple geometry, the numerical solution should reproduce the expected quadratic potential curvature and linear field variation.
+
+\subsection{Defect-charge perturbation test}
+
+A localized charged-defect region should create a localized perturbation in the potential and electric field. As the region diffuses or anneals in Module 3, the perturbation should weaken or spread accordingly.
+
+\section{What this module captures and what it does not}
+
+Module 2 captures the electrostatic consequences of charge rearrangement and defect charge. It does not, by itself, capture full nonequilibrium carrier dynamics, displacement current, or fast electromagnetic wave phenomena. Those belong elsewhere. The module is intentionally the electrostatic layer, not the full semiconductor transient-transport layer.
+
+This distinction is important: Poisson's equation is not the whole device model. It is the field equation inside the larger coupled framework.
+
+\section{Summary of the final project equation}
+
+The final reduced Module 2 equation for the present project is
+\[
+\nabla \cdot (\varepsilon_{\mathrm{Si}} \nabla \phi)
+= -\left[q(p - n + N_D^+ - N_A^-) + \rho_{\mathrm{def}}\right],
+\]
+with
+\[
+\rho_{\mathrm{def}} = q \sum_i z_i C_i,
+\]
+and, for the 2D Cartesian geometry with uniform silicon permittivity,
+\[
+\pdv[2]{\phi}{x} + \pdv[2]{\phi}{y}
+= -\frac{q}{\varepsilon_{\mathrm{Si}}}
+\left[p - n + N_D^+ - N_A^- + \sum_i z_i C_i\right].
+\]
+The electric field is then
+\[
+\Evec = -\nabla \phi.
+\]
+This is the equation set that turns evolving radiation-induced material damage into an evolving internal field structure.
+
+\end{document}
