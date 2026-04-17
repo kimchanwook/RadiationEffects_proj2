@@ -1,47 +1,83 @@
 # RadiationEffects_proj2
 
-This repository builds a physics-based framework linking radiation energy deposition in silicon to long-term device degradation.
+This README mirrors the current top-level `project_plan.txt` and should be updated whenever the project architecture changes.
 
-## High-level structure
+Project Plan - Radiation Effects Project 2
 
-- `project_plan.tex/.pdf` — single living roadmap document for the whole project
-- `docs/physics_notes/` — textbook-style module notes with derivations and symbol definitions
-- `docs/implementation_notes/` — implementation specifications and coding notes
-- `geant4/` — Geant4-side radiation deposition setup and exported damage-source products
-- `matlab/` — MATLAB codebase for Modules 2–6 and coupled studies
+Purpose
+This file is the plain-text companion to the top-level project_plan.pdf. It is the single living roadmap summary for Radiation Effects Project 2.
 
-## Module architecture
+Core architecture decision
+- Module 1 remains the Geant4 radiation-deposition module.
+- Modules 2 through 6 are 2D-first.
+- Module 4 is now split into two thermal branches:
+  - Module 4a: continuum heat-equation thermal model
+  - Module 4b: phonon-aware thermal model
+- Module 7 remains the scaling / multiscale prediction module.
 
-- **Module 1** — Geant4 radiation energy deposition in silicon
-- **Module 2** — 2D electrostatics with defect-dependent space charge
-- **Module 3** — 2D defect diffusion-reaction evolution and annealing
-- **Module 4** — 2D thermal transport coupled to defect evolution
-- **Module 5** — 2D drift-diffusion carrier transport with defect-assisted recombination
-- **Module 6** — coupled multiphysics integration of Modules 2–5
-- **Module 7** — multiscale extrapolation and scalable prediction methods
+Module roadmap
+1. Geant4 radiation energy deposition in silicon
+   Compute where, when, and how much energy is deposited in silicon by the incident radiation field. Export a deposition map that seeds later damage or defect-generation models.
 
-## Current coding status in this package
+2. Two-dimensional electrostatics with defect-dependent space charge
+   Solve the 2D electrostatic problem for a damaged silicon structure. Convert dopants and charged defects into electric potential, electric field, and depletion-structure changes.
 
-This package now includes a more complete first implementation pass for 2D Module 3:
+3. Two-dimensional defect evolution: diffusion, reaction, migration, and annealing
+   Evolve vacancies, interstitials, complexes, and effective defect species in 2D as functions of time and temperature.
 
-- updated top-level `project_plan`
-- Module 3 2D physics note
-- first runnable 2D Module 3 MATLAB solver path
-- quantitative verification scripts for Gaussian diffusion and pure annealing
-- automatic output plots and summary files
-- a first Geant4-to-Module-3 import stub for 2D damage maps
+4a. Two-dimensional thermal transport from the continuum heat equation
+   Solve the macroscopic temperature field with the continuum heat equation and use it to update diffusion coefficients, reaction rates, annealing rates, and other temperature-dependent physics.
 
-## Run order workflow
+4b. Two-dimensional phonon-aware thermal transport
+   Extend the thermal model beyond a plain continuum conductivity by incorporating phonon-mediated heat-flow physics, especially defect-dependent thermal transport and possible nonequilibrium or size-effect corrections.
 
-1. Run Geant4 to generate deposited-energy or damage-source data.
-2. Convert Geant4 output into a defect-generation map or initial defect field.
-3. Evolve the defect field in MATLAB with Module 3.
-4. Use the defect field in Module 2 to compute electrostatics.
-5. Use temperature coupling in Module 4 as needed.
-6. Use electrostatics and defect fields in Module 5 for carrier transport.
-7. Couple Modules 2–5 in Module 6.
-8. Use Module 7 for reduced-fidelity scaling or statistical extrapolation.
+5. Two-dimensional drift-diffusion carrier transport with defect-assisted recombination
+   Predict how the damaged device transports electrons and holes under the altered field and trap landscape.
 
-## Important note
+6. Coupled two-dimensional multiphysics degradation model
+   Couple Modules 2, 3, 4a/4b, and 5 into a self-consistent simulator for defect evolution, field evolution, thermal evolution, and carrier-transport degradation.
 
-This archive was prepared as a consolidated project package with the requested 2D updates implemented in the plan and in the first verified MATLAB Module 3 code path. I could not execute MATLAB itself in this environment, so the MATLAB code was prepared and organized here, but final runtime verification still needs to be done on your machine.
+7. Multiscale extrapolation and scalable prediction
+   Develop methods for making predictions on much larger spatial, temporal, or statistical scales than the direct high-fidelity simulation can afford. This module covers controlled approximations, quantified error bars, and statistical upscaling.
+
+Project narrative summary
+This project builds a physics-based framework for connecting a radiation event in silicon to the eventual degradation of device performance. The framework tracks deposited energy, defect generation, defect evolution, electrostatics, thermal response, carrier transport, and their coupled influence on measurable device behavior.
+
+Thermal split rationale
+- Module 4a is the baseline production thermal model because it is simpler, cheaper, and easier to validate.
+- Module 4b is the richer physics branch because it can represent how defects modify heat flow more directly through phonon-mediated transport effects.
+- The project should compare 4a and 4b using quantities of interest such as peak temperature, spatial temperature gradients, defect-annealing histories, effective diffusion-rate changes, and final electrical degradation metrics.
+
+Recommended comparison logic for 4a vs 4b
+1. When does Module 4a already reproduce device-level behavior to acceptable accuracy?
+2. Under what regimes does Module 4b change the predicted outcome enough to justify its extra complexity?
+
+Recommended development order
+1. Module 1: Geant4 geometry, scoring, and export format.
+2. Module 3: 2D defect evolution on a structured grid.
+3. Module 2: 2D electrostatics with prescribed charged defects.
+4. Module 4a: 2D continuum thermal solver plus temperature-dependent coefficients.
+5. Module 4b: phonon-aware thermal extension after the continuum baseline is working.
+6. Module 5: 2D drift-diffusion with prescribed electrostatic field and defect/trap fields.
+7. Module 6: weak coupling, then stronger feedback and iterative convergence.
+8. Module 7: scalable-prediction methods after at least one credible high-fidelity coupled workflow exists.
+
+Run-order workflow summary
+1. Module 1: Geant4 radiation transport
+2. Geant4-to-MATLAB handoff
+3. Module 3: defect evolution
+4. Module 4a: continuum thermal field
+5. Module 4b: phonon-aware comparison branch
+6. Module 2: electrostatics
+7. Module 5: carrier transport
+8. Module 6: coupled iteration
+9. Module 7: scalable prediction
+
+Near-term next steps
+- Keep project_plan.pdf and this text companion updated whenever architecture changes.
+- Continue 2D Module 3 implementation and verification.
+- Define the first Geant4-to-MATLAB 2D handoff file and its units.
+- Update implementation notes for Modules 2, 4a, 4b, and 5 so their first solver architecture is 2D rather than 1D.
+- Define a comparison workflow between Module 4a and Module 4b with explicit metrics.
+- Decide a first benchmark quantity of interest for Module 7.
+
