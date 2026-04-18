@@ -77,9 +77,9 @@ The natural companion to this note is Module 4b, which asks a deeper question: w
 The overall project goal is to connect a radiation event in silicon to eventual electrical degradation of a device. In that chain of physics, temperature matters because radiation-induced defects are not static. Their mobility, clustering, dissociation, and annealing rates depend strongly on temperature. Therefore, if the local temperature field is nonuniform or time dependent, then the defect evolution solved in Module 3 cannot be treated as independent of thermal physics.
 
 Module 4a is the baseline thermal model. It uses the continuum heat equation to compute the temperature field
-\[
+\begin{equation}
 T = T(x,y,t)
-\]
+\end{equation}
 in a two-dimensional silicon domain. That temperature field then feeds into Module 3 through temperature-dependent diffusion coefficients, reaction-rate constants, and annealing kinetics.
 
 The role of Module 4a is therefore not merely to ``add temperature.'' Its role is to provide the first self-consistent thermal environment in which defect evolution takes place. It is the simplest thermal model that can be coupled cleanly to the rest of the project while still remaining physically interpretable and computationally manageable.
@@ -122,9 +122,9 @@ Consider a small control area in the two-dimensional device cross section. The t
 \end{enumerate}
 
 The most general local energy balance for a continuum medium can be written as
-\[
+\begin{equation}
 \frac{\partial u}{\partial t} + \nabla \cdot \qvec = Q,
-\]
+\end{equation}
 where:
 \begin{itemize}
     \item $u(\xvec,t)$ is the internal thermal energy density, in units of energy per volume,
@@ -143,9 +143,9 @@ A positive divergence means net heat is leaving the local region. A negative div
 \subsection{Relating internal energy density to temperature}
 
 To turn the energy-balance equation into a temperature equation, we need a constitutive relation between internal energy density and temperature. For a homogeneous solid with no phase change and no strong thermoelastic work terms, the change in internal energy density is approximated by
-\[
+\begin{equation}
 \dd u = \rho c_p \, \dd T,
-\]
+\end{equation}
 where:
 \begin{itemize}
     \item $\rho$ is mass density,
@@ -154,18 +154,18 @@ where:
 \end{itemize}
 
 If $\rho$ and $c_p$ are treated as constants over the relevant range, then
-\[
+\begin{equation}
 u = \rho c_p T + \text{constant},
-\]
+\end{equation}
 and therefore
-\[
+\begin{equation}
 \frac{\partial u}{\partial t} = \rho c_p \frac{\partial T}{\partial t}.
-\]
+\end{equation}
 
 Substituting this into the local energy balance gives
-\[
+\begin{equation}
 \rho c_p \frac{\partial T}{\partial t} + \nabla \cdot \qvec = Q.
-\]
+\end{equation}
 
 At this stage, the equation is still not closed because $\qvec$ is not yet expressed in terms of temperature. That requires a transport law.
 
@@ -174,18 +174,18 @@ At this stage, the equation is still not closed because $\qvec$ is not yet expre
 \subsection{Why heat should flow down a temperature gradient}
 
 If one region is hotter than a neighboring region, then thermal energy tends to spread from the hotter region to the colder region. In a continuum description, that tendency is represented by saying that heat flux points opposite the temperature gradient:
-\[
+\begin{equation}
 \qvec \propto -\nabla T.
-\]
+\end{equation}
 
 The minus sign matters physically. The gradient $\nabla T$ points in the direction of increasing temperature. Heat, however, flows toward lower temperature. Therefore the heat flux must be opposite to $\nabla T$.
 
 \subsection{Fourier's law}
 
 For an isotropic material, the constitutive law is
-\[
+\begin{equation}
 \qvec = -\kth \, \nabla T,
-\]
+\end{equation}
 where $\kth$ is the thermal conductivity.
 
 This is Fourier's law. It is the thermal analog of other linear transport laws in physics. It says that the magnitude of heat flow is proportional to how rapidly temperature changes in space, and that the proportionality constant is the thermal conductivity.
@@ -193,52 +193,52 @@ This is Fourier's law. It is the thermal analog of other linear transport laws i
 \subsection{Anisotropic generalization}
 
 For completeness, if the material is anisotropic, thermal conductivity is not a scalar but a tensor:
-\[
+\begin{equation}
 \qvec = -\bm{K}\,\nabla T.
-\]
+\end{equation}
 
 In the present baseline Module 4a, silicon is treated initially as effectively isotropic at the device scale, so the scalar form is used first. The tensor form becomes relevant later if one wishes to model anisotropy, layered materials, or interface-dominated thermal transport.
 
 \section{Derivation of the transient heat equation}
 
 Substitute Fourier's law into the energy balance equation:
-\[
+\begin{equation}
 \rho c_p \frac{\partial T}{\partial t} + \nabla \cdot (-\kth \nabla T) = Q.
-\]
+\end{equation}
 
 This becomes
-\[
+\begin{equation}
 \rho c_p \frac{\partial T}{\partial t} = \nabla \cdot (\kth \nabla T) + Q.
-\]
+\end{equation}
 
 This is the transient heat equation in conservation-law form.
 
 \subsection{Why the conductivity may remain inside the divergence}
 
 Notice that $\kth$ stays inside the divergence operator. That is important because, in the most general case, $\kth$ may depend on position, temperature, or defect concentration. If $\kth$ varies spatially, then one must keep the form
-\[
+\begin{equation}
 \nabla \cdot (\kth \nabla T)
-\]
+\end{equation}
 intact rather than simplifying prematurely.
 
 Only when $\kth$ is spatially uniform can we write
-\[
+\begin{equation}
 \nabla \cdot (\kth \nabla T) = \kth \, \nabla^2 T.
-\]
+\end{equation}
 
 Thus, for constant properties, the equation reduces to
-\[
+\begin{equation}
 \rho c_p \frac{\partial T}{\partial t} = \kth \, \nabla^2 T + Q.
-\]
+\end{equation}
 
 If we define the thermal diffusivity
-\[
+\begin{equation}
 \alpha = \frac{\kth}{\rho c_p},
-\]
+\end{equation}
 then the equation becomes
-\[
+\begin{equation}
 \frac{\partial T}{\partial t} = \alpha \, \nabla^2 T + \frac{Q}{\rho c_p}.
-\]
+\end{equation}
 
 Thermal diffusivity is a particularly useful parameter because it tells us how quickly a temperature disturbance spreads through the material.
 
@@ -258,17 +258,17 @@ This project deliberately uses 2D as the first nontrivial spatial model for Modu
 \subsection{2D Cartesian form}
 
 In Cartesian coordinates $(x,y)$, the transient heat equation becomes
-\[
+\begin{equation}
 \rho c_p \frac{\partial T}{\partial t}
 =
 \frac{\partial}{\partial x}\left(\kth \frac{\partial T}{\partial x}\right)
 +
 \frac{\partial}{\partial y}\left(\kth \frac{\partial T}{\partial y}\right)
 + Q.
-\]
+\end{equation}
 
 If $\kth$ is constant, this reduces to
-\[
+\begin{equation}
 \rho c_p \frac{\partial T}{\partial t}
 =
 \kth \left(
@@ -277,10 +277,10 @@ If $\kth$ is constant, this reduces to
 \frac{\partial^2 T}{\partial y^2}
 \right)
 + Q.
-\]
+\end{equation}
 
 Equivalently,
-\[
+\begin{equation}
 \frac{\partial T}{\partial t}
 =
 \alpha \left(
@@ -289,14 +289,14 @@ Equivalently,
 \frac{\partial^2 T}{\partial y^2}
 \right)
 + \frac{Q}{\rho c_p}.
-\]
+\end{equation}
 
 This is the baseline governing equation for Module 4a.
 
 \section{Physical meaning of every term in the 2D equation}
 
 Take the constant-property form
-\[
+\begin{equation}
 \frac{\partial T}{\partial t}
 =
 \alpha \left(
@@ -305,7 +305,7 @@ Take the constant-property form
 \frac{\partial^2 T}{\partial y^2}
 \right)
 + \frac{Q}{\rho c_p}.
-\]
+\end{equation}
 
 Each term has a clear physical meaning.
 
@@ -336,9 +336,9 @@ Radiation deposits energy in silicon through interactions tracked by Module 1. T
 \subsection{Electrical power dissipation}
 
 Once carrier transport is included, local Joule heating or recombination-related energy release may also enter as a thermal source. In a later coupled model, one may write
-\[
+\begin{equation}
 Q = Q_{\mathrm{rad}} + Q_{\mathrm{elec}} + Q_{\mathrm{rxn}},
-\]
+\end{equation}
 where the three terms denote radiation-related, electrical, and reaction-related contributions.
 
 \subsection{Defect-reaction heating or cooling}
@@ -352,31 +352,31 @@ A partial differential equation is not physically complete until boundary condit
 \subsection{Dirichlet boundary condition: prescribed temperature}
 
 A Dirichlet condition sets the boundary temperature directly:
-\[
+\begin{equation}
 T = T_b \quad \text{on the boundary.}
-\]
+\end{equation}
 
 Physically, this corresponds to a boundary that is held at a fixed temperature by a large thermal reservoir. For example, a strongly temperature-controlled contact or heat sink could be approximated this way.
 
 \subsection{Neumann boundary condition: prescribed heat flux}
 
 A Neumann condition sets the normal heat flux at the boundary:
-\[
+\begin{equation}
 -\kth \nabla T \cdot \nvec = q_n.
-\]
+\end{equation}
 
 A special case is the adiabatic or insulated boundary,
-\[
+\begin{equation}
 -\kth \nabla T \cdot \nvec = 0,
-\]
+\end{equation}
 which means no heat crosses the boundary.
 
 \subsection{Robin boundary condition: convective or interfacial exchange}
 
 A Robin condition combines temperature and heat flux:
-\[
+\begin{equation}
 -\kth \nabla T \cdot \nvec = h\,(T - T_\infty).
-\]
+\end{equation}
 
 This models heat exchange with an ambient environment at temperature $T_\infty$ through an effective transfer coefficient $h$. In device modeling, Robin conditions are useful when the boundary is neither perfectly insulated nor perfectly clamped in temperature.
 
@@ -393,9 +393,9 @@ The correct physical choice depends on the test problem. For verification studie
 \section{Initial conditions and their role}
 
 To solve the transient problem, we must also specify the initial temperature field:
-\[
+\begin{equation}
 T(x,y,0) = T_0(x,y).
-\]
+\end{equation}
 
 The initial condition may be:
 \begin{enumerate}[label=\arabic*.]
@@ -413,23 +413,23 @@ A good physics note should not only present the governing equation; it should al
 \subsection{Thermal diffusion timescale}
 
 Suppose the characteristic device length is $L$. Then the characteristic thermal diffusion timescale is
-\[
+\begin{equation}
 \tau_{\mathrm{th}} \sim \frac{L^2}{\alpha}.
-\]
+\end{equation}
 
 This is obtained by balancing the time derivative term with the diffusion term:
-\[
+\begin{equation}
 \frac{T}{\tau_{\mathrm{th}}} \sim \alpha \frac{T}{L^2}.
-\]
+\end{equation}
 
 This gives the interpretation that thermal disturbances spread across a length scale $L$ over a time of order $L^2/\alpha$.
 
 \subsection{Source-driven temperature scale}
 
 If a source of magnitude $Q_0$ acts over a characteristic time $\tau$, then the corresponding temperature rise scale is approximately
-\[
+\begin{equation}
 \Delta T \sim \frac{Q_0\tau}{\rho c_p}.
-\]
+\end{equation}
 
 This estimate comes from integrating the source term when diffusion is temporarily neglected. It provides quick intuition for whether thermal effects are likely to be weak or significant.
 
@@ -440,18 +440,18 @@ Defect evolution in Module 3 has its own characteristic timescales, such as diff
 \section{Coupling Module 4a to Module 3}
 
 Module 3 evolves defect concentrations. In its simplest form, for a defect species concentration $C(x,y,t)$, one may write
-\[
+\begin{equation}
 \frac{\partial C}{\partial t} = \nabla \cdot (D\nabla C) + R(C,T,\ldots).
-\]
+\end{equation}
 
 The thermal field enters in at least two major places.
 
 \subsection{Temperature-dependent diffusion coefficient}
 
 Defect migration often follows an Arrhenius law:
-\[
+\begin{equation}
 D(T) = D_0 \exp\left(-\frac{E_m}{k_B T}\right),
-\]
+\end{equation}
 where $E_m$ is a migration barrier and $k_B$ is the Boltzmann constant.
 
 This means that as temperature rises, defects can become much more mobile.
@@ -459,9 +459,9 @@ This means that as temperature rises, defects can become much more mobile.
 \subsection{Temperature-dependent reaction and annealing rates}
 
 Reaction-rate constants are often also written in Arrhenius form:
-\[
+\begin{equation}
 \ann(T) = k_0 \exp\left(-\frac{E_a}{k_B T}\right).
-\]
+\end{equation}
 
 Thus the temperature field computed in Module 4a directly changes the kinetics in Module 3.
 
@@ -513,7 +513,7 @@ Apply a fixed volumetric source with appropriate boundary conditions. The soluti
 \section{Numerical form used in the code-level baseline}
 
 Although this note is physics-focused, it is useful to connect briefly to the numerical form. For a structured Cartesian grid with constant properties, the explicit finite-difference or finite-volume baseline has the form
-\[
+\begin{equation}
 T_{i,j}^{n+1} = T_{i,j}^{n} + \Delta t \left[
 \alpha \left(
 \frac{T_{i+1,j}^{n}-2T_{i,j}^{n}+T_{i-1,j}^{n}}{\Delta x^2}
@@ -523,12 +523,12 @@ T_{i,j}^{n+1} = T_{i,j}^{n} + \Delta t \left[
 +
 \frac{Q_{i,j}^{n}}{\rho c_p}
 \right].
-\]
+\end{equation}
 
 This form is simple and useful for verification, but it comes with an explicit stability restriction. A rough condition is
-\[
+\begin{equation}
 \Delta t \lesssim \frac{1}{2\alpha\left(\frac{1}{\Delta x^2}+\frac{1}{\Delta y^2}\right)}.
-\]
+\end{equation}
 
 This is why explicit stepping is acceptable for small verification problems but may need to be replaced by implicit or semi-implicit methods for larger or stiffer simulations.
 
@@ -549,30 +549,30 @@ This makes Module 4a a good early-stage note for stakeholders because it shows a
 The logical chain of this note is:
 \begin{enumerate}[label=\arabic*.]
     \item Start with local conservation of thermal energy:
-    \[
+    \begin{equation}
     \frac{\partial u}{\partial t} + \nabla \cdot \qvec = Q.
-    \]
+\end{equation}
     \item Relate internal energy density to temperature through
-    \[
+    \begin{equation}
     \frac{\partial u}{\partial t} = \rho c_p \frac{\partial T}{\partial t}.
-    \]
+\end{equation}
     \item Close the equation with Fourier's law:
-    \[
+    \begin{equation}
     \qvec = -\kth \nabla T.
-    \]
+\end{equation}
     \item Obtain the transient heat equation:
-    \[
+    \begin{equation}
     \rho c_p \frac{\partial T}{\partial t} = \nabla \cdot (\kth \nabla T) + Q.
-    \]
+\end{equation}
     \item Reduce to the 2D project form:
-    \[
+    \begin{equation}
     \rho c_p \frac{\partial T}{\partial t}
     =
     \frac{\partial}{\partial x}\left(\kth \frac{\partial T}{\partial x}\right)
     +
     \frac{\partial}{\partial y}\left(\kth \frac{\partial T}{\partial y}\right)
     + Q.
-    \]
+\end{equation}
     \item Couple the resulting temperature field to Module 3 through temperature-dependent defect kinetics.
 \end{enumerate}
 

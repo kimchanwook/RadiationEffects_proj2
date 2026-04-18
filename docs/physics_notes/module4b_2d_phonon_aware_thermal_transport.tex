@@ -73,18 +73,18 @@ The full project aims to connect a radiation event in silicon to long-term devic
 That extra statement is physically important in silicon because heat is carried primarily by lattice vibrations, that is, by phonons. Radiation-induced defects disturb the crystal lattice, and that disturbance increases phonon scattering. Increased phonon scattering shortens the average distance a phonon travels before losing memory of its previous state. Since thermal conductivity depends strongly on that transport distance, the thermal conductivity can degrade as defect concentration increases.
 
 Thus the feedback chain for Module 4b is
-\[
+\begin{equation}
 \text{radiation} \rightarrow \text{defects} \rightarrow \text{phonon scattering} \rightarrow k \text{ changes} \rightarrow T(\rvec,t) \text{ changes} \rightarrow \text{defect evolution changes.}
-\]
+\end{equation}
 
 This feedback does not exist in Module 4a if $k$ is held fixed. That is the conceptual reason for splitting Module 4 into Module 4a and Module 4b.
 
 \section{Why the plain continuum model can become insufficient}
 
 The continuum heat equation used in Module 4a is
-\[
+\begin{equation}
 \rho c_p \frac{\partial T}{\partial t} = \nabla\cdot\left(k\nabla T\right) + Q,
-\]
+\end{equation}
 where $\rho$ is the mass density, $c_p$ is the specific heat at constant pressure, $T$ is temperature, $k$ is thermal conductivity, and $Q$ is the volumetric heat source.
 
 This equation is very useful, but it silently assumes several pieces of physics:
@@ -112,9 +112,9 @@ Silicon is not a simple metal in which free electrons dominate thermal conductiv
 \subsection{Local equilibrium versus distribution-function language}
 
 In Module 4a, the thermal state was represented by a single scalar field $T(\rvec,t)$. In a more microscopic description, one instead introduces a phonon distribution function,
-\[
+\begin{equation}
  f = f(\rvec,\mathbf{s},\omega,p,t),
-\]
+\end{equation}
 where
 \begin{itemize}
     \item $\rvec$ is position,
@@ -131,17 +131,17 @@ Module 4b does \emph{not} attempt to solve for the full distribution function. I
 \section{Microscopic starting point: the phonon Boltzmann transport equation}
 
 A standard microscopic starting point is the phonon Boltzmann transport equation (BTE):
-\[
+\begin{equation}
 \frac{\partial f}{\partial t} + \vvg\cdot \nabla f = \left(\frac{\partial f}{\partial t}\right)_{\!\mathrm{coll}},
-\]
+\end{equation}
 where $\vvg$ is the phonon group velocity and the right-hand side represents collisions or scattering.
 
 This equation says the following. The left-hand side describes free transport of the distribution function through phase space. The right-hand side describes how scattering drives the phonon population away from or toward local equilibrium.
 
 A common simplification is the relaxation-time approximation:
-\[
+\begin{equation}
 \left(\frac{\partial f}{\partial t}\right)_{\!\mathrm{coll}} = -\frac{f-f^{(0)}(T)}{\tau},
-\]
+\end{equation}
 where $f^{(0)}(T)$ is the local equilibrium distribution and $\tau$ is an effective relaxation time. This approximation says that scattering tends to relax the actual distribution toward the local equilibrium distribution over a characteristic time scale $\tau$.
 
 The usefulness of this equation for the present project is not that we plan to solve it directly in the first implementation. Its usefulness is that it shows \emph{where the thermal conductivity comes from}. Thermal conductivity is not just an arbitrary constant. It is a macroscopic summary of how the phonon distribution responds to a temperature gradient under transport and scattering.
@@ -151,45 +151,45 @@ The usefulness of this equation for the present project is not that we plan to s
 \subsection{Linear-response picture}
 
 Suppose the crystal is close to local equilibrium, with only weak spatial temperature gradients. Then the actual phonon distribution can be written as
-\[
+\begin{equation}
  f = f^{(0)} + \delta f,
-\]
+\end{equation}
 where $\delta f$ is a small correction. Substituting this into the relaxation-time BTE and keeping only first-order corrections gives, schematically,
-\[
+\begin{equation}
  \delta f \propto -\tau\, \vvg\cdot \nabla f^{(0)}.
-\]
+\end{equation}
 
 Because $f^{(0)}$ depends on temperature, and temperature depends on position, we have by the chain rule
-\[
+\begin{equation}
 \nabla f^{(0)} = \frac{\partial f^{(0)}}{\partial T}\nabla T.
-\]
+\end{equation}
 Therefore,
-\[
+\begin{equation}
  \delta f \propto -\tau\, (\vvg\cdot \nabla T)\frac{\partial f^{(0)}}{\partial T}.
-\]
+\end{equation}
 
 This result already contains the basic physics: a temperature gradient slightly biases the phonon population away from isotropic equilibrium, and the amount of bias is controlled by the time available before scattering randomizes the phonon state.
 
 \subsection{Heat flux from the perturbed distribution}
 
 The heat flux is obtained by summing the energy carried by each phonon state weighted by its transport velocity. Symbolically,
-\[
+\begin{equation}
  \qvec = \sum_{p}\int \hbar\omega\, \vvg\, \delta f\, g(\omega,p)\, d\omega\, d\Omega,
-\]
+\end{equation}
 where $g(\omega,p)$ is a density-of-states factor and $d\Omega$ represents integration over propagation directions.
 
 Inserting the linearized correction $\delta f$ produces a constitutive law of the form
-\[
+\begin{equation}
  \qvec = -k\nabla T.
-\]
+\end{equation}
 Thus Fourier's law is not separate from phonon transport. It is the near-equilibrium, diffusive-limit consequence of phonon transport.
 
 \subsection{Kinetic-theory estimate for the conductivity}
 
 A compact and physically revealing estimate is
-\[
+\begin{equation}
  k \sim \frac{1}{3} C_v v \ell,
-\]
+\end{equation}
 where
 \begin{itemize}
     \item $C_v$ is the volumetric heat capacity associated with the phonons,
@@ -200,13 +200,13 @@ where
 This relation is not exact in all circumstances, but it captures the most important project-level message: \textbf{thermal conductivity is proportional to the phonon mean free path}. If radiation damage reduces $\ell$, then the conductivity decreases.
 
 Since mean free path and relaxation time are related by
-\[
+\begin{equation}
 \ell = v\tau,
-\]
+\end{equation}
 we may also write, schematically,
-\[
+\begin{equation}
  k \sim \frac{1}{3} C_v v^2 \tau.
-\]
+\end{equation}
 This makes the role of scattering even more explicit. Stronger scattering means smaller $\tau$, hence smaller $k$.
 
 \section{Scattering physics relevant to this project}
@@ -228,9 +228,9 @@ The exact microscopic scattering rate depends on defect type, size, concentratio
 \section{Combining scattering channels: Matthiessen-like reasoning}
 
 A common reduced transport idea is that scattering rates add:
-\[
+\begin{equation}
 \frac{1}{\tau_{\mathrm{eff}}} = \frac{1}{\tau_{\mathrm{pp}}} + \frac{1}{\tau_{\mathrm{b}}} + \frac{1}{\tau_{\mathrm{d}}} + \cdots,
-\]
+\end{equation}
 where
 \begin{itemize}
     \item $\tau_{\mathrm{pp}}$ is the phonon-phonon scattering time,
@@ -245,9 +245,9 @@ If the defects become more numerous, then $\tau_{\mathrm{d}}$ decreases, so $1/\
 \subsection{A simple defect-dependent conductivity model}
 
 One practical project-level model is
-\[
+\begin{equation}
  k(C,T) = k_{\mathrm{bulk}}(T)\, \Psi(C,T),
-\]
+\end{equation}
 where
 \begin{itemize}
     \item $C$ is a suitable defect concentration field from Module 3,
@@ -256,13 +256,13 @@ where
 \end{itemize}
 
 A simple first model may be chosen as
-\[
+\begin{equation}
  \Psi(C,T) = \frac{1}{1+\alpha(T) C},
-\]
+\end{equation}
 or, in exponential form,
-\[
+\begin{equation}
  \Psi(C,T) = e^{-\beta(T) C}.
-\]
+\end{equation}
 
 These are not fundamental microscopic laws. They are reduced constitutive closures motivated by the fact that increasing defect concentration should increase phonon scattering and reduce conductivity. Their parameters $\alpha(T)$ or $\beta(T)$ would later be calibrated against literature, molecular dynamics, experiment, or higher-fidelity transport calculations.
 
@@ -271,36 +271,36 @@ These are not fundamental microscopic laws. They are reduced constitutive closur
 \subsection{Energy conservation in a solid}
 
 We begin, as in Module 4a, with local energy conservation. Let $u(\rvec,t)$ be the thermal internal energy density, and let $Q(\rvec,t)$ be a volumetric heat source. Then
-\[
+\begin{equation}
  \frac{\partial u}{\partial t} + \nabla\cdot \qvec = Q.
-\]
+\end{equation}
 
 If local temperature is still a meaningful coarse-grained variable, then for moderate temperature excursions we write
-\[
+\begin{equation}
  du = \rho c_p \, dT,
-\]
+\end{equation}
 so that
-\[
+\begin{equation}
  \frac{\partial u}{\partial t} \approx \rho c_p \frac{\partial T}{\partial t}.
-\]
+\end{equation}
 
 Thus energy conservation becomes
-\[
+\begin{equation}
  \rho c_p \frac{\partial T}{\partial t} + \nabla\cdot \qvec = Q.
-\]
+\end{equation}
 
 \subsection{Phonon-aware constitutive law}
 
 Now comes the difference from Module 4a. We still use a Fourier-like form for the heat flux,
-\[
+\begin{equation}
  \qvec = -k(C,T)\nabla T,
-\]
+\end{equation}
 but the conductivity is no longer prescribed independently of damage. It is now a constitutive function that encodes phonon scattering by the evolving defect population.
 
 Substituting this constitutive law into energy conservation gives
-\[
+\begin{equation}
 \rho c_p \frac{\partial T}{\partial t} = \nabla\cdot\left(k(C,T)\nabla T\right) + Q.
-\]
+\end{equation}
 
 This is the governing equation for Module 4b.
 
@@ -313,9 +313,9 @@ This difference can change both the amplitude and spatial structure of the tempe
 \section{Expansion of the conductivity-divergence term}
 
 Because $k$ depends on both $C$ and $T$, the diffusion operator is no longer the simple constant-coefficient Laplacian. Expanding the divergence gives
-\[
+\begin{equation}
 \nabla\cdot\left(k\nabla T\right) = k\nabla^2 T + \nabla k \cdot \nabla T.
-\]
+\end{equation}
 
 This identity is important physically.
 
@@ -325,30 +325,30 @@ This identity is important physically.
 \end{itemize}
 
 Since $k=k(C,T)$, the conductivity gradient can be written by the chain rule as
-\[
+\begin{equation}
 \nabla k = \frac{\partial k}{\partial C}\nabla C + \frac{\partial k}{\partial T}\nabla T.
-\]
+\end{equation}
 Therefore,
-\[
+\begin{equation}
 \nabla\cdot\left(k\nabla T\right) = k\nabla^2 T + \frac{\partial k}{\partial C}\nabla C\cdot\nabla T + \frac{\partial k}{\partial T}\absval{\nabla T}^2.
-\]
+\end{equation}
 
 This expanded form shows why Module 4b is richer than Module 4a. Spatial nonuniformity in defect concentration directly enters the temperature equation through the $\partial k/\partial C$ term. Thus a localized defect cloud can alter not only the local magnitude of conductivity, but also the way temperature gradients propagate through space.
 
 \section{Reduction to the two-dimensional project geometry}
 
 The project implementation is two-dimensional in the post-Geant4 modules. Therefore, we restrict to coordinates $(x,y)$ and write
-\[
+\begin{equation}
 \rho c_p \frac{\partial T}{\partial t} = \frac{\partial}{\partial x}\left(k(C,T)\frac{\partial T}{\partial x}\right) + \frac{\partial}{\partial y}\left(k(C,T)\frac{\partial T}{\partial y}\right) + Q.
-\]
+\end{equation}
 
 If expanded explicitly,
-\begin{align*}
+\begin{align}
 \rho c_p \frac{\partial T}{\partial t} = {} & k\left(\frac{\partial^2 T}{\partial x^2}+\frac{\partial^2 T}{\partial y^2}\right)
 + \frac{\partial k}{\partial x}\frac{\partial T}{\partial x}
 + \frac{\partial k}{\partial y}\frac{\partial T}{\partial y}
 + Q.
-\end{align*}
+\end{align}
 
 This is the form most directly tied to a 2D numerical implementation.
 
@@ -357,18 +357,18 @@ This is the form most directly tied to a 2D numerical implementation.
 Module 3 evolves the defect field $C(\rvec,t)$ through diffusion, reaction, clustering, and annealing. Module 4b receives that field and uses it to update the conductivity. In return, the temperature field from Module 4b feeds back into Module 3 because defect kinetics are temperature dependent.
 
 A common Arrhenius form for a temperature-dependent diffusion coefficient is
-\[
+\begin{equation}
  D(T) = D_0 \exp\left(-\frac{E_a}{\kB T}\right),
-\]
+\end{equation}
 where $D_0$ is a prefactor and $E_a$ is an activation energy. Similarly, an annealing or reaction rate may follow
-\[
+\begin{equation}
  k_{\mathrm{ann}}(T) = k_0 \exp\left(-\frac{E_{\mathrm{ann}}}{\kB T}\right).
-\]
+\end{equation}
 
 Therefore the full feedback loop is
-\[
+\begin{equation}
  C \longrightarrow k(C,T) \longrightarrow T \longrightarrow D(T),\, k_{\mathrm{ann}}(T) \longrightarrow C.
-\]
+\end{equation}
 
 That feedback is one of the main scientific reasons this project becomes a multiphysics simulator rather than a loose collection of independent models.
 
@@ -412,18 +412,18 @@ If none of these occur, Module 4a may already be adequate. Therefore the proper 
 \section{Characteristic scales and nondimensional interpretation}
 
 Suppose a characteristic device length scale is $L$, a characteristic temperature rise is $\Delta T$, and a characteristic conductivity scale is $k_0$. Define the nominal thermal diffusivity
-\[
+\begin{equation}
  \alpha_{\mathrm{th},0} = \frac{k_0}{\rho c_p}.
-\]
+\end{equation}
 Then the nominal thermal diffusion time is
-\[
+\begin{equation}
  t_{\mathrm{th},0} \sim \frac{L^2}{\alpha_{\mathrm{th},0}} = \frac{\rho c_p L^2}{k_0}.
-\]
+\end{equation}
 
 Now if defects reduce the conductivity to an effective value $k_{\mathrm{eff}}<k_0$, then the thermal diffusion time increases:
-\[
+\begin{equation}
  t_{\mathrm{th,eff}} \sim \frac{\rho c_p L^2}{k_{\mathrm{eff}}} > t_{\mathrm{th},0}.
-\]
+\end{equation}
 
 This simple estimate already tells us the project-level consequence of damage-suppressed conductivity: thermal relaxation slows down, so hot regions can persist longer. Longer-lived hot regions can accelerate defect migration and annealing in a spatially selective way.
 
@@ -468,9 +468,9 @@ These are the natural quantities to show in preliminary slides when comparing th
 Module 4b is a phonon-aware thermal transport model for silicon that remains computationally compatible with the larger multiphysics project. Its central idea is that radiation-induced defects scatter phonons, and because phonons carry heat in silicon, the thermal conductivity should evolve with the defect population.
 
 The derivation starts from the phonon Boltzmann transport equation only to establish the physical origin of conductivity. Under near-equilibrium, diffusive conditions, that microscopic theory reduces to a Fourier-like heat flux law. The key Module 4b step is then to replace the fixed conductivity of Module 4a with a defect- and temperature-dependent conductivity $k(C,T)$. This yields the governing equation
-\[
+\begin{equation}
 \rho c_p \frac{\partial T}{\partial t} = \nabla\cdot\left(k(C,T)\nabla T\right)+Q,
-\]
+\end{equation}
 which is the natural reduced phonon-informed extension of the Module 4a continuum model.
 
 This model is richer than Module 4a because it embeds damage-induced thermal degradation into the transport law itself, yet it remains far cheaper and easier to couple than a full phonon BTE solver. That balance makes Module 4b the correct next-fidelity thermal model for the present project.

@@ -35,13 +35,13 @@ $C$ & Defect concentration field & m$^{-3}$ \\
 $C_i$ & Concentration of defect species $i$ & m$^{-3}$ \\
 $\mathbf{J}_C$ & Defect flux & m$^{-2}$ s$^{-1}$ \\
 $D$ & Defect diffusivity & m$^2$/s \\
-$D_0$ & Diffusion prefactor & m$^2$/s \\
+$D_0$ & Diffusion prefactor, typically $a^2 \nu_D /(2d)$ in a jump-diffusion picture & m$^2$/s \\
 $R$ & Net local reaction term & m$^{-3}$ s$^{-1}$ \\
 $k_{\mathrm{ann}}$ & First-order annealing rate constant & s$^{-1}$ \\
-$k_0$ & Annealing prefactor & s$^{-1}$ \\
+$k_0$ & Annealing prefactor or attempt rate for the modeled annealing channel & s$^{-1}$ \\
 $T$ & Temperature field & K \\
-$E_D$ & Activation energy for diffusion & J or eV \\
-$E_{\mathrm{ann}}$ & Activation energy for annealing & J or eV \\
+$E_D$ & Effective migration activation energy for defect motion between metastable lattice configurations & J or eV \\
+$E_{\mathrm{ann}}$ & Effective activation energy for defect removal or transformation during annealing & J or eV \\
 $k_B$ & Boltzmann constant & J/K \\
 $x,y$ & Cartesian spatial coordinates & m \\
 $t$ & Time & s \\
@@ -75,9 +75,9 @@ Consider a small material element. The concentration inside that element can cha
 \end{enumerate}
 
 The local conservation or balance law is therefore
-\[
+\begin{equation}
 \pdv{C}{t} + \nabla \cdot \mathbf{J}_C = R(C,T,\ldots),
-\]
+\end{equation}
 where $\mathbf{J}_C$ is the defect flux and $R$ is the local net reaction term. The right-hand side is positive when reactions create the species and negative when reactions consume it.
 
 This equation is the natural defect analogue of the continuity equation. The key modeling task is therefore to specify the flux law and the reaction law.
@@ -87,33 +87,33 @@ This equation is the natural defect analogue of the continuity equation. The key
 \subsection{Why diffusion appears}
 
 If the defect concentration is spatially nonuniform, there is a thermodynamic tendency for the distribution to smooth out. Regions of high concentration tend to feed regions of low concentration through random migration. At the continuum level, the simplest constitutive relation for that process is Fick's law:
-\[
+\begin{equation}
 \mathbf{J}_C = -D \nabla C.
-\]
+\end{equation}
 The minus sign is crucial. It says the flux points down the concentration gradient. Defects move from more concentrated regions toward less concentrated regions.
 
 \subsection{From Fick's law to the diffusion equation}
 
 Substituting Fick's law into the balance law gives
-\[
+\begin{equation}
 \pdv{C}{t} + \nabla \cdot (-D \nabla C) = R,
-\]
+\end{equation}
 so
-\[
+\begin{equation}
 \pdv{C}{t} = \nabla \cdot (D \nabla C) + R.
-\]
+\end{equation}
 If $D$ is spatially uniform, this becomes
-\[
+\begin{equation}
 \pdv{C}{t} = D \nabla^2 C + R.
-\]
+\end{equation}
 This is the diffusion-reaction equation. It is the core governing equation for Module 3.
 
 \subsection{Physical meaning of the divergence form}
 
 The divergence form,
-\[
+\begin{equation}
 \pdv{C}{t} = \nabla \cdot (D \nabla C) + R,
-\]
+\end{equation}
 is more fundamental than the constant-$D$ Laplacian form because it remains correct even when $D$ varies in space or depends on temperature. The diffusion operator is not merely ``curvature.'' It is the divergence of a flux. That distinction becomes essential once Module 4 temperature fields are coupled in and the diffusivity varies from place to place.
 
 \section{Reaction and annealing terms}
@@ -127,13 +127,13 @@ Therefore the reaction term $R$ is not optional. It is the place where defect ch
 \subsection{First-order annealing as the simplest reduced model}
 
 The simplest physically meaningful reaction model is first-order annealing,
-\[
+\begin{equation}
 R = -k_{\mathrm{ann}} C,
-\]
+\end{equation}
 where $k_{\mathrm{ann}}$ is the annealing rate constant. The governing equation then becomes
-\[
+\begin{equation}
 \pdv{C}{t} = \nabla \cdot (D \nabla C) - k_{\mathrm{ann}} C.
-\]
+\end{equation}
 This says that defects spread by diffusion while being removed locally at a rate proportional to the current concentration.
 
 \subsection{Why first-order annealing is useful}
@@ -149,38 +149,38 @@ First-order annealing is not the most general reaction law, but it is a highly u
 \subsection{General multi-species reaction structure}
 
 For multiple defect species $C_i$, the balance law becomes
-\[
+\begin{equation}
 \pdv{C_i}{t} = \nabla \cdot (D_i \nabla C_i) + R_i(C_1,C_2,\ldots,T).
-\]
+\end{equation}
 This is the more general architecture the project can grow into. In the earliest implementation, however, a single effective defect species is sufficient to establish the transport framework.
 
 \section{Reduction to the two-dimensional project form}
 
 The project has adopted a 2D architecture for Modules 2--6. Thus the defect concentration becomes
-\[
+\begin{equation}
 C = C(x,y,t).
-\]
+\end{equation}
 For Cartesian coordinates,
-\[
+\begin{equation}
 \nabla \cdot (D \nabla C)
 = \pdv{}{x}\left(D\pdv{C}{x}\right)
 + \pdv{}{y}\left(D\pdv{C}{y}\right).
-\]
+\end{equation}
 Therefore the 2D governing equation is
-\[
+\begin{equation}
 \pdv{C}{t}
 =
 \pdv{}{x}\left(D\pdv{C}{x}\right)
 +
 \pdv{}{y}\left(D\pdv{C}{y}\right)
 + R(C,T,\ldots).
-\]
+\end{equation}
 If the diffusivity is uniform and the reaction is first-order annealing,
-\[
+\begin{equation}
 \pdv{C}{t}
 =
 D\left(\pdv[2]{C}{x} + \pdv[2]{C}{y}\right) - k_{\mathrm{ann}} C.
-\]
+\end{equation}
 This is the baseline project equation for Module 3.
 
 \section{Initial conditions from radiation damage maps}
@@ -190,9 +190,9 @@ This is the baseline project equation for Module 3.
 Geant4 does not directly output an already-evolved defect concentration. It outputs deposited energy, event locations, and possibly a binned damage map. Module 3 must translate that radiation information into an initial defect condition or source term.
 
 The simplest reduced mapping is
-\[
+\begin{equation}
 C(x,y,0) = C_0(x,y),
-\]
+\end{equation}
 where $C_0$ is obtained from a damage-generation rule based on the Geant4 deposition map. In a time-resolved variant one could instead use a source term $S(x,y,t)$, but for a first post-irradiation evolution model it is enough to treat radiation as an initial condition.
 
 \subsection{Why this distinction matters}
@@ -204,29 +204,29 @@ This point is conceptually important: Geant4 determines where the initial insult
 \subsection{Zero-flux boundary condition}
 
 The most natural default condition for a closed region with no defect exchange across the boundary is
-\[
+\begin{equation}
 \hat{\mathbf{n}} \cdot \mathbf{J}_C = 0.
-\]
+\end{equation}
 Using Fick's law, this becomes
-\[
+\begin{equation}
 \hat{\mathbf{n}} \cdot \nabla C = 0.
-\]
+\end{equation}
 This means there is no net defect flow across the boundary. Physically, the boundary acts as a reflecting boundary or symmetry plane.
 
 \subsection{Dirichlet boundary condition}
 
 Another possibility is to prescribe the concentration directly:
-\[
+\begin{equation}
 C = C_b \quad \text{on a boundary.}
-\]
+\end{equation}
 This is less common for a closed silicon device region but can represent contact with a reservoir or an imposed sink environment.
 
 \subsection{Reactive or sink boundary condition}
 
 A more physical future refinement is a Robin-type condition that represents surface absorption or sink behavior,
-\[
+\begin{equation}
 -\hat{\mathbf{n}}\cdot D\nabla C = h_s (C - C_{\mathrm{eq}}).
-\]
+\end{equation}
 This says the boundary can absorb or emit defects depending on deviation from an equilibrium value. Such a condition is useful when surfaces or interfaces act as strong sinks for mobile defects.
 
 \section{Analytic limiting cases used for verification}
@@ -234,25 +234,25 @@ This says the boundary can absorb or emit defects depending on deviation from an
 \subsection{Pure annealing with no diffusion}
 
 If diffusion is switched off, $D=0$, and the reaction is first-order,
-\[
+\begin{equation}
 \pdv{C}{t} = -k_{\mathrm{ann}} C.
-\]
+\end{equation}
 The solution is
-\[
+\begin{equation}
 C(t) = C(0)e^{-k_{\mathrm{ann}} t}.
-\]
+\end{equation}
 If the initial state is spatially uniform, the entire field should remain spatially uniform while decaying exponentially. This is one of the cleanest verification tests because the exact solution is known.
 
 \subsection{Pure diffusion with no reaction}
 
 If $R=0$, the equation becomes
-\[
+\begin{equation}
 \pdv{C}{t} = D\nabla^2 C.
-\]
+\end{equation}
 Under zero-flux boundaries, the total amount of defect,
-\[
+\begin{equation}
 M(t) = \int C\,\dd V,
-\]
+\end{equation}
 should be conserved. The concentration profile should smooth and broaden, but the integral should remain constant.
 
 \subsection{Uniform-state preservation}
@@ -264,24 +264,24 @@ If the initial condition is exactly uniform and the boundaries are consistent wi
 \subsection{Diffusion timescale}
 
 Let $L$ be a characteristic length scale. The diffusive relaxation time is approximately
-\[
+\begin{equation}
 \tau_D \sim \frac{L^2}{D}.
-\]
+\end{equation}
 This says diffusion becomes slower for larger structures and faster for larger diffusivity.
 
 \subsection{Annealing timescale}
 
 For first-order annealing, the intrinsic decay time is
-\[
+\begin{equation}
 \tau_{\mathrm{ann}} \sim \frac{1}{k_{\mathrm{ann}}}.
-\]
+\end{equation}
 
 \subsection{Competition between diffusion and annealing}
 
 The ratio
-\[
+\begin{equation}
 \frac{\tau_D}{\tau_{\mathrm{ann}}} \sim \frac{L^2 k_{\mathrm{ann}}}{D}
-\]
+\end{equation}
 indicates which process dominates.
 \begin{itemize}
     \item If $\tau_D \ll \tau_{\mathrm{ann}}$, diffusion redistributes defects before much annealing occurs.
@@ -291,20 +291,115 @@ This competition is central to the interpretation of results. It determines whet
 
 \section{Temperature coupling and Arrhenius physics}
 
-A major reason Module 4 exists is that both diffusion and annealing are temperature sensitive. A standard reduced form is Arrhenius behavior:
-\[
-D(T) = D_0 \exp\left(-\frac{E_D}{k_B T}\right),
-\]
-\[
-k_{\mathrm{ann}}(T) = k_0 \exp\left(-\frac{E_{\mathrm{ann}}}{k_B T}\right),
-\]
-where $E_D$ and $E_{\mathrm{ann}}$ are activation energies. Once Module 4 supplies $T(x,y,t)$, the Module 3 equation becomes
-\[
+A major reason Module 4 exists is that both diffusion and annealing are temperature sensitive. The compact Arrhenius formulas used in Module 3 are not arbitrary fitting expressions. They come from the idea that a thermally activated process must overcome an energy barrier before it can proceed.
+
+\subsection{Why thermal activation produces an exponential}
+
+Suppose a defect process requires access to a higher-energy configuration separated from the initial state by an energy barrier $E_a$. In thermal equilibrium, the probability of finding a system with energy $E$ is weighted by the Boltzmann factor
+\begin{equation}
+P(E) \propto \exp\left(-\frac{E}{k_B T}\right).
+\end{equation}
+Therefore, the fraction of defects with enough thermal energy to reach a transition state at energy barrier $E_a$ scales like
+\begin{equation}
+P(\text{barrier crossed}) \propto \exp\left(-\frac{E_a}{k_B T}\right).
+\end{equation}
+If the process also has an attempt frequency or attempt rate $\nu_0$, then the resulting rate takes the generic activated form
+\begin{equation}
+\Gamma(T) = \nu_0 \exp\left(-\frac{E_a}{k_B T}\right).
+\end{equation}
+This is the physical origin of Arrhenius behavior. The exponential is the thermal penalty for climbing an energy barrier, while the prefactor measures how often the system attempts to cross that barrier.
+
+\subsection{Derivation of the diffusion Arrhenius law}
+
+For point-defect migration in a crystal, diffusion can be viewed as a sequence of thermally activated jumps between neighboring lattice sites. Let $a$ be a characteristic jump distance and let $\Gamma_D$ be the jump frequency. For an unbiased random walk, the diffusivity scales as jump length squared times jump frequency. Up to an order-unity geometric factor,
+\begin{equation}
+D \sim a^2 \Gamma_D.
+\end{equation}
+More explicitly, for a simple random walk in $d$ spatial dimensions,
+\begin{equation}
+D = \frac{a^2 \Gamma_D}{2d}.
+\end{equation}
+If each jump requires the defect to overcome a migration barrier $E_D$, then the jump frequency is thermally activated:
+\begin{equation}
+\Gamma_D(T) = \nu_D \exp\left(-\frac{E_D}{k_B T}\right),
+\end{equation}
+where $\nu_D$ is an attempt frequency associated with lattice vibrations or local configurational attempts. Substituting this into the random-walk expression gives
+\begin{equation}
+D(T) = \frac{a^2 \nu_D}{2d} \exp\left(-\frac{E_D}{k_B T}\right).
+\end{equation}
+The prefactor is commonly grouped into a single constant,
+\begin{equation}
+D_0 \equiv \frac{a^2 \nu_D}{2d},
+\end{equation}
+so that
+\begin{equation}
+D(T) = D_0 \exp\left(-\frac{E_D}{k_B T}\right).
+\end{equation}
+This is the diffusion Arrhenius law used in Module 3.
+
+The quantity $E_D$ is therefore not just a symbol inserted by hand. It is the effective \emph{migration activation energy}: the energy barrier that a defect must overcome to move from one metastable lattice configuration to another. In a more microscopic picture, $E_D$ may contain contributions from the local crystal environment, strain, charge state, and nearby impurities or defects. In the reduced continuum model, all of that microscopic complexity is compressed into the single effective barrier $E_D$ and prefactor $D_0$.
+
+\subsection{Derivation of the annealing Arrhenius law}
+
+Annealing is also a thermally activated process, but its physical meaning differs from diffusion. Annealing represents the disappearance or transformation of a defect population through processes such as recombination, structural rearrangement, dissociation of an unstable complex, or conversion into a lower-energy configuration.
+
+Suppose a defect-removal channel requires crossing an activation barrier $E_{\mathrm{ann}}$. Then the microscopic rate per defect takes the same activated form,
+\begin{equation}
+\Gamma_{\mathrm{ann}}(T) = \nu_{\mathrm{ann}} \exp\left(-\frac{E_{\mathrm{ann}}}{k_B T}\right).
+\end{equation}
+If the annealing channel is first order, the number of defects removed per unit volume per unit time is proportional to the local concentration:
+\begin{equation}
+R_{\mathrm{ann}} = -\Gamma_{\mathrm{ann}}(T) \, C.
+\end{equation}
+We then identify the first-order annealing constant as
+\begin{equation}
+k_{\mathrm{ann}}(T) \equiv \Gamma_{\mathrm{ann}}(T) = k_0 \exp\left(-\frac{E_{\mathrm{ann}}}{k_B T}\right),
+\end{equation}
+with
+\begin{equation}
+k_0 \equiv \nu_{\mathrm{ann}}.
+\end{equation}
+Thus the first-order decay law
+\begin{equation}
+\pdv{C}{t} = -k_{\mathrm{ann}}(T) C
+\end{equation}
+comes directly from the assumption that each defect has an independent thermally activated probability per unit time of being removed.
+
+The quantity $E_{\mathrm{ann}}$ is the effective \emph{annealing activation energy}. Physically, it is the barrier associated with the dominant defect-removal or defect-transformation pathway being represented in the reduced model. It need not be identical to $E_D$, because migration and annealing are not the same microscopic event. A defect may move relatively easily yet require a larger barrier to recombine, or vice versa.
+
+\subsection{Why the prefactors and activation energies are called effective}
+
+In real irradiated silicon, there is usually not just one defect species and not just one microscopic pathway. Different vacancies, interstitials, complexes, and charge states can each have different migration barriers and reaction barriers. If the continuum model uses a single species concentration $C$ and a single pair of Arrhenius parameters, then
+\begin{equation}
+D_0,\; E_D,\; k_0,\; E_{\mathrm{ann}}
+\end{equation}
+should be interpreted as \emph{effective parameters} summarizing the dominant kinetics over the temperature and timescale range of interest. They may come from atomistic calculations, experiments, or calibration to measured annealing curves.
+
+\subsection{Module 3 equation with thermal coupling}
+
+Once Module 4 supplies $T(x,y,t)$, the Module 3 equation becomes
+\begin{equation}
 \pdv{C}{t}
 =
 \nabla \cdot \left(D(T)\nabla C\right) - k_{\mathrm{ann}}(T)C.
-\]
-Now the thermal field changes not only how quickly defects move, but also how quickly they disappear.
+\end{equation}
+If $D$ varies spatially through its temperature dependence, then the diffusion term can be expanded as
+\begin{equation}
+\nabla \cdot \left(D(T)\nabla C\right) = D(T)\nabla^2 C + \nabla D(T) \cdot \nabla C.
+\end{equation}
+The first term is the familiar Laplacian smoothing term. The second term appears because temperature gradients create spatial gradients in diffusivity, which in turn bias how quickly different regions relax.
+
+In 2D Cartesian form, the coupled equation is
+\begin{equation}
+\pdv{C}{t}
+=
+\pdv{}{x}\left(D(T)\pdv{C}{x}\right)
++
+\pdv{}{y}\left(D(T)\pdv{C}{y}\right)
+-
+k_{\mathrm{ann}}(T)C.
+\end{equation}
+Now the thermal field changes not only how quickly defects move, but also how quickly they disappear. Higher temperature generally increases both diffusivity and annealing rate because the Boltzmann penalty for barrier crossing becomes less severe.
 
 This coupling is one of the strongest reasons the project must be multiphysics. Defect kinetics and temperature cannot be treated as unrelated after the architecture has matured.
 
@@ -337,26 +432,26 @@ This distinction is useful because it keeps the project scope realistic while st
 \section{Summary of the final project equation}
 
 The baseline 2D Module 3 equation is
-\[
+\begin{equation}
 \pdv{C}{t}
 =
 \pdv{}{x}\left(D\pdv{C}{x}\right)
 +
 \pdv{}{y}\left(D\pdv{C}{y}\right)
 + R(C,T,\ldots).
-\]
+\end{equation}
 For the first reduced implementation,
-\[
+\begin{equation}
 \pdv{C}{t}
 =
 D\left(\pdv[2]{C}{x} + \pdv[2]{C}{y}\right) - k_{\mathrm{ann}}C.
-\]
+\end{equation}
 With temperature coupling,
-\[
+\begin{equation}
 \pdv{C}{t}
 =
 \nabla\cdot\left(D(T)\nabla C\right) - k_{\mathrm{ann}}(T)C.
-\]
+\end{equation}
 This is the equation set that turns a radiation-created damage map into an evolving defect landscape suitable for coupling to electrostatics, thermal physics, and carrier transport.
 
 \end{document}
