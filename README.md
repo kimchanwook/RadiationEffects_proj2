@@ -12,7 +12,7 @@ This repository builds a physics-based framework linking radiation energy deposi
 
 ## Module architecture
 
-- Module 1 - Geant4 radiation energy deposition in silicon
+- Module 1 - interaction-resolved Geant4 radiation deposition campaign in silicon
 - Module 2 - 2D electrostatics with defect-dependent space charge
 - Module 3 - 2D defect diffusion-reaction evolution and annealing
 - Module 4a - 2D continuum thermal transport
@@ -20,6 +20,23 @@ This repository builds a physics-based framework linking radiation energy deposi
 - Module 5 - 2D drift-diffusion carrier transport with defect-assisted recombination
 - Module 6 - coupled multiphysics integration of Modules 2, 3, 4a/4b, and 5
 - Module 7 - multiscale extrapolation and scalable prediction methods
+
+
+## Module 1 interaction-resolved campaign update
+
+Module 1 is now planned as a family of Geant4 runs rather than one broad deposition run. The idea is to separate photon and neutron simulations into targeted energy bands so that different interaction mechanisms can be emphasized and interpreted more cleanly.
+
+For photons, the current planning bands are intended to emphasize:
+- Rayleigh scattering (about eV to 100 keV)
+- photoelectric effect (about eV to 500 keV)
+- Compton scattering (about 10 keV to 10 MeV)
+- pair production (above 1.022 MeV)
+- photonuclear interactions in the resonance region (about 5 MeV to 3 GeV)
+- deep-inelastic or very-high-energy behavior (GeV scale and above)
+
+These are campaign ranges, not sharp exclusive boundaries. Multiple processes can still contribute in overlapping ranges.
+
+For neutrons, the same interaction-resolved philosophy will be used, with exact energy partitions to be finalized around the reaction classes that matter most for silicon damage and secondary production.
 
 ## Current coding status in this package
 
@@ -34,7 +51,7 @@ This package now includes:
 
 ## Run order workflow
 
-1. Run Geant4 to generate deposited-energy or damage-source data.
+1. Run the interaction-resolved Geant4 campaign to generate deposited-energy, secondary-particle, and interaction-summary data.
 2. Convert Geant4 output into a defect-generation map or initial defect field.
 3. Evolve the defect field in MATLAB with Module 3.
 4. Solve the baseline temperature field with Module 4a.

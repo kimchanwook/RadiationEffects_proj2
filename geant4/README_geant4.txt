@@ -23,3 +23,10 @@ Near-term plan
   1) an initial defect concentration field, or
   2) a defect-generation source term over time
 - add a stricter translator from deposited energy to defect-generation density
+
+
+Interaction-resolved Module 1 update:
+- Module 1 should be organized as multiple Geant4 campaigns rather than one broad source run.
+- Photon campaigns should be split into approximate energy bands chosen to emphasize Rayleigh, photoelectric, Compton, pair-production, photonuclear, and deep-inelastic/high-energy behavior.
+- Neutron campaigns should also be split into interaction-targeted energy bands, with exact ranges to be finalized.
+- Exports should include deposited-energy maps plus interaction tallies and secondary-particle diagnostics when practical.

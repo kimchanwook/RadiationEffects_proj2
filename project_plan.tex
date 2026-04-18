@@ -24,7 +24,7 @@
 \ProjectTOC
 
 \begin{notebox}
-\textbf{Current architecture revision.} Module 1 remains the Geant4 deposition module. Modules 2--6 are now 2D-first. Module 4 is split into \textbf{Module 4a} (continuum heat-equation thermal transport) and \textbf{Module 4b} (phonon-aware thermal transport). Module 7 remains the scaling and multiscale-prediction module.
+\textbf{Current architecture revision.} Module 1 is now planned as an \textbf{interaction-resolved Geant4 campaign} with separate photon and neutron runs across targeted energy bands so that different microscopic interaction mechanisms can be studied intentionally rather than mixed together in one broad source case. Modules 2--6 are now 2D-first. Module 4 is split into \textbf{Module 4a} (continuum heat-equation thermal transport) and \textbf{Module 4b} (phonon-aware thermal transport). Module 7 remains the scaling and multiscale-prediction module.
 \end{notebox}
 
 \section{Project objective}
@@ -46,7 +46,7 @@ The intended physics chain is:
 \toprule
 \textbf{No.} & \textbf{Module} & \textbf{Purpose}\\
 \midrule
-1 & Geant4 radiation energy deposition in silicon & Compute where, when, and how much energy is deposited in silicon by the incident radiation field. Export a deposition map that seeds later damage or defect-generation models.\\
+1 & Interaction-resolved Geant4 radiation deposition campaign in silicon & Run separate photon and neutron simulations in targeted energy bands so that distinct interaction mechanisms can be isolated, compared, and translated into deposition maps, secondary-particle spectra, and damage-precursor metrics for later modules.\\
 2 & Two-dimensional electrostatics with defect-dependent space charge & Solve the 2D electrostatic problem for a damaged silicon structure. Convert dopants and charged defects into electric potential, electric field, and depletion-structure changes.\\
 3 & Two-dimensional defect evolution: diffusion, reaction, migration, and annealing & Evolve vacancies, interstitials, complexes, and effective defect species in 2D as functions of time and temperature.\\
 4a & Two-dimensional continuum thermal transport & Solve the baseline temperature field with the continuum heat equation and use it to update diffusion coefficients, reaction rates, annealing rates, and other temperature-dependent physics.\\
@@ -62,9 +62,13 @@ The intended physics chain is:
 
 This project builds a physics-based framework for connecting a radiation event in silicon to the eventual degradation of device performance. The goal is not only to model where energy is deposited, but also to understand how that deposited energy creates defects, how those defects evolve with time and temperature, how they alter the internal electric fields and carrier transport, and ultimately how they change the behavior of the device. Each module isolates one layer of the physics, while the final module combines them into a self-consistent multiphysics model.
 
-\textbf{Module 1. Geant4: Radiation Energy Deposition in Silicon}
+\textbf{Module 1. Interaction-Resolved Geant4 Radiation Deposition Campaign in Silicon}
 
-This module provides the radiation input to the rest of the framework. Using Geant4, the simulation tracks incoming radiation and calculates where, when, and how much energy is deposited inside the silicon. The output of this step represents the initial physical insult to the material. In practice, this module gives the spatial and possibly temporal distribution of deposited energy that can later be translated into an initial defect-generation source term or damage map.
+This module provides the radiation input to the rest of the framework, but it now does so through a structured set of interaction-targeted simulation campaigns rather than a single broad source run. Using Geant4, the simulation tracks incoming radiation and calculates where, when, and how much energy is deposited inside the silicon while also recording which physical interaction mechanisms dominate in each energy band. The output of this step represents the initial physical insult to the material. In practice, this module gives the spatial and possibly temporal distribution of deposited energy, secondary-particle production, and interaction-specific deposition signatures that can later be translated into an initial defect-generation source term or damage map.
+
+For photons, the current planning assumption is to split the campaign into bands chosen to emphasize Rayleigh scattering, the photoelectric effect, Compton scattering, pair production, photonuclear interactions in the resonance region, and deep-inelastic or very-high-energy behavior. The approximate photon planning bands currently under consideration are eV to about 100~keV for Rayleigh-dominated studies, eV to about 500~keV for photoelectric-dominated studies, roughly 10~keV to 10~MeV for Compton-dominated studies, above 1.022~MeV for pair-production access, roughly 5~MeV to a few GeV for photonuclear studies, and GeV-scale and above for deep-inelastic or high-energy cascade studies. These bands are not interpreted as sharp exclusive boundaries; they are campaign ranges chosen to emphasize different interaction families.
+
+For neutrons, the same philosophy will be used: separate runs will be designed to target different interaction regimes rather than mixing all neutron energies into one undifferentiated source case. The exact neutron energy partition and the dominant reactions to emphasize will be finalized as the Module~1 campaign plan is expanded. In all cases, Module~1 should save not only deposited-energy maps but also interaction tallies, secondary-particle information, and compact diagnostics that explain why one source case produces a different downstream defect precursor than another.
 
 \textbf{Module 2. Electrostatics with Defect-Dependent Space Charge in a 2D Silicon Device Cross Section}
 
@@ -93,6 +97,34 @@ This module integrates the previous physics pieces into a coupled framework. The
 \textbf{Module 7. Multiscale Extrapolation and Scalable Prediction}
 
 This module addresses the fact that direct high-fidelity simulations may be too expensive for large devices, long times, broad parameter sweeps, or population-level reliability predictions. It covers controlled reduced-fidelity approximations, statistical upscaling, and hybrid multiresolution workflows. A central requirement is that any speedup or approximation be accompanied by a quantitative error metric relative to a higher-fidelity reference.
+
+\section{Module 1 interaction-resolved campaign plan}
+Module~1 is now organized as an interaction-resolved Geant4 campaign rather than a single undifferentiated radiation-deposition run. The purpose is to select source energies deliberately so that different microscopic interaction mechanisms can be emphasized, compared, and interpreted in downstream damage modeling.
+
+\subsection{Why this change matters}
+Different interaction mechanisms can produce very different spatial deposition patterns, secondary-particle populations, and damage precursors even when the total incident energy is similar. Separating the runs by targeted interaction regime makes it easier to explain why one source case leads to dense local energy deposition, another to broader electron-mediated energy transfer, and another to recoil nuclei or higher-energy secondaries that may matter more for defect production.
+
+\subsection{Photon campaign structure}
+\begin{longtable}{p{0.28\linewidth} p{0.25\linewidth} p{0.37\linewidth}}
+\toprule
+\textbf{Interaction emphasis} & \textbf{Approximate planning range} & \textbf{Reason for separate campaign}\\
+\midrule
+Rayleigh scattering & eV to about 100~keV & Isolate elastic scattering and angular redistribution with relatively small direct energy transfer per event.\\
+Photoelectric effect & eV to about 500~keV & Study strong local energy absorption and dense short-range secondary-electron production.\\
+Compton scattering & about 10~keV to about 10~MeV & Study partial-energy transfer, recoil-electron generation, and broader distributed deposition.\\
+Pair production & above 1.022~MeV & Study electron-positron creation and more extended shower-like deposition behavior.\\
+Photonuclear or resonance-region interactions & about 5~MeV to about 3~GeV & Study photonuclear reactions, recoil nuclei, and higher-energy secondaries that can change defect-precursor character.\\
+Deep-inelastic or very-high-energy interactions & GeV scale and above & Study high-energy cascades and hadronic secondary production in the extreme-energy regime.\\
+\bottomrule
+\end{longtable}
+
+These are campaign ranges rather than sharp exclusive boundaries. Multiple processes can contribute in overlapping regions, but the ranges are still useful because they bias the simulation toward distinct physical mechanisms and signatures.
+
+\subsection{Neutron campaign structure}
+Neutrons should be treated with the same philosophy: use separate campaign families to emphasize different reaction classes and energy regimes rather than combining all neutron energies into one broad source case. The exact neutron bands are left as a planned design task so that they can be chosen deliberately around the reactions that matter most for silicon damage, displacement production, recoil spectra, and secondary charged-particle generation.
+
+\subsection{Recommended Module~1 outputs}
+Each interaction-resolved Module~1 run should save, at minimum, a deposited-energy map, depth and lateral deposition summaries, interaction-type tallies, secondary-particle spectra or counts when available, and metadata describing the incident particle, targeted energy band, physics list, geometry revision, binning, and units. This turns Module~1 into both a source generator and an interpretation layer for downstream defect modeling.
 
 \section{Core architecture decision: 2D for Modules 2--6}
 The original one-dimensional path was numerically attractive, but it suppresses several effects that become important once the damage pattern is spatially structured: lateral spreading of defect populations, lateral field bending, nonuniform temperature fields near localized energy deposition, and current crowding or carrier-flow rerouting. A 2D architecture is therefore the more faithful bridge between a realistic Geant4 source pattern and later electrostatic, thermal, and transport calculations.
@@ -153,7 +185,7 @@ arrow/.style={-{Latex[length=2.4mm]}, very thick, draw=accent}
 \path{project_plan.tex/.pdf} & Single living roadmap document: project objective, module definitions, run order, file map, interfaces, and roadmap updates.\\
 \path{docs/physics_notes/} & One large physics note per module, with derivations, symbol definitions, assumptions, and physical interpretation.\\
 \path{docs/implementation_notes/} & Module-by-module implementation specifications, solver notes, and interface notes.\\
-\path{geant4/} & Geant4-side setup, macros, and example outputs for Module 1.\\
+\path{geant4/} & Geant4-side setup, interaction-resolved campaign macros, and example outputs for Module 1.\\
 \path{matlab/} & MATLAB drivers, source code, tests, outputs, and cross-module interfaces for Modules 2--7.\\
 \bottomrule
 \end{longtable}
@@ -203,7 +235,7 @@ A useful rule is that Module 4b should earn its place by changing one or more pr
 
 \section{Module interfaces in the new 2D plan}
 \subsection{Module 1 to Module 3 handoff}
-The first strong interface should now be a 2D deposition or defect-source map. A minimal handoff object should contain coordinate arrays, a deposited-energy density field, optional time-resolved source information, and metadata describing bin width, device geometry, radiation case, and units.
+The first strong interface should now be a 2D deposition or defect-source map accompanied by interaction-resolved metadata. A minimal handoff object should contain coordinate arrays, a deposited-energy density field, optional time-resolved source information, interaction-type tallies or summaries, secondary-particle diagnostics when available, and metadata describing the incident particle, targeted energy band, device geometry, physics list, bin width, radiation case, and units.
 
 \subsection{Module 3 to Module 2 handoff}
 After a defect-evolution run, MATLAB should save at minimum coordinate arrays, effective defect fields, charged-defect density fields, trap-density fields, and time-history diagnostics for provenance.
