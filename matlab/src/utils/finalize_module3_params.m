@@ -26,7 +26,15 @@ end
 % Explicit 2D diffusion stability estimate.
 dx = (params.domain.xmax - params.domain.xmin) / max(params.domain.Nx - 1, 1);
 dy = (params.domain.ymax - params.domain.ymin) / max(params.domain.Ny - 1, 1);
-D = params.physics.D;
+if isfield(params.physics, 'kineticsModel') && isfield(params.physics.kineticsModel, 'enabled') && params.physics.kineticsModel.enabled
+    if isfield(params.physics.kineticsModel, 'D0_base')
+        D = params.physics.kineticsModel.D0_base;
+    else
+        D = params.physics.D;
+    end
+else
+    D = params.physics.D;
+end
 if D > 0
     dtStable = 1.0 / (2.0 * D * (1.0/dx^2 + 1.0/dy^2));
 else

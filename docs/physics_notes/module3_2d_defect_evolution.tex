@@ -375,6 +375,83 @@ D_0,\; E_D,\; k_0,\; E_{\mathrm{ann}}
 \end{equation}
 should be interpreted as \emph{effective parameters} summarizing the dominant kinetics over the temperature and timescale range of interest. They may come from atomistic calculations, experiments, or calibration to measured annealing curves.
 
+\section{Microscopic origin of defect kinetic coefficients}
+
+The simple Arrhenius forms used above can create the false impression that the defect diffusivity and annealing coefficient depend only on temperature. That is not physically correct. Temperature controls the probability of surmounting an activation barrier, but the barrier itself and the prefactor multiplying the Arrhenius exponential come from the material-specific energy landscape seen by the defect.
+
+\subsection{Quantities that contribute to the effective diffusivity and annealing coefficient}
+
+For the present project, the full physics picture behind $D$ and $k_{\mathrm{ann}}$ includes the following contributors:
+\begin{enumerate}[label=\arabic*.]
+    \item \textbf{Interatomic bonding.} Defect motion requires stretching, weakening, or breaking local bonds as the defect passes from one metastable site to another. Bond strengths therefore contribute directly to the migration barrier and to the annealing barrier.
+    \item \textbf{Local lattice geometry.} The crystal structure determines which sites are available, the jump distance between sites, the coordination around the defect, and the shape of the saddle-point pathway. This influences both the activation barrier and the diffusion prefactor.
+    \item \textbf{Electronic structure.} Defect energies depend on orbital hybridization, local electron density, screening, and the location of defect levels relative to the bands. This changes the energies of stable and transition configurations and therefore changes both $E_D$ and $E_{\mathrm{ann}}$.
+    \item \textbf{Defect charge state.} A charged defect can have a different migration barrier and a different reaction pathway from the neutral version of the same structural defect. Charge state is therefore one of the most important state variables once semiconductor electrostatics are considered.
+    \item \textbf{Strain field.} Strain shifts the energies of metastable configurations and transition states. In a damaged region, near an interface, or in a mechanically stressed device, strain can bias defect motion and modify annealing kinetics.
+    \item \textbf{Nearby impurities and dopants.} Dopants and impurities alter the local environment through binding interactions, electrostatic effects, and Fermi-level shifts. They can trap defects, stabilize some charge states, or lower or raise migration barriers.
+    \item \textbf{Nearby interfaces or sinks.} Surfaces, oxide interfaces, and material boundaries can act as sinks or preferred defect environments. They therefore alter both the transport problem and the effective local reaction pathways.
+    \item \textbf{Local electric field.} If the relevant defect is charged, an electric field can bias defect motion and can also lower or raise an activation barrier through electrostatic work along the migration path.
+    \item \textbf{Local temperature.} Temperature controls the thermal activation probability and can also change phonon spectra, charge-state populations, and the relative importance of competing reaction pathways.
+\end{enumerate}
+
+The important point is that temperature is only one part of the story. The reduced continuum coefficients are temperature activated, but their detailed values arise from a much richer material-specific defect physics.
+
+\subsection{Which of these belong directly in Module 3?}
+
+Not all of the preceding physics should be promoted to independent continuum fields in the first implementation. A useful separation is:
+\begin{itemize}
+    \item \textbf{Microscopic origin level:} interatomic bonding, local lattice geometry, and electronic structure. These are the upstream material-physics ingredients that determine the barrier heights, attempt frequencies, and charge-state dependence.
+    \item \textbf{Simulation-level modifier fields:} temperature, defect charge state, dopant environment, electric field, strain, and interface proximity. These are the variables that can realistically be inserted into a reduced continuum coefficient model.
+\end{itemize}
+
+That separation keeps the project honest. Module~3 does not solve orbital-scale or bond-scale physics directly. Instead, it uses reduced constitutive laws whose coefficients are understood to have been shaped by that microscopic physics.
+
+\subsection{Reduced constitutive hierarchy adopted in this project}
+
+The long-term constitutive goal is not merely
+\begin{equation}
+D = D(T), \qquad k_{\mathrm{ann}} = k_{\mathrm{ann}}(T),
+\end{equation}
+but rather
+\begin{equation}
+D = D\left(T, q_d, N_{\mathrm{dop}}, |\mathbf{E}|, \varepsilon, \xi_{\mathrm{int}}, \ldots\right),
+\end{equation}
+and
+\begin{equation}
+k_{\mathrm{ann}} = k_{\mathrm{ann}}\left(T, q_d, N_{\mathrm{dop}}, |\mathbf{E}|, \varepsilon, \xi_{\mathrm{int}}, \ldots\right).
+\end{equation}
+Here $q_d$ is the effective defect charge state, $N_{\mathrm{dop}}$ is a dopant-environment measure, $|\mathbf{E}|$ is the electric-field magnitude, $\varepsilon$ is a reduced strain measure, and $\xi_{\mathrm{int}}$ is an interface-proximity variable.
+
+\subsection{What is implemented now}
+
+The first implemented reduced model keeps the hierarchy manageable by activating only the dependencies that are expected to matter most at the current project stage:
+\begin{equation}
+D = D\left(T, q_d, N_{\mathrm{dop}}, |\mathbf{E}|\right),
+\end{equation}
+and
+\begin{equation}
+k_{\mathrm{ann}} = k_{\mathrm{ann}}\left(T, q_d, N_{\mathrm{dop}}, |\mathbf{E}|\right).
+\end{equation}
+Strain and interface proximity are explicitly documented as next-pass refinements but are not turned on in the first numerical implementation. Interatomic bonding, local lattice geometry, and electronic structure are treated as the microscopic origin of the coefficient parameters rather than as direct continuum fields solved in the MATLAB code.
+
+\subsection{One reduced form consistent with the physics}
+
+A practical reduced constitutive form that preserves the Arrhenius structure is
+\begin{equation}
+D = D_0^{\mathrm{eff}}(q_d, N_{\mathrm{dop}})
+\exp\left[-\frac{E_D^{\mathrm{eff}}(q_d, N_{\mathrm{dop}}) - \Delta E_{\mathrm{field}}(|\mathbf{E}|)}{k_B T}\right],
+\end{equation}
+and
+\begin{equation}
+k_{\mathrm{ann}} = k_0^{\mathrm{eff}}(q_d, N_{\mathrm{dop}})
+\exp\left[-\frac{E_{\mathrm{ann}}^{\mathrm{eff}}(q_d, N_{\mathrm{dop}}) - \Delta E_{\mathrm{field}}(|\mathbf{E}|)}{k_B T}\right].
+\end{equation}
+This is still a reduced continuum model, but it now makes clear which physics is being compressed into effective barriers and prefactors and which state variables are actively modifying those coefficients during the simulation.
+
+\subsection{How Module 2 enters and how it does not}
+
+It is important not to confuse the microscopic electric potential associated with bonding and orbital structure with the device-scale electrostatic potential solved in Module~2. Module~2 computes the continuum electric potential and electric field of the device cross section. That field can influence charged-defect transport or lower an activation barrier, so Module~2 can feed into Module~3 through $|\mathbf{E}|$. However, the bond-scale and orbital-scale origin of $E_D$ and $E_{\mathrm{ann}}$ is not something Module~2 itself computes. That physics belongs to the microscopic origin of the reduced coefficients.
+
 \subsection{Module 3 equation with thermal coupling}
 
 Once Module 4 supplies $T(x,y,t)$, the Module 3 equation becomes

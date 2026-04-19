@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.26 (TeX Live 2025/dev/Debian) (preloaded format=pdflatex 2026.2.6)  18 APR 2026 15:04
+This is pdfTeX, Version 3.141592653-2.6-1.40.26 (TeX Live 2025/dev/Debian) (preloaded format=pdflatex 2026.2.6)  19 APR 2026 02:00
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -1050,36 +1050,36 @@ Package microtype Info: Loading generic protrusion settings for font family
 (microtype)             See the microtype manual for details.
 
 (./project_plan.toc
-LaTeX Font Info:    Trying to load font information for OT1+lmr on input line 5
+LaTeX Font Info:    Trying to load font information for OT1+lmr on input line 6
 .
  (/usr/share/texmf/tex/latex/lm/ot1lmr.fd
 File: ot1lmr.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
 )
-LaTeX Font Info:    Trying to load font information for OML+lmm on input line 5
+LaTeX Font Info:    Trying to load font information for OML+lmm on input line 6
 .
 
 (/usr/share/texmf/tex/latex/lm/omllmm.fd
 File: omllmm.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
 )
 LaTeX Font Info:    Trying to load font information for OMS+lmsy on input line 
-5.
+6.
 
 (/usr/share/texmf/tex/latex/lm/omslmsy.fd
 File: omslmsy.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
 )
 LaTeX Font Info:    Trying to load font information for OMX+lmex on input line 
-5.
+6.
 
 (/usr/share/texmf/tex/latex/lm/omxlmex.fd
 File: omxlmex.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
 )
 LaTeX Font Info:    External font `lmex10' loaded for size
-(Font)              <10.95> on input line 5.
+(Font)              <10.95> on input line 6.
 LaTeX Font Info:    External font `lmex10' loaded for size
-(Font)              <8> on input line 5.
+(Font)              <8> on input line 6.
 LaTeX Font Info:    External font `lmex10' loaded for size
-(Font)              <6> on input line 5.
-LaTeX Font Info:    Trying to load font information for U+msa on input line 5.
+(Font)              <6> on input line 6.
+LaTeX Font Info:    Trying to load font information for U+msa on input line 6.
 
 (/usr/share/texlive/texmf-dist/tex/latex/amsfonts/umsa.fd
 File: umsa.fd 2013/01/14 v3.01 AMS symbols A
@@ -1087,7 +1087,7 @@ File: umsa.fd 2013/01/14 v3.01 AMS symbols A
 (/usr/share/texlive/texmf-dist/tex/latex/microtype/mt-msa.cfg
 File: mt-msa.cfg 2006/02/04 v1.1 microtype config. file: AMS symbols (a) (RS)
 )
-LaTeX Font Info:    Trying to load font information for U+msb on input line 5.
+LaTeX Font Info:    Trying to load font information for U+msb on input line 6.
 
 (/usr/share/texlive/texmf-dist/tex/latex/amsfonts/umsb.fd
 File: umsb.fd 2013/01/14 v3.01 AMS symbols B
@@ -1128,6 +1128,8 @@ Underfull \hbox (badness 7116) in paragraph at lines 54--54
 \T1/lmr/m/n/10.95 (+20) diffusion car-rier trans-port
  []
 
+
+
 [2]
 
 [3]
@@ -1135,113 +1137,116 @@ Underfull \hbox (badness 7116) in paragraph at lines 54--54
 [4]
 
 [5]
-Underfull \hbox (badness 10000) in paragraph at lines 110--110
+
+[6{/usr/share/texmf/fonts/enc/dvips/lm/lm-mathit.enc}{/usr/share/texmf/fonts/en
+c/dvips/lm/lm-rm.enc}{/usr/share/texmf/fonts/enc/dvips/lm/lm-mathsy.enc}]
+Underfull \hbox (badness 10000) in paragraph at lines 128--128
 []|\T1/lmr/bx/n/10.95 (+20) Approximate plan-
  []
 
 
-Underfull \hbox (badness 1082) in paragraph at lines 116--117
+Underfull \hbox (badness 1082) in paragraph at lines 134--135
 []|\T1/lmr/m/n/10.95 (+20) Study pho-tonu-clear re-ac-tions, re-
  []
 
 
-Underfull \hbox (badness 1400) in paragraph at lines 116--117
+Underfull \hbox (badness 1400) in paragraph at lines 134--135
 \T1/lmr/m/n/10.95 (+20) on-daries that can change defect-
  []
 
 
-Underfull \hbox (badness 3623) in paragraph at lines 117--118
+Underfull \hbox (badness 3623) in paragraph at lines 135--136
 []|\T1/lmr/m/n/10.95 (+20) Study high-energy cas-cades and
  []
-
-[6]
 
 [7]
 
 [8]
+
+[9]
 Overfull \vbox (60.63011pt too high) has occurred while \output is active []
 
 
 
-[9]
-Underfull \hbox (badness 10000) in paragraph at lines 187--187
+[10]
+Underfull \hbox (badness 10000) in paragraph at lines 205--205
 []|$\T1/lmtt/m/n/10.95 docs / implementation _
  []
 
-[10]
-Underfull \hbox (badness 10000) in paragraph at lines 198--198
+[11]
+Underfull \hbox (badness 10000) in paragraph at lines 216--216
 []|$\T1/lmtt/m/n/10.95 matlab / main _ module2 _
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 199--199
+Underfull \hbox (badness 10000) in paragraph at lines 217--217
 []|$\T1/lmtt/m/n/10.95 matlab / main _ module3 _ 2d _
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 200--200
+Underfull \hbox (badness 10000) in paragraph at lines 218--218
 []|$\T1/lmtt/m/n/10.95 matlab / main _ module4a _ 2d _
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 201--201
+Underfull \hbox (badness 10000) in paragraph at lines 219--219
 []|$\T1/lmtt/m/n/10.95 matlab / main _ module4b _
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 202--202
+Underfull \hbox (badness 10000) in paragraph at lines 220--220
 []|$\T1/lmtt/m/n/10.95 matlab / main _ module5 _ drift _
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 203--203
+Underfull \hbox (badness 10000) in paragraph at lines 221--221
 []|$\T1/lmtt/m/n/10.95 matlab / main _ module6 _
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 206--206
+Underfull \hbox (badness 10000) in paragraph at lines 224--224
 []|$\T1/lmtt/m/n/10.95 matlab / src / module4a _
  []
 
 
 
-[11]
+[12]
 LaTeX Font Info:    Trying to load font information for TS1+lmr on input line 2
-27.
+45.
  (/usr/share/texmf/tex/latex/lm/ts1lmr.fd
 File: ts1lmr.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
 )
 
-[12{/usr/share/texmf/fonts/enc/dvips/lm/lm-ts1.enc}]
+[13{/usr/share/texmf/fonts/enc/dvips/lm/lm-ts1.enc}]
 
-[13{/usr/share/texmf/fonts/enc/dvips/lm/lm-mathit.enc}{/usr/share/texmf/fonts/e
-nc/dvips/lm/lm-rm.enc}]
+[14]
 
-[14] (./project_plan.aux)
+[15] (./project_plan.aux)
  ***********
 LaTeX2e <2024-11-01> patch level 2
 L3 programming layer <2025-01-18>
  ***********
 Package rerunfilecheck Info: File `project_plan.out' has not changed.
-(rerunfilecheck)             Checksum: B0C3202A26F73A57F144B8E53B1B4668;5887.
+(rerunfilecheck)             Checksum: DFB4A916E7C6E3FDF669228BB84535E6;6137.
  ) 
 Here is how much of TeX's memory you used:
- 32392 strings out of 473197
- 655129 string characters out of 5718606
- 1040930 words of memory out of 5000000
- 54939 multiletter control sequences out of 15000+600000
- 614044 words of font info for 147 fonts, out of 8000000 for 9000
+ 32402 strings out of 473197
+ 655281 string characters out of 5718606
+ 1040953 words of memory out of 5000000
+ 54942 multiletter control sequences out of 15000+600000
+ 614127 words of font info for 148 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
  121i,12n,124p,1201b,1195s stack positions out of 10000i,1000n,20000p,200000b,200000s
 </usr/share/texmf/fonts/type1/public/lm/lmbx10.pfb></usr/share/texmf/fonts/ty
 pe1/public/lm/lmbx12.pfb></usr/share/texmf/fonts/type1/public/lm/lmmi10.pfb></u
 sr/share/texmf/fonts/type1/public/lm/lmmi8.pfb></usr/share/texmf/fonts/type1/pu
 blic/lm/lmr10.pfb></usr/share/texmf/fonts/type1/public/lm/lmr12.pfb></usr/share
-/texmf/fonts/type1/public/lm/lmtt10.pfb>
-Output written on project_plan.pdf (14 pages, 199251 bytes).
+/texmf/fonts/type1/public/lm/lmr8.pfb></usr/share/texmf/fonts/type1/public/lm/l
+msy10.pfb></usr/share/texmf/fonts/type1/public/lm/lmtt10.pfb>
+Output written on project_plan.pdf (15 pages, 231581 bytes).
 PDF statistics:
- 287 PDF objects out of 1000 (max. 8388607)
- 252 compressed objects within 3 object streams
- 69 named destinations out of 1000 (max. 500000)
- 31445 words of extra memory for PDF output out of 35830 (max. 10000000)
+ 314 PDF objects out of 1000 (max. 8388607)
+ 273 compressed objects within 3 object streams
+ 73 named destinations out of 1000 (max. 500000)
+ 31453 words of extra memory for PDF output out of 35830 (max. 10000000)
 

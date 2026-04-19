@@ -48,7 +48,7 @@ The intended physics chain is:
 \midrule
 1 & Interaction-resolved Geant4 radiation deposition campaign in silicon & Run separate photon and neutron simulations in targeted energy bands so that distinct interaction mechanisms can be isolated, compared, and translated into deposition maps, secondary-particle spectra, and damage-precursor metrics for later modules.\\
 2 & Two-dimensional electrostatics with defect-dependent space charge & Solve the 2D electrostatic problem for a damaged silicon structure. Convert dopants and charged defects into electric potential, electric field, and depletion-structure changes.\\
-3 & Two-dimensional defect evolution: diffusion, reaction, migration, and annealing & Evolve vacancies, interstitials, complexes, and effective defect species in 2D as functions of time and temperature.\\
+3 & Two-dimensional defect evolution with material-aware kinetic coefficients & Evolve vacancies, interstitials, complexes, and effective defect species in 2D using diffusion, reaction, migration, and annealing laws whose reduced coefficients can depend on temperature, charge state, dopants, and electric field.\\
 4a & Two-dimensional continuum thermal transport & Solve the baseline temperature field with the continuum heat equation and use it to update diffusion coefficients, reaction rates, annealing rates, and other temperature-dependent physics.\\
 4b & Two-dimensional phonon-aware thermal transport & Extend the thermal model beyond a plain bulk conductivity by incorporating phonon-mediated transport ideas, defect-dependent thermal transport, and reduced nonequilibrium or size-effect corrections when they materially affect the prediction.\\
 5 & Two-dimensional drift-diffusion carrier transport with defect-assisted recombination & Predict how the damaged device transports electrons and holes under the altered field, temperature, and trap landscape.\\
@@ -76,7 +76,7 @@ This module models how radiation-induced defects modify the electrostatic state 
 
 \textbf{Module 3. Two-Dimensional Diffusion-Reaction Solver for Defect Migration and Annealing}
 
-This module describes the time evolution of radiation-induced defects after they are created. Defects are not static: they can diffuse, recombine, cluster, dissociate, or anneal depending on temperature and local conditions. A 2D diffusion-reaction model captures these mechanisms by evolving defect concentrations in space and time. This is one of the core physics modules of the project because it determines how initial damage develops into a changing defect landscape, rather than treating radiation damage as frozen in place.
+This module describes the time evolution of radiation-induced defects after they are created. Defects are not static: they can diffuse, recombine, cluster, dissociate, or anneal depending on temperature and local conditions. In the upgraded Module~3 plan, the diffusion and annealing coefficients are treated as material-aware reduced kinetic coefficients rather than as universal constants. Their microscopic origin lies in bonding, lattice geometry, and electronic structure, while the first implemented simulation-level dependencies are temperature, defect charge state, dopant environment, and electric field. A 2D diffusion-reaction model then evolves the resulting defect concentrations in space and time. This is one of the core physics modules of the project because it determines how initial damage develops into a changing defect landscape, rather than treating radiation damage as frozen in place.
 
 \textbf{Module 4a. Two-Dimensional Continuum Thermal Transport}
 
@@ -97,6 +97,24 @@ This module integrates the previous physics pieces into a coupled framework. The
 \textbf{Module 7. Multiscale Extrapolation and Scalable Prediction}
 
 This module addresses the fact that direct high-fidelity simulations may be too expensive for large devices, long times, broad parameter sweeps, or population-level reliability predictions. It covers controlled reduced-fidelity approximations, statistical upscaling, and hybrid multiresolution workflows. A central requirement is that any speedup or approximation be accompanied by a quantitative error metric relative to a higher-fidelity reference.
+
+
+\section{Module 3 kinetic-coefficient hierarchy}
+Module~3 now treats the defect diffusivity $D$ and annealing coefficient $k_{\mathrm{ann}}$ as reduced constitutive quantities whose values are shaped by underlying material physics. The project explicitly separates two levels of description.
+
+At the microscopic level, defect motion and defect removal are controlled by interatomic bonding, local lattice geometry, and electronic structure. Those factors determine migration barriers, reaction barriers, jump distances, charge-state energetics, and attempt frequencies. They are the physical origin of the Arrhenius-type activation energies and prefactors used in the continuum model.
+
+At the simulation level, Module~3 promotes the coefficients from simple functions of temperature to state-dependent reduced laws. The first implemented dependence set is
+\begin{equation}
+D = D\left(T, q_d, N_{\mathrm{dop}}, |\mathbf{E}|\right),
+\end{equation}
+and
+\begin{equation}
+k_{\mathrm{ann}} = k_{\mathrm{ann}}\left(T, q_d, N_{\mathrm{dop}}, |\mathbf{E}|\right),
+\end{equation}
+where $q_d$ is the defect charge state, $N_{\mathrm{dop}}$ is a dopant-environment measure, and $\mathbf{E}$ is the device-scale electric field imported from Module~2 when that coupling is enabled. Strain and interface proximity are planned as the next refinement layer, while bonding and electronic structure remain the microscopic origin of the reduced parameters rather than direct continuum fields.
+
+This hierarchy keeps the project executable while still making clear which physical effects actually contribute to the effective kinetic coefficients.
 
 \section{Module 1 interaction-resolved campaign plan}
 Module~1 is now organized as an interaction-resolved Geant4 campaign rather than a single undifferentiated radiation-deposition run. The purpose is to select source energies deliberately so that different microscopic interaction mechanisms can be emphasized, compared, and interpreted in downstream damage modeling.

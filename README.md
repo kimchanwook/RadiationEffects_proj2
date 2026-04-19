@@ -14,7 +14,7 @@ This repository builds a physics-based framework linking radiation energy deposi
 
 - Module 1 - interaction-resolved Geant4 radiation deposition campaign in silicon
 - Module 2 - 2D electrostatics with defect-dependent space charge
-- Module 3 - 2D defect diffusion-reaction evolution and annealing
+- Module 3 - 2D defect diffusion-reaction evolution and annealing with material-aware kinetic coefficients with material-aware kinetic coefficients
 - Module 4a - 2D continuum thermal transport
 - Module 4b - 2D phonon-aware thermal transport
 - Module 5 - 2D drift-diffusion carrier transport with defect-assisted recombination
@@ -25,6 +25,29 @@ This repository builds a physics-based framework linking radiation energy deposi
 ## Module 1 interaction-resolved campaign update
 
 Module 1 is now planned as a family of Geant4 runs rather than one broad deposition run. The idea is to separate photon and neutron simulations into targeted energy bands so that different interaction mechanisms can be emphasized and interpreted more cleanly.
+
+## Module 3 material-aware kinetics update
+
+Module 3 now distinguishes between the microscopic origin of defect kinetics and the subset of dependencies that are implemented in the first reduced simulation model.
+
+Microscopic quantities that contribute to the effective defect diffusivity $D$ and annealing coefficient $k_{\mathrm{ann}}$ include:
+- interatomic bonding and migration saddle-point energetics
+- local lattice geometry and jump distance
+- electronic structure and defect-level energetics
+- defect charge state
+- strain field
+- nearby impurities or dopants
+- nearby interfaces or sinks
+- local electric field
+- local temperature
+
+In the current reduced simulation path, the first implemented dependencies are:
+- temperature
+- defect charge state
+- dopant environment
+- electric-field magnitude
+
+Strain and interface proximity are documented in the physics note as the next refinement layer, while bonding, local geometry, and electronic structure are treated as the microscopic origin of the fitted or imported kinetic parameters rather than as direct continuum fields solved in MATLAB.
 
 For photons, the current planning bands are intended to emphasize:
 - Rayleigh scattering (about eV to 100 keV)
@@ -43,7 +66,7 @@ For neutrons, the same interaction-resolved philosophy will be used, with exact 
 This package now includes:
 
 - updated top-level `project_plan` and `README`
-- Module 3 2D physics note and verified first MATLAB path
+- Module 3 2D physics note, verified first MATLAB path, and first material-aware kinetic-coefficient framework
 - first runnable Module 4a 2D continuum thermal solver path
 - Module 4a verification cases for uniform equilibrium, hotspot diffusion, and a steady-source relaxation case
 - automatic Module 4a output plots and summary files

@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.26 (TeX Live 2025/dev/Debian) (preloaded format=pdflatex 2026.2.6)  18 APR 2026 19:22
+This is pdfTeX, Version 3.141592653-2.6-1.40.26 (TeX Live 2025/dev/Debian) (preloaded format=pdflatex 2026.2.6)  19 APR 2026 02:00
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -1145,23 +1145,29 @@ File: ts1lmr.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
 
 [14]
 
-[15] (./module3_2d_defect_evolution.aux)
+[15]
+
+[16]
+
+[17]
+
+[18] (./module3_2d_defect_evolution.aux)
  ***********
 LaTeX2e <2024-11-01> patch level 2
 L3 programming layer <2025-01-18>
  ***********
 Package rerunfilecheck Info: File `module3_2d_defect_evolution.out' has not cha
 nged.
-(rerunfilecheck)             Checksum: 0E5772C7BDFB7CC5C3A8498000A8395F;10490.
+(rerunfilecheck)             Checksum: D24DA2E29E9A6F885BA4425EA6AE1573;12692.
  ) 
 Here is how much of TeX's memory you used:
- 31940 strings out of 473197
- 643740 string characters out of 5718606
- 1027174 words of memory out of 5000000
- 54467 multiletter control sequences out of 15000+600000
- 623517 words of font info for 141 fonts, out of 8000000 for 9000
+ 31993 strings out of 473197
+ 644349 string characters out of 5718606
+ 1028176 words of memory out of 5000000
+ 54474 multiletter control sequences out of 15000+600000
+ 624403 words of font info for 151 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 121i,12n,124p,1024b,1189s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ 121i,12n,124p,1024b,1193s stack positions out of 10000i,1000n,20000p,200000b,200000s
 </usr/share/texmf/fonts/type1/public/lm/lmbx10.pfb></usr/share/texmf/fonts/ty
 pe1/public/lm/lmbx12.pfb></usr/share/texmf/fonts/type1/public/lm/lmex10.pfb></u
 sr/share/texmf/fonts/type1/public/lm/lmmi10.pfb></usr/share/texmf/fonts/type1/p
@@ -1171,10 +1177,10 @@ e/texmf/fonts/type1/public/lm/lmr12.pfb></usr/share/texmf/fonts/type1/public/lm
 nts/type1/public/lm/lmri10.pfb></usr/share/texmf/fonts/type1/public/lm/lmsy10.p
 fb></usr/share/texmf/fonts/type1/public/lm/lmsy8.pfb></usr/share/texmf/fonts/ty
 pe1/public/lm/lmtt12.pfb>
-Output written on module3_2d_defect_evolution.pdf (15 pages, 276592 bytes).
+Output written on module3_2d_defect_evolution.pdf (18 pages, 291230 bytes).
 PDF statistics:
- 450 PDF objects out of 1000 (max. 8388607)
- 400 compressed objects within 4 object streams
- 112 named destinations out of 1000 (max. 500000)
- 37733 words of extra memory for PDF output out of 42996 (max. 10000000)
+ 518 PDF objects out of 1000 (max. 8388607)
+ 464 compressed objects within 5 object streams
+ 138 named destinations out of 1000 (max. 500000)
+ 37789 words of extra memory for PDF output out of 42996 (max. 10000000)
 
