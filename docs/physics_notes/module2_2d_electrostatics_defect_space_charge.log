@@ -1,9 +1,9 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.26 (TeX Live 2025/dev/Debian) (preloaded format=pdflatex 2026.2.6)  18 APR 2026 19:09
+This is pdfTeX, Version 3.141592653-2.6-1.40.26 (TeX Live 2025/dev/Debian) (preloaded format=pdflatex 2026.2.6)  28 APR 2026 22:51
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
-**docs/physics_notes/module2_2d_electrostatics_defect_space_charge.tex
-(./docs/physics_notes/module2_2d_electrostatics_defect_space_charge.tex
+**module2_2d_electrostatics_defect_space_charge.tex
+(./module2_2d_electrostatics_defect_space_charge.tex
 LaTeX2e <2024-11-01> patch level 2
 L3 programming layer <2025-01-18>
 (/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
@@ -23,7 +23,7 @@ File: size11.clo 2024/06/29 v1.4n Standard LaTeX file (size option)
 \belowcaptionskip=\skip50
 \bibindent=\dimen141
 )
-(docs/physics_notes/../shared/project_style.tex
+(../shared/project_style.tex
 (/usr/share/texlive/texmf-dist/tex/latex/geometry/geometry.sty
 Package: geometry 2020/01/02 v5.9 Page Geometry
 
@@ -898,7 +898,7 @@ LaTeX Font Info:    Trying to load font information for T1+lmr on input line 15
 (/usr/share/texmf/tex/latex/lm/t1lmr.fd
 File: t1lmr.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
 )
-(docs/physics_notes/module2_2d_electrostatics_defect_space_charge.aux)
+(./module2_2d_electrostatics_defect_space_charge.aux)
 \openout1 = `module2_2d_electrostatics_defect_space_charge.aux'.
 
 LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 15.
@@ -1001,8 +1001,8 @@ e
 ))
 Package hyperref Info: Link coloring ON on input line 15.
 
-(docs/physics_notes/module2_2d_electrostatics_defect_space_charge.out)
-(docs/physics_notes/module2_2d_electrostatics_defect_space_charge.out)
+(./module2_2d_electrostatics_defect_space_charge.out)
+(./module2_2d_electrostatics_defect_space_charge.out)
 \@outlinefile=\write4
 \openout4 = `module2_2d_electrostatics_defect_space_charge.out'.
 
@@ -1036,7 +1036,7 @@ Package microtype Info: Loading generic protrusion settings for font family
 (microtype)             For optimal results, create family-specific settings.
 (microtype)             See the microtype manual for details.
 
-(docs/physics_notes/module2_2d_electrostatics_defect_space_charge.toc
+(./module2_2d_electrostatics_defect_space_charge.toc
 LaTeX Font Info:    Trying to load font information for OT1+lmr on input line 4
 .
 
@@ -1129,36 +1129,36 @@ File: ts1lmr.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
 
 [11]
 
-[12] (docs/physics_notes/module2_2d_electrostatics_defect_space_charge.aux)
+[12] (./module2_2d_electrostatics_defect_space_charge.aux)
  ***********
 LaTeX2e <2024-11-01> patch level 2
 L3 programming layer <2025-01-18>
  ***********
 Package rerunfilecheck Info: File `module2_2d_electrostatics_defect_space_charg
 e.out' has not changed.
-(rerunfilecheck)             Checksum: 32D3F7E08E34F26F6B554018ADDF3743;8504.
+(rerunfilecheck)             Checksum: A4DF324591F4064F9E12D9301C5571D7;8599.
  ) 
 Here is how much of TeX's memory you used:
- 31887 strings out of 473197
- 643728 string characters out of 5718606
+ 31908 strings out of 473197
+ 643771 string characters out of 5718606
  1028297 words of memory out of 5000000
- 54455 multiletter control sequences out of 15000+600000
- 618599 words of font info for 133 fonts, out of 8000000 for 9000
+ 54466 multiletter control sequences out of 15000+600000
+ 623252 words of font info for 137 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 121i,12n,124p,1061b,1142s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ 121i,12n,124p,1042b,1118s stack positions out of 10000i,1000n,20000p,200000b,200000s
 </usr/share/texmf/fonts/type1/public/lm/lmbx10.pfb></usr/share/texmf/fonts/ty
 pe1/public/lm/lmbx12.pfb></usr/share/texmf/fonts/type1/public/lm/lmex10.pfb></u
 sr/share/texmf/fonts/type1/public/lm/lmmi10.pfb></usr/share/texmf/fonts/type1/p
 ublic/lm/lmmi8.pfb></usr/share/texmf/fonts/type1/public/lm/lmr10.pfb></usr/shar
 e/texmf/fonts/type1/public/lm/lmr12.pfb></usr/share/texmf/fonts/type1/public/lm
-/lmr8.pfb></usr/share/texmf/fonts/type1/public/lm/lmsy10.pfb></usr/share/texmf/
-fonts/type1/public/lm/lmsy8.pfb></usr/share/texmf/fonts/type1/public/lm/lmtt12.
-pfb>
-Output written on docs/physics_notes/module2_2d_electrostatics_defect_space_cha
-rge.pdf (12 pages, 231263 bytes).
+/lmr8.pfb></usr/share/texmf/fonts/type1/public/lm/lmri10.pfb></usr/share/texmf/
+fonts/type1/public/lm/lmsy10.pfb></usr/share/texmf/fonts/type1/public/lm/lmsy8.
+pfb></usr/share/texmf/fonts/type1/public/lm/lmtt12.pfb>
+Output written on module2_2d_electrostatics_defect_space_charge.pdf (12 pages, 
+250247 bytes).
 PDF statistics:
- 371 PDF objects out of 1000 (max. 8388607)
- 327 compressed objects within 4 object streams
- 84 named destinations out of 1000 (max. 500000)
- 35629 words of extra memory for PDF output out of 35830 (max. 10000000)
+ 386 PDF objects out of 1000 (max. 8388607)
+ 340 compressed objects within 4 object streams
+ 89 named destinations out of 1000 (max. 500000)
+ 37685 words of extra memory for PDF output out of 42996 (max. 10000000)
 

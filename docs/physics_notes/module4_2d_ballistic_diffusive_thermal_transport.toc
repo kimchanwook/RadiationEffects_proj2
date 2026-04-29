@@ -1,0 +1,74 @@
+\contentsline {section}{Symbols and acronyms used in this document}{4}{Doc-Start}%
+\contentsline {section}{\numberline {1}What problem this module is solving}{8}{section.1}%
+\contentsline {section}{\numberline {2}Heat carriers and the meaning of temperature}{8}{section.2}%
+\contentsline {subsection}{\numberline {2.1}Heat is carried by microscopic excitations}{9}{subsection.2.1}%
+\contentsline {subsection}{\numberline {2.2}Temperature is simple only near local equilibrium}{9}{subsection.2.2}%
+\contentsline {section}{\numberline {3}Macroscopic energy conservation}{9}{section.3}%
+\contentsline {section}{\numberline {4}Fourier conduction as a local constitutive model}{10}{section.4}%
+\contentsline {subsection}{\numberline {4.1}Why the Fourier heat equation has infinite propagation speed}{10}{subsection.4.1}%
+\contentsline {section}{\numberline {5}The Knudsen number and transport regimes}{11}{section.5}%
+\contentsline {section}{\numberline {6}Microscopic starting point: distribution function}{11}{section.6}%
+\contentsline {section}{\numberline {7}Deriving the Boltzmann transport equation}{12}{section.7}%
+\contentsline {subsection}{\numberline {7.1}Streaming without scattering}{12}{subsection.7.1}%
+\contentsline {subsection}{\numberline {7.2}Adding scattering}{12}{subsection.7.2}%
+\contentsline {subsection}{\numberline {7.3}Term-by-term meaning}{13}{subsection.7.3}%
+\contentsline {section}{\numberline {8}Why a direct Boltzmann solve is expensive}{13}{section.8}%
+\contentsline {section}{\numberline {9}Intensity notation}{13}{section.9}%
+\contentsline {subsection}{\numberline {9.1}Definition of spectral intensity}{13}{subsection.9.1}%
+\contentsline {subsection}{\numberline {9.2}Moments of intensity}{14}{subsection.9.2}%
+\contentsline {section}{\numberline {10}Recovering Fourier conduction from the BTE}{14}{section.10}%
+\contentsline {section}{\numberline {11}Cattaneo's correction and its limitation}{15}{section.11}%
+\contentsline {subsection}{\numberline {11.1}Flux relaxation}{15}{subsection.11.1}%
+\contentsline {subsection}{\numberline {11.2}Why Cattaneo is still not enough}{16}{subsection.11.2}%
+\contentsline {section}{\numberline {12}Ballistic-diffusive idea}{16}{section.12}%
+\contentsline {section}{\numberline {13}Equation for the ballistic component}{17}{section.13}%
+\contentsline {subsection}{\numberline {13.1}Derivation along a characteristic}{17}{subsection.13.1}%
+\contentsline {subsection}{\numberline {13.2}Retarded boundary time}{18}{subsection.13.2}%
+\contentsline {section}{\numberline {14}Equation for the medium/scattered component}{18}{section.14}%
+\contentsline {section}{\numberline {15}P1 angular expansion for the medium component}{18}{section.15}%
+\contentsline {section}{\numberline {16}Moment equations for the medium component}{19}{section.16}%
+\contentsline {subsection}{\numberline {16.1}Zeroth angular moment}{19}{subsection.16.1}%
+\contentsline {subsection}{\numberline {16.2}First angular moment}{19}{subsection.16.2}%
+\contentsline {section}{\numberline {17}Heat flux and internal energy split}{20}{section.17}%
+\contentsline {section}{\numberline {18}Constitutive relation for the medium component}{20}{section.18}%
+\contentsline {section}{\numberline {19}Energy equation for the medium component}{21}{section.19}%
+\contentsline {subsection}{\numberline {19.1}Ballistic moment relation}{21}{subsection.19.1}%
+\contentsline {subsection}{\numberline {19.2}Eliminating the medium heat flux}{21}{subsection.19.2}%
+\contentsline {section}{\numberline {20}Explicit ballistic heat flux}{22}{section.20}%
+\contentsline {section}{\numberline {21}Boundary condition for the medium component}{22}{section.21}%
+\contentsline {section}{\numberline {22}Temperature consistency at boundaries}{23}{section.22}%
+\contentsline {section}{\numberline {23}One-dimensional thin-film validation problem}{23}{section.23}%
+\contentsline {subsection}{\numberline {23.1}Why this validation problem is the right first test}{23}{subsection.23.1}%
+\contentsline {subsection}{\numberline {23.2}Starting from the full ballistic-diffusive energy equation}{24}{subsection.23.2}%
+\contentsline {subsection}{\numberline {23.3}Initial and boundary data in physical variables}{25}{subsection.23.3}%
+\contentsline {subsection}{\numberline {23.4}Nondimensional variables}{26}{subsection.23.4}%
+\contentsline {subsection}{\numberline {23.5}Step-by-step nondimensionalization of the governing equation}{27}{subsection.23.5}%
+\contentsline {subsection}{\numberline {23.6}Dimensionless initial and boundary conditions}{28}{subsection.23.6}%
+\contentsline {subsection}{\numberline {23.7}Ballistic intensity in one dimension}{28}{subsection.23.7}%
+\contentsline {subsection}{\numberline {23.8}Finite arrival time and the lower angular limit}{29}{subsection.23.8}%
+\contentsline {subsection}{\numberline {23.9}Ballistic flux contribution for the step-heated film}{29}{subsection.23.9}%
+\contentsline {subsection}{\numberline {23.10}Ballistic internal energy contribution}{30}{subsection.23.10}%
+\contentsline {subsection}{\numberline {23.11}Equilibrium subtraction and why it is not cosmetic}{30}{subsection.23.11}%
+\contentsline {subsection}{\numberline {23.12}What should be plotted in the Module 1 validation}{31}{subsection.23.12}%
+\contentsline {section}{\numberline {24}Dedicated comparison: why Fourier and Cattaneo fail}{31}{section.24}%
+\contentsline {subsection}{\numberline {24.1}Failure mode of Fourier conduction}{31}{subsection.24.1}%
+\contentsline {subsection}{\numberline {24.2}Failure mode of Cattaneo conduction}{32}{subsection.24.2}%
+\contentsline {subsection}{\numberline {24.3}Why the ballistic-diffusive model is better}{32}{subsection.24.3}%
+\contentsline {section}{\numberline {25}Weak form for FEM implementation}{32}{section.25}%
+\contentsline {section}{\numberline {26}Matrix form}{33}{section.26}%
+\contentsline {section}{\numberline {27}Practical implementation strategy for this project}{34}{section.27}%
+\contentsline {section}{\numberline {28}How this connects to the superconducting-qubit project}{34}{section.28}%
+\contentsline {section}{\numberline {29}Assumptions and limitations}{35}{section.29}%
+\contentsline {section}{\numberline {30}Summary of the derivation}{35}{section.30}%
+\contentsline {section}{\numberline {31}Lecture-ready slide translation for Module 1}{36}{section.31}%
+\contentsline {section}{\numberline {32}Module 1 implementation checklist}{37}{section.32}%
+\contentsline {section}{\numberline {33}Module 4 interpretation for RadiationEffects\_proj2}{38}{section.33}%
+\contentsline {subsection}{\numberline {33.1}Why the 2D reduction is the right next step}{38}{subsection.33.1}%
+\contentsline {subsection}{\numberline {33.2}2D governing equation used as the Module 4 target}{38}{subsection.33.2}%
+\contentsline {subsection}{\numberline {33.3}Source terms in the radiation-effects setting}{38}{subsection.33.3}%
+\contentsline {subsection}{\numberline {33.4}How ballistic terms should be interpreted in this project}{39}{subsection.33.4}%
+\contentsline {subsection}{\numberline {33.5}Coupling to Module 3 defect evolution}{39}{subsection.33.5}%
+\contentsline {subsection}{\numberline {33.6}Coupling to Modules 5 and 6}{39}{subsection.33.6}%
+\contentsline {subsection}{\numberline {33.7}Verification logic for the revised Module 4}{39}{subsection.33.7}%
+\contentsline {subsection}{\numberline {33.8}Summary of the revised Module 4 role}{40}{subsection.33.8}%
+\contentsline {section}{\numberline {34}References}{40}{section.34}%

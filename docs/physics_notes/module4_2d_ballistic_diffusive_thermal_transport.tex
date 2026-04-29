@@ -1,0 +1,1316 @@
+\documentclass[11pt]{article}
+\input{../shared/project_style.tex}
+\rhead{Module 4}
+\begin{document}
+
+\DocTitle{Module 4: Two-Dimensional Ballistic-Diffusive Thermal Transport in Silicon}{From microscopic carrier transport to a reduced 2D thermal model for RadiationEffects\_proj2}{Physics note for RadiationEffects\_proj2}
+
+\begin{overviewbox}
+\textbf{Purpose.} This note develops the ballistic-diffusive heat-conduction model from first principles. The goal is not only to write down the final partial differential equation, but to understand why it has the form that it does and how it should be adapted into Module 4 of RadiationEffects\_proj2. We begin with conservation of energy and the microscopic carrier picture, derive the Boltzmann transport equation under the relaxation-time approximation, recover Fourier conduction as a limiting approximation, explain why Fourier and Cattaneo models fail in the quasi-ballistic regime, and then derive the ballistic-diffusive equation used here as the thermal-physics backbone. The later sections reinterpret the model for a two-dimensional silicon device cross section with volumetric source terms appropriate for radiation-damage studies and with coupling to the defect-evolution and device-transport modules.
+\end{overviewbox}
+
+\ProjectTOC
+
+\SymbolsAcronymsSection
+\begin{symtable}
+BTE & Boltzmann transport equation & Phase-space transport equation for heat carriers such as phonons, electrons, or molecules. \\
+BD & Ballistic-diffusive & Reduced model in which boundary-originating carriers are treated ballistically and internally scattered carriers are treated diffusively. \\
+FEM & Finite element method & Numerical method based on a weak form, basis functions, and element-wise integration. \\
+PDE & Partial differential equation & Equation involving partial derivatives with respect to space and/or time. \\
+RTA & Relaxation-time approximation & Collision model in which the distribution relaxes toward local equilibrium over a characteristic time. \\
+P1 approximation & First-order spherical harmonics approximation & Angular-moment closure that keeps the isotropic part and first directional anisotropy of a distribution. \\
+\(t\) & Time & Independent time coordinate. \\
+\(\rvec\) & Position vector & Spatial coordinate in the material domain. \\
+\(x\) & One-dimensional coordinate & Spatial coordinate across a thin film. \\
+\(L\) & Characteristic length & Film thickness or representative device length scale. \\
+\(s\) & Ray coordinate & Distance measured along a carrier propagation direction. \\
+\(s_0\) & Boundary ray coordinate & Ray coordinate at the boundary point from which a carrier originates. \\
+\(\hat{\Omega}\) & Propagation direction & Unit vector in the direction of carrier motion. \\
+\(\bm{v}\) & Carrier group velocity & Velocity vector of a carrier wave packet. \\
+\(v\) & Carrier speed & Magnitude of the carrier group velocity, \(v=\abs{\bm{v}}\). \\
+\(\mu\) & Direction cosine & In one-dimensional transport, \(\mu=\cos\theta\), where \(\theta\) is the angle relative to the positive \(x\)-axis. \\
+\(\omega\) & Angular frequency & Carrier angular frequency. \\
+\(\hbar\) & Reduced Planck constant & Quantum of action divided by \(2\pi\). \\
+\(D(\omega)\) & Density of states & Number of available carrier modes per unit volume per angular-frequency interval. \\
+\(f\) & Distribution function & Carrier occupation in phase space. \\
+\(f_0\) & Local-equilibrium distribution & Bose-Einstein or Fermi-Dirac distribution determined by local thermodynamic variables. \\
+\(f_b\) & Ballistic distribution & Boundary-originating portion of \(f\). \\
+\(f_m\) & Medium/scattered distribution & Portion of \(f\) associated with carriers scattered or emitted inside the medium. \\
+\(I_\omega\) & Spectral intensity & Directional energy-flow representation of the distribution function. \\
+\(I_{0\omega}\) & Equilibrium spectral intensity & Intensity corresponding to local equilibrium. \\
+\(I_{b\omega}\) & Ballistic intensity & Boundary-originating part of \(I_\omega\). \\
+\(I_{m\omega}\) & Medium/scattered intensity & Internally scattered or emitted part of \(I_\omega\). \\
+\(I_{w\omega}\) & Wall/boundary intensity & Intensity emitted or reflected from a boundary into the domain. \\
+\(J_{0\omega}\) & Isotropic intensity coefficient & Zeroth angular harmonic of \(I_{m\omega}\). \\
+\(\bm{J}_{1\omega}\) & First angular coefficient & First angular harmonic vector of \(I_{m\omega}\). \\
+\(\tau_\omega\) & Mode-dependent relaxation time & Average time between scattering events for carriers of frequency \(\omega\). \\
+\(\tau\) & Averaged relaxation time & Spectrally averaged relaxation time used in the reduced model. \\
+\(\mfp_\omega\) & Mode-dependent mean free path & \(\mfp_\omega=v\tau_\omega\). \\
+\(\mfp\) & Mean free path & Average distance traveled between scattering events. \\
+\(\mathrm{Kn}\) & Knudsen number & \(\mathrm{Kn}=\mfp/L\), ratio of mean free path to device length. \\
+\(u\) & Internal energy density & Carrier energy per unit volume. \\
+\(u_b\) & Ballistic internal energy density & Internal energy density associated with \(I_{b\omega}\). \\
+\(u_m\) & Medium/scattered internal energy density & Internal energy density associated with \(I_{m\omega}\). \\
+\(u_{b0}\) & Equilibrium ballistic energy density & Ballistic energy contribution in a reference equilibrium state. \\
+\(u_{m0}\) & Equilibrium medium energy density & Medium energy contribution in a reference equilibrium state. \\
+\(T\) & Equivalent temperature & Temperature inferred from internal energy; a true thermodynamic temperature only when local equilibrium is valid. \\
+\(T_m\) & Medium-equivalent temperature & \(T_m=u_m/C\) when constant volumetric heat capacity is assumed. \\
+\(T_b\) & Ballistic-equivalent temperature & \(T_b=u_b/C\) when constant volumetric heat capacity is assumed. \\
+\(T_0\) & Initial/reference temperature & Uniform initial temperature of a validation film. \\
+\(T_1\) & Emitted boundary temperature & Temperature characterizing carriers emitted from the hot boundary. \\
+\(\Delta T\) & Temperature scale & \(\Delta T=T_1-T_0\). \\
+\(C\) & Volumetric heat capacity & \(C=\partial u/\partial T\), energy per unit volume per kelvin. \\
+\(C_\omega\) & Spectral heat capacity & Heat capacity contribution from carriers near angular frequency \(\omega\). \\
+\(k\) & Thermal conductivity & Diffusive thermal conductivity. \\
+\(\alpha\) & Thermal diffusivity & \(\alpha=k/C\). \\
+\(\qvec\) & Total heat flux & Energy flow per unit area per unit time. \\
+\(\qvec_b\) & Ballistic heat flux & Heat flux carried by boundary-originating carriers. \\
+\(\qvec_m\) & Medium/scattered heat flux & Heat flux carried by internally scattered carriers. \\
+\(\dot{q}_e\) & Volumetric heat generation & External heat source per unit volume. \\
+\(\nvec\) & Unit normal & Outward unit normal vector on a boundary. \\
+\(\Omega\) & Spatial domain & Physical region occupied by the simulated material. \\
+\(\partial\Omega\) & Boundary of the domain & Surface enclosing \(\Omega\). \\
+\(w\) & Test function & Weighting function used to form the FEM weak statement. \\
+\(N_i\) & FEM basis function & Shape function associated with node \(i\). \\
+\(M\) & Mass matrix & FEM matrix from \(\int_\Omega N_i N_j\,\dd V\). \\
+\(K\) & Stiffness matrix & FEM matrix from \(\int_\Omega \nabla N_i\cdot \alpha \nabla N_j\,\dd V\). \\
+\(\eta\) & Nondimensional coordinate & \(\eta=x/L\). \\
+\(t^*\) & Nondimensional time & \(t^*=t/\tau\). \\
+\(\theta_m\) & Nondimensional medium energy & Normalized version of \(u_m-u_{m0}\). \\
+\(\theta_b\) & Nondimensional ballistic energy & Normalized version of \(u_b-u_{b0}\). \\
+\(\theta\) & Nondimensional total energy temperature & Normalized total energy perturbation, \(\theta=\theta_m+\theta_b\). \\
+\(q_{b0}\) & Equilibrium ballistic heat flux & Reference ballistic flux subtracted in the normalized validation problem. \\
+\(q_b^*\) & Nondimensional ballistic flux & Normalized version of \(q_b-q_{b0}\). \\
+\(E_n(z)\) & Exponential integral & Integral \(E_n(z)=\int_1^\infty e^{-zt}t^{-n}\,\dd t\), useful for equilibrium ballistic terms. \\
+\end{symtable}
+
+\section{What problem this module is solving}
+A superconducting qubit chip contains structures whose relevant dimensions can range from millimeters, to micrometers, to nanometers. A local energy deposition event, a photon absorption event, or a transient heat pulse does not always relax according to ordinary macroscopic Fourier conduction. At small length scales, heat carriers can travel a significant fraction of the device size before scattering. In that case, the heat flux at a point is partly determined by distant boundaries and by the history of carrier flight, not only by the local temperature gradient.
+
+The purpose of this module is to construct a thermal transport model that is more physical than Fourier conduction but much cheaper than a full Boltzmann transport solve. The model should be capable of representing the transition between these limits:
+\begin{align}
+\text{diffusive limit:} \quad & \mfp \ll L, \\
+\text{quasi-ballistic limit:} \quad & \mfp \sim L, \\
+\text{ballistic limit:} \quad & \mfp \gtrsim L,
+\end{align}
+where \(\mfp\) is the carrier mean free path and \(L\) is the characteristic device length.
+
+\begin{physicsbox}
+\textbf{Core intuition.} Fourier's law is a local law: the heat flux at \(\rvec\) is determined by \(\nabla T(\rvec)\). Ballistic transport is nonlocal: a carrier at \(\rvec\) may have originated at a boundary point many mean-free-path-scale distances away and may remember the boundary state at an earlier time.
+\end{physicsbox}
+
+\section{Heat carriers and the meaning of temperature}
+\subsection{Heat is carried by microscopic excitations}
+In a solid, thermal energy is transported by microscopic excitations. In an insulating crystal, phonons are usually the dominant heat carriers. In a metal, both electrons and phonons can contribute. In a superconducting qubit material stack, the situation becomes more complicated at cryogenic temperature because phonons, quasiparticles, Cooper pairs, normal-metal traps, and interfaces can all matter. Module 4 intentionally starts with the room-temperature silicon heat-transport problem because it provides the transport language needed later in the radiation-effects framework.
+
+A carrier is described by its position \(\rvec\), propagation direction \(\hat{\Omega}\), frequency \(\omega\), and time \(t\). A distribution function tells us how many carriers occupy a small region of this phase space.
+
+\subsection{Temperature is simple only near local equilibrium}
+Macroscopic heat conduction often begins by assuming that every small volume element is in local thermal equilibrium. Then one can assign a temperature \(T(\rvec,t)\), and the local internal energy density is a function of temperature:
+\begin{equation}
+    u(\rvec,t)=u[T(\rvec,t)].
+\end{equation}
+For small temperature changes around a reference temperature, this becomes
+\begin{equation}
+    \dd u = C\,\dd T,
+\end{equation}
+where \(C\) is volumetric heat capacity. This relation is useful but should not be mistaken for a definition that is always valid. If the carrier distribution is strongly nonequilibrium, a single thermodynamic temperature may not exist.
+
+In this module we use \emph{equivalent temperature} in a precise sense: it is the temperature that an equilibrium distribution would need to have in order to contain the same local internal energy. Therefore, in ballistic transport, temperature is best interpreted as an energy label, not always as a true local-equilibrium state variable.
+
+\section{Macroscopic energy conservation}
+Before discussing any constitutive law, we start with energy conservation. Consider an arbitrary fixed control volume \(V\) with boundary \(\partial V\) and outward normal \(\nvec\). Let \(u\) be internal energy density and \(\qvec\) be heat flux. Conservation of energy says
+\begin{equation}
+    \frac{\dd}{\dd t}\int_V u\,\dd V
+    =-\int_{\partial V}\qvec\cdot\nvec\,\dd A
+    +\int_V \dot{q}_e\,\dd V,
+\end{equation}
+where \(\dot{q}_e\) is a volumetric heat source. The first term on the right is energy leaving the volume by heat flow. Using the divergence theorem,
+\begin{equation}
+    \int_{\partial V}\qvec\cdot\nvec\,\dd A
+    =\int_V \nabla\cdot\qvec\,\dd V.
+\end{equation}
+Because the control volume is arbitrary,
+\begin{equation}
+    \boxed{\frac{\partial u}{\partial t}+\nabla\cdot\qvec=\dot{q}_e.}
+    \label{eq:local_energy_conservation}
+\end{equation}
+This equation is exact at the continuum energy-balance level. The modeling question is how to compute \(\qvec\).
+
+\section{Fourier conduction as a local constitutive model}
+Fourier conduction assumes
+\begin{equation}
+    \boxed{\qvec=-k\nabla T.}
+    \label{eq:fourier_law}
+\end{equation}
+The minus sign means heat flows from high temperature to low temperature. If \(u=C T\) with constant \(C\), substitution into Eq.~\eqref{eq:local_energy_conservation} gives
+\begin{equation}
+    C\frac{\partial T}{\partial t}+\nabla\cdot(-k\nabla T)=\dot{q}_e,
+\end{equation}
+so
+\begin{equation}
+    \boxed{C\frac{\partial T}{\partial t}=\nabla\cdot(k\nabla T)+\dot{q}_e.}
+    \label{eq:fourier_heat_equation_general}
+\end{equation}
+If \(k\) is constant and there is no source,
+\begin{equation}
+    \frac{\partial T}{\partial t}=\alpha \nabla^2T,
+    \qquad
+    \alpha=\frac{k}{C}.
+\end{equation}
+
+\subsection{Why the Fourier heat equation has infinite propagation speed}
+For an infinite one-dimensional medium, the Green's function of
+\begin{equation}
+    \frac{\partial T}{\partial t}=\alpha\frac{\partial^2T}{\partial x^2}
+\end{equation}
+from a point impulse at \(t=0\) is
+\begin{equation}
+    G(x,t)=\frac{1}{\sqrt{4\pi\alpha t}}\exp\left(-\frac{x^2}{4\alpha t}\right), \qquad t>0.
+\end{equation}
+For every \(t>0\), the exponential is nonzero for every finite \(x\). The disturbance immediately has nonzero amplitude arbitrarily far away. Mathematically, this is because the heat equation is parabolic. Physically, this is incompatible with heat being carried by microscopic carriers moving at finite group velocity.
+
+At macroscale, this infinite-speed artifact is usually harmless. At nanoscale, microscale, or ultrafast timescales, it can dominate early-time predictions such as surface heat flux.
+
+\section{The Knudsen number and transport regimes}
+The mean free path \(\mfp\) is the average distance a carrier travels before scattering. The relaxation time \(\tau\) is the average time between scattering events. If the carrier speed is \(v\), then
+\begin{equation}
+    \boxed{\mfp=v\tau.}
+    \label{eq:mfp_def}
+\end{equation}
+The Knudsen number is
+\begin{equation}
+    \boxed{\mathrm{Kn}=\frac{\mfp}{L}.}
+    \label{eq:kn_def}
+\end{equation}
+It compares the microscopic distance between scattering events with the macroscopic device length.
+
+\begin{center}
+\begin{tabularx}{0.95\textwidth}{>{\RaggedRight\arraybackslash}p{0.22\textwidth}>{\RaggedRight\arraybackslash}p{0.25\textwidth}>{\RaggedRight\arraybackslash}X}
+\toprule
+Regime & Scaling & Physical interpretation \\
+\midrule
+Diffusive & \(\mathrm{Kn}\ll 1\) & Carriers scatter many times before crossing the system. Local equilibrium is a good approximation. Fourier conduction is usually valid. \\
+Quasi-ballistic & \(\mathrm{Kn}\sim 0.1-1\) & A significant fraction of carriers travel across device-scale distances before scattering. Boundary memory and finite flight time matter. \\
+Ballistic & \(\mathrm{Kn}\gtrsim 1\) & Carriers can cross the domain with few or no scattering events. Pure diffusion is a poor approximation. \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\section{Microscopic starting point: distribution function}
+Let \(f(t,\rvec,\bm{k})\) be the carrier distribution function, where \(\bm{k}\) is wave vector. For a phonon branch, the angular frequency is \(\omega=\omega(\bm{k})\), and the group velocity is
+\begin{equation}
+    \bm{v}=\nabla_{\bm{k}}\omega(\bm{k}).
+\end{equation}
+The quantity \(f\) is an occupation number: it tells us how many carriers occupy a phase-space state. For phonons at local equilibrium,
+\begin{equation}
+    f_0(\omega,T)=\frac{1}{\exp(\hbar\omega/\kB T)-1},
+\end{equation}
+which is the Bose-Einstein distribution. For electrons, the equilibrium distribution would be Fermi-Dirac. Module 1 focuses on the phonon-like heat-carrier derivation, but the transport structure is more general.
+
+\section{Deriving the Boltzmann transport equation}
+\subsection{Streaming without scattering}
+First ignore collisions. If carriers move with velocity \(\bm{v}\), then the distribution is conserved along a trajectory in phase space. In the absence of external force, the wave vector is constant and
+\begin{equation}
+    \frac{\dd f}{\dd t}
+    =\frac{\partial f}{\partial t}
+    +\frac{\dd \rvec}{\dd t}\cdot\nabla_{\rvec}f
+    =\frac{\partial f}{\partial t}+\bm{v}\cdot\nabla_{\rvec}f.
+\end{equation}
+Conservation along trajectories gives
+\begin{equation}
+    \frac{\partial f}{\partial t}+\bm{v}\cdot\nabla_{\rvec}f=0.
+\end{equation}
+This is free streaming.
+
+\subsection{Adding scattering}
+Scattering changes the occupation of a state. The general Boltzmann equation is
+\begin{equation}
+    \frac{\partial f}{\partial t}+\bm{v}\cdot\nabla_{\rvec}f
+    =\left(\frac{\partial f}{\partial t}\right)_{\mathrm{coll}},
+\end{equation}
+where the right side is the collision operator. The exact collision operator can be complicated because it can include phonon-phonon scattering, phonon-boundary scattering, impurity scattering, electron-phonon scattering, and other mechanisms.
+
+The relaxation-time approximation replaces the detailed collision operator by a tendency to relax toward local equilibrium:
+\begin{equation}
+    \left(\frac{\partial f}{\partial t}\right)_{\mathrm{coll}}
+    =-\frac{f-f_0}{\tau_\omega}.
+\end{equation}
+Therefore,
+\begin{equation}
+    \boxed{\frac{\partial f}{\partial t}+\bm{v}\cdot\nabla_{\rvec}f
+    =-\frac{f-f_0}{\tau_\omega}.}
+    \label{eq:bte_rta}
+\end{equation}
+This is the Boltzmann transport equation under the relaxation-time approximation.
+
+\subsection{Term-by-term meaning}
+Each term in Eq.~\eqref{eq:bte_rta} has a direct physical meaning:
+\begin{align}
+    \frac{\partial f}{\partial t} &: \text{local time change of carrier occupation,}\\
+    \bm{v}\cdot\nabla_{\rvec}f &: \text{change due to carriers streaming through space,}\\
+    -\frac{f-f_0}{\tau_\omega} &: \text{relaxation toward local equilibrium by scattering.}
+\end{align}
+If \(f>f_0\), scattering reduces \(f\). If \(f<f_0\), scattering increases \(f\). The relaxation time \(\tau_\omega\) can depend on frequency because different phonon modes scatter differently.
+
+\begin{notebox}
+\textbf{Assumption in this module.} We neglect explicit force terms. For electron transport in an electric field, the BTE would include a force term in wave-vector space. For phonon heat transport without external body force, the streaming-plus-collision form is the relevant starting point.
+\end{notebox}
+
+\section{Why a direct Boltzmann solve is expensive}
+In three-dimensional space, \(f\) depends on
+\begin{equation}
+    (x,y,z),\quad \text{two direction angles},\quad \omega,\quad t.
+\end{equation}
+Equivalently, the BTE lives in real space, momentum space, and time. Solving it directly is much more expensive than solving a heat equation for \(T(x,y,z,t)\). The purpose of the ballistic-diffusive approximation is to keep the finite-speed and nonlocal physics that matter in small structures while reducing the problem to a PDE in ordinary space and time plus an explicitly computed ballistic flux term.
+
+\section{Intensity notation}
+\subsection{Definition of spectral intensity}
+It is useful to rewrite the BTE in terms of spectral intensity. For an isotropic medium, define
+\begin{equation}
+    I_\omega(t,\rvec,\hat{\Omega})
+    =\frac{1}{4\pi}\,v\,\hbar\omega\,D(\omega)\,f(t,\rvec,\hat{\Omega},\omega),
+    \label{eq:intensity_definition}
+\end{equation}
+where \(D(\omega)\) is the density of states per unit volume. The factor \(1/(4\pi)\) distributes the isotropic density over solid angle. The exact convention can vary, but this convention makes the angular moments transparent.
+
+The intensity form of the BTE is
+\begin{equation}
+    \boxed{\frac{\partial I_\omega}{\partial t}+\bm{v}\cdot\nabla I_\omega
+    =-\frac{I_\omega-I_{0\omega}}{\tau_\omega}.}
+    \label{eq:intensity_bte}
+\end{equation}
+Here \(I_{0\omega}\) is the local-equilibrium intensity.
+
+\subsection{Moments of intensity}
+The internal energy density is obtained by integrating energy per unit volume over frequency and direction. Because intensity is energy flow per area per time per solid angle per frequency, division by speed converts flux-like intensity into energy density:
+\begin{equation}
+    \boxed{u(t,\rvec)=\int_0^\infty\int_{4\pi}\frac{I_\omega(t,\rvec,\hat{\Omega})}{v}\,\dd\Omega\,\dd\omega.}
+    \label{eq:energy_moment}
+\end{equation}
+The heat flux is the directional projection of energy flow:
+\begin{equation}
+    \boxed{\qvec(t,\rvec)=\int_0^\infty\int_{4\pi} I_\omega(t,\rvec,\hat{\Omega})\,\hat{\Omega}\,\dd\Omega\,\dd\omega.}
+    \label{eq:flux_moment}
+\end{equation}
+These two moment definitions are the bridge between microscopic carrier transport and continuum thermal variables.
+
+\section{Recovering Fourier conduction from the BTE}
+This section is important because it shows what Fourier conduction throws away. Suppose the system is close to local equilibrium, so
+\begin{equation}
+    f=f_0+f_1,
+    \qquad
+    \abs{f_1}\ll\abs{f_0}.
+\end{equation}
+Assume steady or slowly varying conditions so the leading nonequilibrium correction comes from spatial gradients. The BTE gives approximately
+\begin{equation}
+    \bm{v}\cdot\nabla f_0\approx -\frac{f_1}{\tau_\omega},
+\end{equation}
+so
+\begin{equation}
+    f_1\approx -\tau_\omega\bm{v}\cdot\nabla f_0.
+    \label{eq:f1_fourier}
+\end{equation}
+Because \(f_0=f_0[T(\rvec)]\),
+\begin{equation}
+    \nabla f_0=\frac{\partial f_0}{\partial T}\nabla T.
+\end{equation}
+Thus
+\begin{equation}
+    f_1\approx -\tau_\omega(\bm{v}\cdot\nabla T)\frac{\partial f_0}{\partial T}.
+\end{equation}
+The heat flux is the first velocity moment of the nonequilibrium correction. In an isotropic medium,
+\begin{equation}
+    \int v_i v_j\,\dd\Omega = \frac{4\pi}{3}v^2\delta_{ij}.
+\end{equation}
+Therefore the flux becomes
+\begin{equation}
+    \qvec=-\frac{1}{3}\int_0^\infty C_\omega v^2\tau_\omega\,\dd\omega\,\nabla T.
+\end{equation}
+Using \(\mfp_\omega=v\tau_\omega\), this is
+\begin{equation}
+    \boxed{\qvec=-k\nabla T,\qquad
+    k=\frac{1}{3}\int_0^\infty C_\omega v\mfp_\omega\,\dd\omega.}
+    \label{eq:kinetic_k}
+\end{equation}
+This is Fourier's law from kinetic theory.
+
+\begin{physicsbox}
+\textbf{What had to be assumed to get Fourier's law?} We assumed near local equilibrium, small anisotropy, many scattering events over the temperature-gradient length scale, and no strong boundary memory. Those assumptions are precisely what become questionable when \(\mathrm{Kn}\) is not small.
+\end{physicsbox}
+
+\section{Cattaneo's correction and its limitation}
+\subsection{Flux relaxation}
+The Cattaneo model modifies Fourier's law by giving heat flux a relaxation time:
+\begin{equation}
+    \boxed{\tau\frac{\partial \qvec}{\partial t}+\qvec=-k\nabla T.}
+    \label{eq:cattaneo_law}
+\end{equation}
+If \(\tau\to 0\), Fourier's law is recovered. Combining Eq.~\eqref{eq:cattaneo_law} with energy conservation gives a hyperbolic heat equation. For constant \(C\), constant \(k\), and no source,
+\begin{equation}
+    C\frac{\partial T}{\partial t}+\nabla\cdot\qvec=0.
+\end{equation}
+Take a time derivative:
+\begin{equation}
+    C\frac{\partial^2T}{\partial t^2}+\nabla\cdot\frac{\partial\qvec}{\partial t}=0.
+\end{equation}
+Take the divergence of Eq.~\eqref{eq:cattaneo_law}:
+\begin{equation}
+    \tau\nabla\cdot\frac{\partial\qvec}{\partial t}+\nabla\cdot\qvec=-k\nabla^2T.
+\end{equation}
+Using \(\nabla\cdot\qvec=-C\partial T/\partial t\), we get
+\begin{equation}
+    \boxed{\tau\frac{\partial^2T}{\partial t^2}+\frac{\partial T}{\partial t}=\alpha\nabla^2T.}
+    \label{eq:cattaneo_heat_equation}
+\end{equation}
+This is a telegraph-type equation. It has finite signal speed
+\begin{equation}
+    c_{\mathrm{th}}=\sqrt{\frac{\alpha}{\tau}}.
+\end{equation}
+Using \(\alpha=k/C\) and the kinetic estimate \(k\approx C v\mfp/3=Cv^2\tau/3\),
+\begin{equation}
+    c_{\mathrm{th}}\approx \frac{v}{\sqrt{3}}.
+\end{equation}
+So Cattaneo fixes the most obvious mathematical pathology of Fourier conduction: infinite propagation speed.
+
+\subsection{Why Cattaneo is still not enough}
+Cattaneo still treats the entire heat flux as a local constitutive variable that relaxes toward \(-k\nabla T\). It does not explicitly represent carriers that left a boundary, crossed the domain, and arrived at an interior point without scattering. Therefore, it does not contain the correct nonlocal boundary memory.
+
+This missing ingredient matters in thin films and nanoscale structures. In a heating experiment where one boundary suddenly emits carriers, some carriers travel ballistically into the film before enough scattering has occurred to establish a local gradient-driven flux. Cattaneo can produce wave-like behavior, but that wave is not the same as a distribution of particles arriving from the boundary at retarded times. In Chen's comparison calculations, Cattaneo gives artificial surface heat-flux oscillations and poor agreement with the Boltzmann equation in the small-scale transient regime.
+
+\section{Ballistic-diffusive idea}
+The ballistic-diffusive model starts from a simple but powerful split:
+\begin{equation}
+    \boxed{I_\omega=I_{b\omega}+I_{m\omega}.}
+    \label{eq:bd_intensity_split}
+\end{equation}
+The two parts have different physical meanings:
+\begin{align}
+    I_{b\omega} &: \text{carriers that originated at a boundary and have not yet scattered,}\\
+    I_{m\omega} &: \text{carriers produced by scattering or emission inside the medium.}
+\end{align}
+
+\begin{physicsbox}
+\textbf{Why the split is useful.} The ballistic part is highly directional and nonlocal, so we should not approximate it by diffusion. The medium part has already undergone scattering and is more nearly isotropic, so a diffusion-like angular closure is more defensible.
+\end{physicsbox}
+
+This is not merely a mathematical trick. It corresponds to two populations of heat carriers with different histories:
+\begin{enumerate}[leftmargin=1.6em]
+    \item A boundary-originating population that remembers the boundary condition and flight time.
+    \item An internally scattered population that has partially lost directional memory.
+\end{enumerate}
+
+\section{Equation for the ballistic component}
+The ballistic component experiences streaming and out-scattering, but it has no in-scattering source because newly scattered carriers are assigned to \(I_{m\omega}\). Therefore,
+\begin{equation}
+    \boxed{\frac{1}{v}\frac{\partial I_{b\omega}}{\partial t}
+    +\hat{\Omega}\cdot\nabla I_{b\omega}
+    =-\frac{I_{b\omega}}{v\tau_\omega}
+    =-\frac{I_{b\omega}}{\mfp_\omega}.}
+    \label{eq:ballistic_eq}
+\end{equation}
+
+\subsection{Derivation along a characteristic}
+Let \(s\) be distance along a ray in direction \(\hat{\Omega}\). Along the ray,
+\begin{equation}
+    \rvec(s)=\rvec_0+s\hat{\Omega}.
+\end{equation}
+For a time-dependent problem, a carrier travels a distance \(\dd s\) in time \(\dd t=\dd s/v\). Along the characteristic,
+\begin{equation}
+    \frac{\dd I_{b\omega}}{\dd s}
+    =\frac{1}{v}\frac{\partial I_{b\omega}}{\partial t}
+    +\hat{\Omega}\cdot\nabla I_{b\omega}.
+\end{equation}
+Therefore Eq.~\eqref{eq:ballistic_eq} becomes
+\begin{equation}
+    \frac{\dd I_{b\omega}}{\dd s}=-\frac{I_{b\omega}}{\mfp_\omega}.
+\end{equation}
+The solution is
+\begin{equation}
+    I_{b\omega}(s)=I_{b\omega}(s_0)\exp\left[-\int_{s_0}^{s}\frac{\dd s'}{\mfp_\omega(s')}\right].
+\end{equation}
+For a homogeneous medium, this reduces to
+\begin{equation}
+    I_{b\omega}(s)=I_{b\omega}(s_0)\exp\left[-\frac{s-s_0}{\mfp_\omega}\right].
+\end{equation}
+The exponential is a survival probability: it is the probability that a carrier travels from \(s_0\) to \(s\) without scattering.
+
+\subsection{Retarded boundary time}
+If the boundary intensity changes with time, the carrier arriving at \((t,\rvec)\) did not leave the boundary at time \(t\). It left earlier by the flight time
+\begin{equation}
+    \Delta t_{\mathrm{flight}}=\frac{s-s_0}{v}.
+\end{equation}
+Thus the ballistic solution is
+\begin{equation}
+    \boxed{I_{b\omega}(t,\rvec,\hat{\Omega})
+    =I_{w\omega}\left(t-\frac{s-s_0}{v},\rvec-(s-s_0)\hat{\Omega}\right)
+    \exp\left[-\int_{s_0}^{s}\frac{\dd s'}{\mfp_\omega(s')}\right].}
+    \label{eq:ballistic_solution}
+\end{equation}
+This is one of the most important equations in the module. It contains both finite propagation speed and attenuation by scattering.
+
+\section{Equation for the medium/scattered component}
+The remaining carriers are assigned to the medium component. They obey
+\begin{equation}
+    \boxed{\frac{\partial I_{m\omega}}{\partial t}
+    +\bm{v}\cdot\nabla I_{m\omega}
+    =-\frac{I_{m\omega}-I_{0\omega}}{\tau_\omega}.}
+    \label{eq:medium_eq}
+\end{equation}
+This equation still resembles the BTE, but now the distribution is more isotropic than the full distribution because the strongly directional unscattered boundary population has been separated out.
+
+\section{P1 angular expansion for the medium component}
+The diffusion approximation is an angular-moment closure. We expand \(I_{m\omega}\) in angular harmonics and keep only the isotropic term and the first directional term:
+\begin{equation}
+    \boxed{I_{m\omega}(t,\rvec,\hat{\Omega})
+    \approx J_{0\omega}(t,\rvec)+\bm{J}_{1\omega}(t,\rvec)\cdot\hat{\Omega}.}
+    \label{eq:p1_expansion}
+\end{equation}
+The scalar \(J_{0\omega}\) represents the angular average. The vector \(\bm{J}_{1\omega}\) represents the leading directional bias.
+
+The angular identities needed are
+\begin{align}
+    \int_{4\pi}\dd\Omega &=4\pi,\\
+    \int_{4\pi}\hat{\Omega}\,\dd\Omega &=\bm{0},\\
+    \int_{4\pi}\hat{\Omega}_i\hat{\Omega}_j\,\dd\Omega &=\frac{4\pi}{3}\delta_{ij}.
+    \label{eq:angular_identities}
+\end{align}
+These identities encode isotropy of the sphere. The factor \(1/3\) is the same factor that appears in kinetic theory expressions such as \(k=(1/3)Cv\mfp\).
+
+\section{Moment equations for the medium component}
+Substitute Eq.~\eqref{eq:p1_expansion} into Eq.~\eqref{eq:medium_eq}. Since \(\bm{v}=v\hat{\Omega}\),
+\begin{equation}
+    \frac{\partial J_{0\omega}}{\partial t}
+    +\frac{\partial \bm{J}_{1\omega}}{\partial t}\cdot\hat{\Omega}
+    +v\hat{\Omega}\cdot\nabla J_{0\omega}
+    +v\hat{\Omega}\cdot\nabla(\bm{J}_{1\omega}\cdot\hat{\Omega})
+    =-\frac{J_{0\omega}-I_{0\omega}}{\tau_\omega}
+    -\frac{\bm{J}_{1\omega}\cdot\hat{\Omega}}{\tau_\omega}.
+    \label{eq:substituted_p1}
+\end{equation}
+
+\subsection{Zeroth angular moment}
+Integrate Eq.~\eqref{eq:substituted_p1} over all directions. Terms odd in \(\hat{\Omega}\) vanish. Using Eq.~\eqref{eq:angular_identities},
+\begin{equation}
+    4\pi\frac{\partial J_{0\omega}}{\partial t}
+    +\frac{4\pi}{3}v\nabla\cdot\bm{J}_{1\omega}
+    =-\frac{4\pi}{\tau_\omega}(J_{0\omega}-I_{0\omega}).
+    \label{eq:zeroth_moment_dimensional}
+\end{equation}
+Equivalently,
+\begin{equation}
+    \frac{1}{v}\frac{\partial J_{0\omega}}{\partial t}
+    +\frac{1}{3}\nabla\cdot\bm{J}_{1\omega}
+    =-\frac{J_{0\omega}-I_{0\omega}}{v\tau_\omega}
+    =-\frac{J_{0\omega}-I_{0\omega}}{\mfp_\omega}.
+\end{equation}
+
+\subsection{First angular moment}
+Multiply Eq.~\eqref{eq:substituted_p1} by \(\hat{\Omega}\) and integrate over all directions. The result is
+\begin{equation}
+    \frac{1}{v}\frac{\partial \bm{J}_{1\omega}}{\partial t}+\nabla J_{0\omega}
+    =-\frac{\bm{J}_{1\omega}}{\mfp_\omega}.
+    \label{eq:first_moment_p1}
+\end{equation}
+This equation says that the directional bias \(\bm{J}_{1\omega}\) relaxes over a mean free path and is driven by gradients of the angular average \(J_{0\omega}\).
+
+\section{Heat flux and internal energy split}
+Using the intensity moments, the total internal energy density is
+\begin{equation}
+    u=u_b+u_m,
+    \label{eq:u_split}
+\end{equation}
+where
+\begin{align}
+    u_b &=\int_0^\infty\int_{4\pi}\frac{I_{b\omega}}{v}\,\dd\Omega\,\dd\omega,\\
+    u_m &=\int_0^\infty\int_{4\pi}\frac{I_{m\omega}}{v}\,\dd\Omega\,\dd\omega.
+\end{align}
+With the P1 expansion,
+\begin{equation}
+    u_m=\int_0^\infty \frac{4\pi J_{0\omega}}{v}\,\dd\omega.
+\end{equation}
+Similarly, the total heat flux is
+\begin{equation}
+    \qvec=\qvec_b+\qvec_m,
+    \label{eq:q_split}
+\end{equation}
+where
+\begin{align}
+    \qvec_b &=\int_0^\infty\int_{4\pi} I_{b\omega}\hat{\Omega}\,\dd\Omega\,\dd\omega,\\
+    \qvec_m &=\int_0^\infty\int_{4\pi} I_{m\omega}\hat{\Omega}\,\dd\Omega\,\dd\omega.
+\end{align}
+Using the P1 expansion and angular identities,
+\begin{equation}
+    \qvec_m=\frac{4\pi}{3}\int_0^\infty \bm{J}_{1\omega}\,\dd\omega.
+    \label{eq:qm_j1}
+\end{equation}
+
+\section{Constitutive relation for the medium component}
+Start from the first moment equation,
+\begin{equation}
+    \frac{1}{v}\frac{\partial \bm{J}_{1\omega}}{\partial t}+\nabla J_{0\omega}
+    =-\frac{\bm{J}_{1\omega}}{\mfp_\omega}.
+\end{equation}
+Multiply by the spectral weight that converts \(\bm{J}_{1\omega}\) into heat flux and integrate over frequency. Under the standard averaged-parameter approximation, the result is
+\begin{equation}
+    \boxed{\tau\frac{\partial \qvec_m}{\partial t}+\qvec_m
+    =-\frac{k}{C}\nabla u_m.}
+    \label{eq:qm_constitutive_um}
+\end{equation}
+If we define \(T_m=u_m/C\), then
+\begin{equation}
+    \boxed{\tau\frac{\partial \qvec_m}{\partial t}+\qvec_m=-k\nabla T_m.}
+    \label{eq:qm_constitutive_Tm}
+\end{equation}
+
+This looks like Cattaneo's law, but the interpretation is different. In Cattaneo theory, \(\qvec\) is the total heat flux. Here, \(\qvec_m\) is only the scattered medium flux. The ballistic flux \(\qvec_b\) is not represented by \(-k\nabla T_m\); it is computed separately from the boundary-originating carrier population.
+
+\section{Energy equation for the medium component}
+Use total energy conservation,
+\begin{equation}
+    \frac{\partial (u_m+u_b)}{\partial t}+\nabla\cdot(\qvec_m+\qvec_b)=\dot{q}_e.
+\end{equation}
+Rearrange to isolate the medium component:
+\begin{equation}
+    \frac{\partial u_m}{\partial t}+\nabla\cdot\qvec_m
+    =\dot{q}_e-\frac{\partial u_b}{\partial t}-\nabla\cdot\qvec_b.
+    \label{eq:medium_energy_balance}
+\end{equation}
+The right side says that the medium energy changes not only due to the external source, but also due to energy removed from or added by the ballistic component.
+
+\subsection{Ballistic moment relation}
+The ballistic intensity equation implies a moment equation. Integrating Eq.~\eqref{eq:ballistic_eq} over direction and frequency gives
+\begin{equation}
+    \frac{\partial u_b}{\partial t}+\nabla\cdot\qvec_b=-\frac{u_b}{\tau}
+    \label{eq:ballistic_moment_unmultiplied}
+\end{equation}
+for an averaged relaxation-time model. Equivalently,
+\begin{equation}
+    \tau\frac{\partial u_b}{\partial t}+\tau\nabla\cdot\qvec_b=-u_b.
+    \label{eq:ballistic_moment}
+\end{equation}
+This states that the ballistic energy population is depleted by scattering over time \(\tau\). Once a ballistic carrier scatters, it leaves the ballistic population and becomes part of the medium population.
+
+\subsection{Eliminating the medium heat flux}
+Take the divergence of Eq.~\eqref{eq:qm_constitutive_um}:
+\begin{equation}
+    \tau\frac{\partial}{\partial t}(\nabla\cdot\qvec_m)+\nabla\cdot\qvec_m
+    =-\nabla\cdot\left(\frac{k}{C}\nabla u_m\right).
+    \label{eq:div_qm_constitutive}
+\end{equation}
+From Eq.~\eqref{eq:medium_energy_balance},
+\begin{equation}
+    \nabla\cdot\qvec_m=\dot{q}_e-\frac{\partial u_m}{\partial t}-\frac{\partial u_b}{\partial t}-\nabla\cdot\qvec_b.
+    \label{eq:div_qm_from_energy}
+\end{equation}
+Substitute Eq.~\eqref{eq:div_qm_from_energy} into Eq.~\eqref{eq:div_qm_constitutive}. After collecting terms,
+\begin{align}
+    \tau\frac{\partial^2u_m}{\partial t^2}+\frac{\partial u_m}{\partial t}
+    &=\nabla\cdot\left(\frac{k}{C}\nabla u_m\right)
+    +\dot{q}_e+\tau\frac{\partial\dot{q}_e}{\partial t}
+    -\nabla\cdot\qvec_b \\
+    &\quad -\left[\tau\frac{\partial^2u_b}{\partial t^2}+\frac{\partial u_b}{\partial t}
+    +\tau\frac{\partial}{\partial t}(\nabla\cdot\qvec_b)\right].
+\end{align}
+The bracketed term vanishes by differentiating Eq.~\eqref{eq:ballistic_moment}. Therefore,
+\begin{equation}
+    \boxed{\tau\frac{\partial^2u_m}{\partial t^2}+\frac{\partial u_m}{\partial t}
+    =\nabla\cdot\left(\frac{k}{C}\nabla u_m\right)
+    -\nabla\cdot\qvec_b
+    +\left(\dot{q}_e+\tau\frac{\partial\dot{q}_e}{\partial t}\right).}
+    \label{eq:bd_energy_final}
+\end{equation}
+This is the ballistic-diffusive heat-conduction equation in energy-density form.
+
+\begin{physicsbox}
+\textbf{Interpretation of the final equation.} The left side is a Cattaneo-like inertial thermal response of the scattered medium energy. The first term on the right is diffusion of the scattered medium energy. The second term, \(-\nabla\cdot\qvec_b\), is the explicit source/sink caused by divergence of the boundary-originating ballistic heat flux. The final terms represent external volumetric heating and its relaxation-time correction.
+\end{physicsbox}
+
+\section{Explicit ballistic heat flux}
+The ballistic flux is obtained by inserting the characteristic solution Eq.~\eqref{eq:ballistic_solution} into the flux moment:
+\begin{equation}
+    \boxed{\qvec_b(t,\rvec)=\int_0^\infty\int_{4\pi}
+    I_{w\omega}\left(t-\frac{s-s_0}{v},\rvec-(s-s_0)\hat{\Omega}\right)
+    \exp\left[-\int_{s_0}^{s}\frac{\dd s'}{\mfp_\omega(s')}\right]
+    \hat{\Omega}\,\dd\Omega\,\dd\omega.}
+    \label{eq:ballistic_flux_general}
+\end{equation}
+This term depends on boundary emission/reflection, flight time, geometry, and attenuation. In simple geometries, it can be evaluated analytically or semi-analytically. In complex 3D geometries, it may be approximated by ray tracing, angular quadrature, or reduced boundary-source models.
+
+\section{Boundary condition for the medium component}
+Because boundary-originating carriers are assigned to the ballistic part, the medium component at a boundary consists only of carriers incident on the boundary from inside the material. This leads to a Marshak-type boundary condition.
+
+At a boundary with outward normal \(\nvec\), the incident medium flux through the boundary is determined by directions satisfying \(\hat{\Omega}\cdot\nvec<0\). The P1 approximation gives
+\begin{equation}
+    \qvec_m\cdot\nvec=-\frac{v}{2}u_m
+    \label{eq:marshak_flux_relation}
+\end{equation}
+for a black-wall limiting form. Combining this with the medium constitutive relation gives
+\begin{equation}
+    \boxed{\tau\frac{\partial u_m}{\partial t}+u_m
+    =-\frac{\mfp}{3}\nabla u_m\cdot\nvec.}
+    \label{eq:marshak_um}
+\end{equation}
+This is not the same as prescribing the boundary temperature in Fourier conduction. It is a boundary condition for the scattered medium energy after boundary-originating carriers have been assigned to the ballistic component.
+
+\section{Temperature consistency at boundaries}
+The boundary temperature that characterizes emitted carriers is not always identical to the equivalent equilibrium temperature just inside the medium. This distinction is central in nanoscale transport.
+
+Suppose a boundary emits phonons as if it were at temperature \(T_1\). The incoming carrier population is then specified by an emitted distribution. Inside the film, however, the total local energy is
+\begin{equation}
+    u(x,t)=u_m(x,t)+u_b(x,t).
+\end{equation}
+An equivalent internal-energy temperature would be
+\begin{equation}
+    T_{\mathrm{eq}}(x,t)=T_0+\frac{u(x,t)-u_0}{C}
+\end{equation}
+for a constant heat capacity model. In a highly nonequilibrium boundary layer, \(T_{\mathrm{eq}}\) need not equal the emitted boundary temperature. Therefore, a naively imposed Dirichlet temperature boundary condition can be physically inconsistent.
+
+This is why the ballistic-diffusive formulation keeps the boundary-emitted ballistic population separate from the internal medium population. It avoids forcing all boundary physics into a local equilibrium temperature.
+
+
+\section{One-dimensional thin-film validation problem}
+\subsection{Why this validation problem is the right first test}
+The canonical validation problem is transient heat conduction across a film of thickness \(L\). The coordinate is \(x\in[0,L]\). The film starts at uniform reference temperature \(T_0\). At \(t=0\), the left boundary begins emitting carriers characterized by a higher emitted temperature \(T_1\), while the right boundary remains characterized by \(T_0\). There is no volumetric heating:
+\begin{equation}
+    \dot{q}_e=0.
+\end{equation}
+
+This problem is simple geometrically but difficult physically. It contains all of the effects that distinguish Fourier, Cattaneo, Boltzmann, and ballistic-diffusive descriptions:
+\begin{enumerate}[leftmargin=1.6em]
+    \item a finite device length \(L\),
+    \item a finite carrier mean free path \(\mfp\),
+    \item a finite carrier flight time across the film,
+    \item a boundary-emitted carrier population,
+    \item a scattered carrier population inside the film,
+    \item a temperature or energy jump issue at the boundary.
+\end{enumerate}
+
+\begin{notebox}
+\textbf{Slide takeaway.} The thin-film problem is the cleanest benchmark because it is one-dimensional in space but still contains the real nanoscale physics: finite mean free path, finite carrier speed, retarded boundary emission, and boundary temperature subtlety.
+\end{notebox}
+
+\subsection{Starting from the full ballistic-diffusive energy equation}
+The general ballistic-diffusive medium-energy equation derived above is
+\begin{equation}
+    \tau\frac{\partial^2u_m}{\partial t^2}
+    +\frac{\partial u_m}{\partial t}
+    =\nabla\cdot\left(\frac{k}{C}\nabla u_m\right)
+    -\nabla\cdot\qvec_b
+    +\left(\dot{q}_e+\tau\frac{\partial \dot{q}_e}{\partial t}\right).
+    \label{eq:thinfilm_general_start}
+\end{equation}
+The unknown in this equation is not the total internal energy \(u\), but the medium or scattered-carrier energy \(u_m\). The ballistic energy \(u_b\) and ballistic flux \(\qvec_b\) are computed from boundary-originating carriers. The total energy is reconstructed afterward:
+\begin{equation}
+    u(x,t)=u_m(x,t)+u_b(x,t).
+\end{equation}
+
+For the one-dimensional thin film, all spatial variation is along \(x\), and the ballistic flux has only an \(x\)-component:
+\begin{equation}
+    \qvec_b(x,t)=q_b(x,t)\,\hat{x}.
+\end{equation}
+Therefore,
+\begin{equation}
+    \nabla\cdot\qvec_b=\frac{\partial q_b}{\partial x},
+    \qquad
+    \nabla\cdot\left(\frac{k}{C}\nabla u_m\right)
+    =\frac{\partial}{\partial x}\left(\frac{k}{C}\frac{\partial u_m}{\partial x}\right).
+\end{equation}
+If \(k\) and \(C\) are treated as constants, Eq.~\eqref{eq:thinfilm_general_start} reduces to
+\begin{equation}
+    \boxed{\tau\frac{\partial^2u_m}{\partial t^2}+\frac{\partial u_m}{\partial t}
+    =\frac{k}{C}\frac{\partial^2u_m}{\partial x^2}-\frac{\partial q_b}{\partial x}.}
+    \label{eq:bd_1d_dimensional_expanded}
+\end{equation}
+
+This equation has two conceptually different right-hand-side terms:
+\begin{align}
+    \frac{k}{C}\frac{\partial^2u_m}{\partial x^2}
+    &\quad \text{is local diffusion of the scattered carrier energy,}\\
+    -\frac{\partial q_b}{\partial x}
+    &\quad \text{is local gain or loss caused by the divergence of ballistic flux.}
+\end{align}
+The ballistic term is not an optional correction. It is the mechanism by which boundary-emitted carriers deposit energy into the interior after streaming and scattering.
+
+\subsection{Initial and boundary data in physical variables}
+At \(t=0\), the film is at equilibrium temperature \(T_0\). In a constant-\(C\) model, the reference total internal energy is
+\begin{equation}
+    u_0=C T_0,
+\end{equation}
+up to an arbitrary additive reference. The physically relevant perturbation is measured relative to this state. The initial conditions are
+\begin{equation}
+    u(x,0)=u_0,
+    \qquad
+    \left.\frac{\partial u}{\partial t}\right|_{t=0}=0.
+\end{equation}
+Because the model separates total energy into ballistic and medium pieces, these conditions are implemented by subtracting equilibrium contributions:
+\begin{equation}
+    u_m(x,0)-u_{m0}(x)=0,
+    \qquad
+    u_b(x,0)-u_{b0}(x)=0.
+\end{equation}
+
+The left boundary condition is not ``\(T(0,t)=T_1\)'' in the Fourier sense. Instead, the left boundary emits a population of carriers characterized by \(T_1\). The right boundary emits a population characterized by \(T_0\). The medium component satisfies the Marshak-type boundary condition derived from the one-sided incoming angular population:
+\begin{align}
+    \left(\tau\frac{\partial u_m}{\partial t}+u_m\right)_{x=0}
+    &= -\frac{\mfp}{3}\left.\frac{\partial u_m}{\partial x}\right|_{x=0},\label{eq:left_marshak_dim}\\
+    \left(\tau\frac{\partial u_m}{\partial t}+u_m\right)_{x=L}
+    &= +\frac{\mfp}{3}\left.\frac{\partial u_m}{\partial x}\right|_{x=L},\label{eq:right_marshak_dim}
+\end{align}
+where the sign changes because the outward normal is \(-\hat{x}\) at \(x=0\) and \(+\hat{x}\) at \(x=L\). Some papers write these signs using a local outward normal convention. The safest implementation rule is to evaluate the normal derivative \(\nabla u_m\cdot\nvec\) at each boundary.
+
+\begin{physicsbox}
+\textbf{Physical meaning of the boundary condition.} The boundary condition does not say that the medium energy is fixed at the wall. It says that the diffusive medium flux at a boundary is made only of the carriers incident on that boundary from inside the domain. Carriers emitted by the wall are assigned to the ballistic component.
+\end{physicsbox}
+
+\subsection{Nondimensional variables}
+The thin-film equation becomes much more interpretable after nondimensionalization. Define
+\begin{equation}
+    \eta=\frac{x}{L},
+    \qquad
+    t^*=\frac{t}{\tau},
+    \qquad
+    \mathrm{Kn}=\frac{\mfp}{L},
+    \qquad
+    \Delta T=T_1-T_0.
+\end{equation}
+Here \(\eta\) measures position as a fraction of the film thickness, \(t^*\) measures time in units of one scattering time, and \(\mathrm{Kn}\) measures how far a carrier travels before scattering compared with the film thickness.
+
+The normalized medium energy is
+\begin{equation}
+    \theta_m(\eta,t^*)=\frac{u_m(x,t)-u_{m0}(x)}{C\Delta T}.
+    \label{eq:theta_m_def_expanded}
+\end{equation}
+The normalized ballistic energy and total energy are
+\begin{equation}
+    \theta_b(\eta,t^*)=\frac{u_b(x,t)-u_{b0}(x)}{C\Delta T},
+    \qquad
+    \theta(\eta,t^*)=\theta_m(\eta,t^*)+\theta_b(\eta,t^*).
+\end{equation}
+The normalized ballistic flux is
+\begin{equation}
+    q_b^*(\eta,t^*)=\frac{q_b(x,t)-q_{b0}(x)}{C v\Delta T}.
+    \label{eq:qb_star_def_expanded}
+\end{equation}
+
+The derivative conversions are
+\begin{equation}
+    \frac{\partial}{\partial t}=\frac{1}{\tau}\frac{\partial}{\partial t^*},
+    \qquad
+    \frac{\partial^2}{\partial t^2}=\frac{1}{\tau^2}\frac{\partial^2}{\partial {t^*}^2},
+\end{equation}
+\begin{equation}
+    \frac{\partial}{\partial x}=\frac{1}{L}\frac{\partial}{\partial\eta},
+    \qquad
+    \frac{\partial^2}{\partial x^2}=\frac{1}{L^2}\frac{\partial^2}{\partial\eta^2}.
+\end{equation}
+
+We also use the kinetic-theory estimate for thermal conductivity:
+\begin{equation}
+    k \approx \frac{1}{3}C v\mfp.
+    \label{eq:kinetic_k_thinfilm}
+\end{equation}
+The factor \(1/3\) appears because in an isotropic three-dimensional carrier gas, only one third of the squared velocity contributes to transport along a chosen coordinate direction:
+\begin{equation}
+    \left< v_x^2\right>=\frac{1}{3}v^2.
+\end{equation}
+Since \(\mfp=v\tau\), Eq.~\eqref{eq:kinetic_k_thinfilm} is equivalently
+\begin{equation}
+    \frac{k}{C}=\frac{v\mfp}{3}=\frac{v^2\tau}{3}.
+\end{equation}
+
+\subsection{Step-by-step nondimensionalization of the governing equation}
+Start with
+\begin{equation}
+    \tau\frac{\partial^2u_m}{\partial t^2}+\frac{\partial u_m}{\partial t}
+    =\frac{k}{C}\frac{\partial^2u_m}{\partial x^2}-\frac{\partial q_b}{\partial x}.
+\end{equation}
+Using \(u_m-u_{m0}=C\Delta T\theta_m\), the left-hand side becomes
+\begin{align}
+    \tau\frac{\partial^2u_m}{\partial t^2}+\frac{\partial u_m}{\partial t}
+    &=\tau C\Delta T\frac{1}{\tau^2}\frac{\partial^2\theta_m}{\partial {t^*}^2}
+    +C\Delta T\frac{1}{\tau}\frac{\partial\theta_m}{\partial t^*}\nonumber\\
+    &=\frac{C\Delta T}{\tau}
+    \left(\frac{\partial^2\theta_m}{\partial {t^*}^2}
+    +\frac{\partial\theta_m}{\partial t^*}\right).
+    \label{eq:lhs_nd_thinfilm}
+\end{align}
+The diffusive term becomes
+\begin{align}
+    \frac{k}{C}\frac{\partial^2u_m}{\partial x^2}
+    &=\frac{k}{C}\,C\Delta T\frac{1}{L^2}\frac{\partial^2\theta_m}{\partial\eta^2}\\
+    &=k\Delta T\frac{1}{L^2}\frac{\partial^2\theta_m}{\partial\eta^2}.
+\end{align}
+Divide this by the common left-hand-side scale \(C\Delta T/\tau\):
+\begin{align}
+    \frac{k\Delta T/L^2}{C\Delta T/\tau}
+    &=\frac{k\tau}{C L^2}
+    =\frac{1}{L^2}\left(\frac{v\mfp}{3}\right)\tau
+    =\frac{v^2\tau^2}{3L^2}
+    =\frac{\mfp^2}{3L^2}
+    =\frac{\mathrm{Kn}^2}{3}.
+\end{align}
+Thus the nondimensional diffusion coefficient is \(\mathrm{Kn}^2/3\).
+
+For the ballistic term, use \(q_b-q_{b0}=C v\Delta T\,q_b^*\):
+\begin{equation}
+    \frac{\partial q_b}{\partial x}
+    =C v\Delta T\frac{1}{L}\frac{\partial q_b^*}{\partial\eta}.
+\end{equation}
+Divide by \(C\Delta T/\tau\):
+\begin{equation}
+    \frac{C v\Delta T/L}{C\Delta T/\tau}
+    =\frac{v\tau}{L}=\frac{\mfp}{L}=\mathrm{Kn}.
+\end{equation}
+Therefore Eq.~\eqref{eq:bd_1d_dimensional_expanded} becomes
+\begin{equation}
+    \boxed{
+    \frac{\partial^2\theta_m}{\partial {t^*}^2}
+    +\frac{\partial\theta_m}{\partial t^*}
+    =\frac{\mathrm{Kn}^2}{3}\frac{\partial^2\theta_m}{\partial\eta^2}
+    -\mathrm{Kn}\frac{\partial q_b^*}{\partial\eta}.}
+    \label{eq:bd_1d_dimensionless_expanded}
+\end{equation}
+
+\begin{notebox}
+\textbf{Slide takeaway.} The nondimensional thin-film equation exposes the controlling parameter. The same physical equation changes character as \(\mathrm{Kn}=\mfp/L\) changes. This is why Module 1 validation must sweep \(\mathrm{Kn}\).
+\end{notebox}
+
+\subsection{Dimensionless initial and boundary conditions}
+The normalized initial conditions are
+\begin{equation}
+    \theta(\eta,0)=0,
+    \qquad
+    \left.\frac{\partial\theta}{\partial t^*}\right|_{t^*=0}=0.
+\end{equation}
+A practical implementation usually initializes the nonequilibrium medium and ballistic perturbations as
+\begin{equation}
+    \theta_m(\eta,0)=0,
+    \qquad
+    \theta_b(\eta,0)=0,
+\end{equation}
+with the boundary step entering through the emitted ballistic intensity.
+
+Using \(x=L\eta\), \(\mfp/L=\mathrm{Kn}\), and \(u_m-u_{m0}=C\Delta T\theta_m\), the Marshak-type boundary conditions become
+\begin{align}
+    \left(\frac{\partial\theta_m}{\partial t^*}+\theta_m\right)_{\eta=0}
+    &= -\frac{\mathrm{Kn}}{3}
+    \left.\frac{\partial\theta_m}{\partial\eta}\right|_{\eta=0},\label{eq:left_bc_nd}\\
+    \left(\frac{\partial\theta_m}{\partial t^*}+\theta_m\right)_{\eta=1}
+    &= +\frac{\mathrm{Kn}}{3}
+    \left.\frac{\partial\theta_m}{\partial\eta}\right|_{\eta=1}.\label{eq:right_bc_nd}
+\end{align}
+Again, the sign convention is most safely implemented through the outward normal derivative.
+
+\subsection{Ballistic intensity in one dimension}
+Let \(\mu=\cos\theta\) be the directional cosine relative to the positive \(x\)-direction. A carrier emitted from the left boundary and traveling with \(0<\mu<1\) reaches location \(x\) after flight time
+\begin{equation}
+    t_{\mathrm{flight}}=\frac{x}{\mu v}.
+\end{equation}
+The path length is \(x/\mu\), not \(x\), because a shallow-angle carrier travels diagonally through the film. The probability-like attenuation factor for no scattering along that path is
+\begin{equation}
+    \exp\left(-\frac{x/\mu}{\mfp}\right)
+    =\exp\left(-\frac{x}{\mu\mfp}\right).
+\end{equation}
+Therefore the left-emitted ballistic intensity has the form
+\begin{equation}
+    I_b^{(+)}(x,t,\mu)
+    =I_{b1}\left(t-\frac{x}{\mu v}\right)
+    \exp\left(-\frac{x}{\mu\mfp}\right),
+    \qquad 0<\mu<1.
+    \label{eq:left_ib_1d_expanded}
+\end{equation}
+Similarly, for right-emitted carriers moving left, \(-1<\mu<0\),
+\begin{equation}
+    I_b^{(-)}(x,t,\mu)
+    =I_{b2}\left(t-\frac{L-x}{|\mu|v}\right)
+    \exp\left(-\frac{L-x}{|\mu|\mfp}\right),
+    \qquad -1<\mu<0.
+    \label{eq:right_ib_1d_expanded}
+\end{equation}
+The time arguments are retarded boundary times. They say that the interior point sees what the boundary emitted earlier, not what the boundary emits at the current time.
+
+\subsection{Finite arrival time and the lower angular limit}
+For a step heating applied at the left boundary at \(t=0\), a left-emitted carrier contributes at position \(x\) only if
+\begin{equation}
+    t-\frac{x}{\mu v}\geq 0.
+\end{equation}
+This gives
+\begin{equation}
+    \mu\geq \mu_t,\qquad \mu_t=\frac{x}{vt}.
+\end{equation}
+In nondimensional variables, because \(x=L\eta\), \(t=\tau t^*\), and \(v\tau=\mfp=\mathrm{Kn}L\),
+\begin{equation}
+    \boxed{\mu_t=\frac{\eta}{\mathrm{Kn}\,t^*}.}
+    \label{eq:mu_t_expanded}
+\end{equation}
+This expression has a direct physical interpretation:
+\begin{itemize}[leftmargin=1.6em]
+    \item if \(\mu_t>1\), no carrier direction has reached \(\eta\) yet;
+    \item if \(0<\mu_t<1\), only sufficiently forward-directed carriers have arrived;
+    \item if \(\mu_t\leq 0\), all forward directions are allowed for a sustained step source.
+\end{itemize}
+
+\subsection{Ballistic flux contribution for the step-heated film}
+The heat flux is the directional energy flow. In one dimension, each carrier direction contributes a factor \(\mu\) because only the \(x\)-component of velocity transports energy across a plane normal to \(x\). For the left-emitted perturbation, the normalized ballistic flux contribution is
+\begin{equation}
+    \boxed{
+    q_b^*(\eta,t^*)=\frac{1}{2}\int_{\mu_t}^{1}
+    \mu\exp\left(-\frac{\eta}{\mu\mathrm{Kn}}\right)\,\dd\mu,}
+    \qquad
+    0<\mu_t<1.
+    \label{eq:qb_star_integral_expanded}
+\end{equation}
+The factor \(1/2\) comes from angular averaging over a half-space in the one-dimensional slab reduction. When \(\mu_t>1\), the integral is zero because no ballistic carrier from the heated boundary has arrived. When \(\mu_t<0\), the lower limit is effectively zero for the forward half-space.
+
+The derivative that enters the medium-energy equation is
+\begin{equation}
+    \frac{\partial q_b^*}{\partial\eta}.
+\end{equation}
+This term is negative where the forward ballistic flux decays with distance. Because the PDE contains \(-\mathrm{Kn}\,\partial q_b^*/\partial\eta\), attenuation of ballistic flux becomes a positive source for the scattered medium energy. In words: ballistic carriers lose energy from the unscattered population by scattering, and that energy appears in the medium population.
+
+\subsection{Ballistic internal energy contribution}
+The ballistic internal energy contribution is similar to the flux contribution but without the directional projection factor \(\mu\). A representative normalized left-boundary contribution has the form
+\begin{equation}
+    \theta_b(\eta,t^*)=\frac{1}{2}\int_{\mu_t}^{1}
+    \exp\left(-\frac{\eta}{\mu\mathrm{Kn}}\right)\,\dd\mu,
+    \qquad 0<\mu_t<1.
+    \label{eq:theta_b_integral_expanded}
+\end{equation}
+The total normalized energy-temperature response is then
+\begin{equation}
+    \theta(\eta,t^*)=\theta_m(\eta,t^*)+\theta_b(\eta,t^*).
+\end{equation}
+This is the quantity most analogous to the temperature plotted in thin-film comparisons, with the warning that it is an equivalent internal-energy temperature in the nonequilibrium regime.
+
+\subsection{Equilibrium subtraction and why it is not cosmetic}
+The P1 approximation is an approximation to the angular distribution of the medium component. Because of this approximation, the separate equilibrium pieces \(u_{b0}\) and \(u_{m0}\) do not necessarily sum to a perfectly uniform equilibrium energy if handled naively. Chen's normalization procedure subtracts the reference equilibrium ballistic and medium components:
+\begin{align}
+    \theta_m &=\frac{u_m-u_{m0}}{C\Delta T},\label{eq:theta_m_subtraction}\\
+    \theta_b &=\frac{u_b-u_{b0}}{C\Delta T},\label{eq:theta_b_subtraction}\\
+    q_b^* &=\frac{q_b-q_{b0}}{C v\Delta T}.\label{eq:qb_subtraction}
+\end{align}
+This focuses the calculation on the nonequilibrium perturbation caused by the boundary heating and reduces inconsistency associated with the approximate angular closure.
+
+One way to see the issue is to imagine the whole film at uniform equilibrium temperature \(T_0\). Physically, the total energy should be uniform. However, after splitting the angular distribution into a boundary-originating piece and an approximate P1 medium piece, the individual reconstructed pieces may have spatial dependence near boundaries. The subtraction removes the reference spatial structure and leaves only the perturbation that matters for the transient experiment.
+
+\begin{physicsbox}
+\textbf{Physical meaning.} The equilibrium subtraction is not a mathematical trick to hide an error. It is a bookkeeping correction that keeps the approximate split model focused on the nonequilibrium change from the reference state.
+\end{physicsbox}
+
+\subsection{What should be plotted in the Module 1 validation}
+For \(\mathrm{Kn}=0.01,0.1,1,10\), the validation should plot:
+\begin{enumerate}[leftmargin=1.6em]
+    \item \(\theta_m(\eta,t^*)\): scattered medium energy,
+    \item \(\theta_b(\eta,t^*)\): ballistic energy contribution,
+    \item \(\theta(\eta,t^*)=\theta_m+\theta_b\): total equivalent temperature response,
+    \item \(q_b^*(\eta,t^*)\): ballistic heat flux,
+    \item total heat flux history at the boundaries,
+    \item comparison against Fourier and Cattaneo predictions.
+\end{enumerate}
+The expected trend is:
+\begin{align}
+    \mathrm{Kn}\ll 1 &: \quad \text{Fourier-like behavior after very short transients,}\\
+    \mathrm{Kn}\sim 1 &: \quad \text{strong ballistic-diffusive correction,}\\
+    \mathrm{Kn}\gg 1 &: \quad \text{dominant boundary-originating ballistic transport.}
+\end{align}
+
+\section{Dedicated comparison: why Fourier and Cattaneo fail}
+\subsection{Failure mode of Fourier conduction}
+Fourier conduction fails in the quasi-ballistic regime for three related reasons:
+\begin{enumerate}[leftmargin=1.6em]
+    \item \textbf{Infinite speed.} The parabolic heat equation predicts an instantaneous response everywhere.
+    \item \textbf{No carrier flight time.} It cannot represent the delay \((s-s_0)/v\) between boundary emission and interior arrival.
+    \item \textbf{No nonlocal boundary memory.} The flux is controlled only by \(\nabla T\) at the same point, not by the boundary state from which unscattered carriers originated.
+\end{enumerate}
+As \(t\to 0^+\), Fourier theory can predict unrealistically large surface heat flux because it assumes an immediately established temperature gradient.
+
+\subsection{Failure mode of Cattaneo conduction}
+Cattaneo conduction improves Fourier theory by adding a heat-flux relaxation time, but it still fails to represent the population split. Its limitations are:
+\begin{enumerate}[leftmargin=1.6em]
+    \item \textbf{All flux is treated as one local variable.} There is no separate \(\qvec_b\) that remembers boundary origin.
+    \item \textbf{Ballistic transport is replaced by a thermal wave.} The resulting wave speed is finite, but a thermal wave is not the same as angularly resolved particles arriving at retarded times.
+    \item \textbf{Boundary conditions remain problematic.} A prescribed local temperature at a boundary is not necessarily the same as a boundary-emitted carrier distribution.
+    \item \textbf{Artificial oscillations can occur.} Hyperbolic heat equations can generate nonphysical flux oscillations in regimes where the Boltzmann solution shows smooth ballistic arrival and scattering.
+\end{enumerate}
+
+\subsection{Why the ballistic-diffusive model is better}
+The ballistic-diffusive model keeps the strongest advantages of both descriptions:
+\begin{align}
+    \text{Boltzmann-like feature:} &\quad \text{retarded boundary-originating ballistic flux } \qvec_b,\\
+    \text{Diffusion-like feature:} &\quad \text{ordinary space-time PDE for the scattered medium energy } u_m.
+\end{align}
+It avoids a full phase-space solve while retaining the physical mechanism that Fourier and Cattaneo miss: unscattered carriers crossing a finite structure.
+
+\section{Weak form for FEM implementation}
+The FEM starts from Eq.~\eqref{eq:bd_energy_final}. For compactness, define
+\begin{equation}
+    \alpha=\frac{k}{C},
+    \qquad
+    S_{\mathrm{BD}}=-\nabla\cdot\qvec_b+\dot{q}_e+\tau\frac{\partial\dot{q}_e}{\partial t}.
+\end{equation}
+Then
+\begin{equation}
+    \tau\frac{\partial^2u_m}{\partial t^2}+\frac{\partial u_m}{\partial t}
+    =\nabla\cdot(\alpha\nabla u_m)+S_{\mathrm{BD}}.
+\end{equation}
+Move everything except the source to the left:
+\begin{equation}
+    \tau\frac{\partial^2u_m}{\partial t^2}+\frac{\partial u_m}{\partial t}
+    -\nabla\cdot(\alpha\nabla u_m)=S_{\mathrm{BD}}.
+\end{equation}
+Multiply by a test function \(w\) and integrate over \(\Omega\):
+\begin{equation}
+    \int_\Omega w\tau\frac{\partial^2u_m}{\partial t^2}\,\dd V
+    +\int_\Omega w\frac{\partial u_m}{\partial t}\,\dd V
+    -\int_\Omega w\nabla\cdot(\alpha\nabla u_m)\,\dd V
+    =\int_\Omega wS_{\mathrm{BD}}\,\dd V.
+\end{equation}
+Integrate the diffusion term by parts:
+\begin{equation}
+    -\int_\Omega w\nabla\cdot(\alpha\nabla u_m)\,\dd V
+    =\int_\Omega \nabla w\cdot\alpha\nabla u_m\,\dd V
+    -\int_{\partial\Omega}w\alpha\nabla u_m\cdot\nvec\,\dd A.
+\end{equation}
+Thus the weak form is
+\begin{equation}
+    \boxed{
+    \int_\Omega w\tau\frac{\partial^2u_m}{\partial t^2}\,\dd V
+    +\int_\Omega w\frac{\partial u_m}{\partial t}\,\dd V
+    +\int_\Omega \nabla w\cdot\alpha\nabla u_m\,\dd V
+    =\int_\Omega wS_{\mathrm{BD}}\,\dd V
+    +\int_{\partial\Omega}w\alpha\nabla u_m\cdot\nvec\,\dd A.}
+    \label{eq:bd_weak_form}
+\end{equation}
+Boundary conditions determine how the boundary integral is evaluated.
+
+\section{Matrix form}
+Approximate the unknown by basis functions:
+\begin{equation}
+    u_m(\rvec,t)\approx\sum_{j=1}^{N}U_j(t)N_j(\rvec).
+\end{equation}
+Choose test functions \(w=N_i\). The matrix equation becomes
+\begin{equation}
+    \boxed{\tau M\ddot{\bm{U}}+M\dot{\bm{U}}+K\bm{U}=\bm{F}_{\mathrm{BD}}+\bm{F}_{\partial\Omega}.}
+    \label{eq:matrix_bd}
+\end{equation}
+The matrices are
+\begin{align}
+    M_{ij} &=\int_\Omega N_iN_j\,\dd V,\\
+    K_{ij} &=\int_\Omega \nabla N_i\cdot\alpha\nabla N_j\,\dd V,\\
+    (F_{\mathrm{BD}})_i &=\int_\Omega N_iS_{\mathrm{BD}}\,\dd V,\\
+    (F_{\partial\Omega})_i &=\int_{\partial\Omega}N_i\alpha\nabla u_m\cdot\nvec\,\dd A.
+\end{align}
+This second-order-in-time system can be solved directly or rewritten as a first-order system by defining \(\bm{V}=\dot{\bm{U}}\):
+\begin{align}
+    \dot{\bm{U}}&=\bm{V},\\
+    \tau M\dot{\bm{V}}&=\bm{F}_{\mathrm{BD}}+\bm{F}_{\partial\Omega}-M\bm{V}-K\bm{U}.
+\end{align}
+
+\section{Practical implementation strategy for this project}
+The project should not begin with the full qubit geometry. The physically defensible sequence is:
+\begin{enumerate}[leftmargin=1.6em]
+    \item Validate the one-dimensional thin-film equation for several \(\mathrm{Kn}\) values.
+    \item Confirm the diffusive limit as \(\mathrm{Kn}\ll1\).
+    \item Confirm finite propagation and reduced early-time heat flux as \(\mathrm{Kn}\sim1\).
+    \item Add a simple three-dimensional box before using a realistic transmon geometry.
+    \item Only then couple the transport model to geometry-dependent trap and heat-sink studies.
+\end{enumerate}
+
+For Module 1, the primary code target is therefore
+\begin{equation}
+    \texttt{main\_module1\_bd\_1d\_validation.m}.
+\end{equation}
+It should generate temperature/internal-energy profiles, ballistic flux terms, and surface flux histories for
+\begin{equation}
+    \mathrm{Kn}=0.01,\ 0.1,\ 1,\ 10.
+\end{equation}
+
+\section{How this connects to the superconducting-qubit project}
+The final goal of this project is not simply to solve a heat equation. The larger goal is to understand how geometry and materials influence energy flow and quasiparticle poisoning in superconducting qubit structures. Module 1 supplies the thermal transport language needed for later modules.
+
+In a qubit device, local energy can be deposited near a Josephson junction, in a capacitor pad, in a substrate, or at an interface. The early-time flow of that energy can determine whether high-energy phonons or quasiparticles reach the sensitive junction region. A trap or heat sink changes the geometry and boundary conditions of the transport problem. Therefore, a model that captures finite carrier flight, boundary memory, and diffusion after scattering is more appropriate than immediately assuming ordinary Fourier conduction everywhere.
+
+\section{Assumptions and limitations}
+The ballistic-diffusive model used here is still an approximation. Its main assumptions are:
+\begin{enumerate}[leftmargin=1.6em]
+    \item \textbf{Particle-like carriers.} The model assumes a particle transport picture. It does not describe coherent wave interference of phonons.
+    \item \textbf{Relaxation-time approximation.} Detailed scattering physics is compressed into \(\tau_\omega\) or an averaged \(\tau\).
+    \item \textbf{Angular P1 closure for scattered carriers.} The medium component is approximated as nearly isotropic plus first-order anisotropy.
+    \item \textbf{Averaged material properties.} The first implementation uses effective \(C\), \(k\), \(v\), \(\tau\), and \(\mfp\), rather than fully mode-resolved phonon bands.
+    \item \textbf{Boundary modeling matters.} The ballistic source depends strongly on emitted/reflected boundary intensity. A poor boundary model can dominate the result.
+    \item \textbf{Room-temperature foundation.} Cryogenic superconducting changes, quasiparticle generation, recombination, and electron-phonon nonequilibrium are deferred to later modules.
+\end{enumerate}
+
+\section{Summary of the derivation}
+The derivation can be summarized as follows:
+\begin{enumerate}[leftmargin=1.6em]
+    \item Start from local energy conservation: \(\partial u/\partial t+\nabla\cdot\qvec=\dot{q}_e\).
+    \item Describe heat carriers using the BTE under RTA: \(\partial f/\partial t+\bm{v}\cdot\nabla f=-(f-f_0)/\tau\).
+    \item Convert to intensity notation so that angular moments produce \(u\) and \(\qvec\).
+    \item Split the intensity into \(I_\omega=I_{b\omega}+I_{m\omega}\).
+    \item Treat \(I_{b\omega}\) by characteristics, giving retarded boundary emission and exponential attenuation.
+    \item Treat \(I_{m\omega}\) using the P1 diffusion approximation.
+    \item Derive a Cattaneo-like relation for only the medium flux: \(\tau\partial\qvec_m/\partial t+\qvec_m=-(k/C)\nabla u_m\).
+    \item Combine with energy conservation to obtain
+    \begin{equation*}
+    \tau\frac{\partial^2u_m}{\partial t^2}+\frac{\partial u_m}{\partial t}
+    =\nabla\cdot\left(\frac{k}{C}\nabla u_m\right)-\nabla\cdot\qvec_b
+    +\left(\dot{q}_e+\tau\frac{\partial\dot{q}_e}{\partial t}\right).
+    \end{equation*}
+    \item Convert this equation into a FEM weak form for numerical implementation.
+\end{enumerate}
+
+
+\section{Lecture-ready slide translation for Module 1}
+This section converts the derivation into presentation logic. Each item corresponds to one possible slide or slide cluster.
+
+\begin{notebox}
+\textbf{Slide 1: Why ordinary heat conduction breaks down.}
+Physical question: When does \(\qvec=-k\nabla T\) stop being enough? Governing idea: Fourier conduction assumes local equilibrium and local flux response. Approximation being challenged: heat flux is determined only by the local temperature gradient. Figure to show: a chip-scale length \(L\) compared with carrier mean free path \(\mfp\).
+\end{notebox}
+
+\begin{notebox}
+\textbf{Slide 2: Heat carriers and mean free path.}
+Physical question: What actually carries thermal energy? Governing idea: phonons or other carriers move with group velocity \(v\) and scatter after time \(\tau\). Key equation: \(\mfp=v\tau\). Figure to show: carrier trajectories with short and long mean free paths.
+\end{notebox}
+
+\begin{notebox}
+\textbf{Slide 3: The distribution function.}
+Physical question: What replaces temperature when the system is not locally equilibrated? Governing idea: use \(f(t,\rvec,\bm{k})\), a phase-space occupation. Approximation: local equilibrium is represented by \(f_0\), but the actual distribution may be far from \(f_0\). Figure to show: isotropic equilibrium distribution versus directional nonequilibrium distribution.
+\end{notebox}
+
+\begin{notebox}
+\textbf{Slide 4: Boltzmann transport equation.}
+Physical question: How does the microscopic carrier distribution evolve? Governing equation: \(\partial f/\partial t+\bm{v}\cdot\nabla f=-(f-f_0)/\tau\). Approximation: relaxation-time approximation. Figure to show: streaming plus scattering toward equilibrium.
+\end{notebox}
+
+\begin{notebox}
+\textbf{Slide 5: Fourier as a limiting model.}
+Physical question: How does Fourier conduction emerge? Governing idea: when \(\mfp\ll L\), many scattering events erase directional memory, and the heat flux becomes local. Approximation: first-order near-equilibrium response to \(\nabla T\). Figure to show: many scattering events over one device length.
+\end{notebox}
+
+\begin{notebox}
+\textbf{Slide 6: Why Cattaneo is not enough.}
+Physical question: Does finite flux relaxation solve the nanoscale problem? Governing equation: \(\tau\partial\qvec/\partial t+\qvec=-k\nabla T\). Key limitation: it gives finite propagation speed but still lacks boundary-originating ballistic carriers. Figure to show: thermal wave picture versus particle flight picture.
+\end{notebox}
+
+\begin{notebox}
+\textbf{Slide 7: Ballistic-diffusive split.}
+Physical question: How can we keep ballistic memory without solving full phase space? Governing split: \(I_\omega=I_{b\omega}+I_{m\omega}\). Approximation: treat boundary-originating carriers by characteristics and scattered carriers by diffusion/P1 closure. Figure to show: carriers from wall versus carriers scattered inside the domain.
+\end{notebox}
+
+\begin{notebox}
+\textbf{Slide 8: Final ballistic-diffusive PDE.}
+Physical question: What equation will the FEM solve? Governing equation: medium energy obeys a Cattaneo-like PDE forced by \(-\nabla\cdot\qvec_b\). Key message: the ballistic term is the physical memory missing from Fourier and Cattaneo models. Figure to show: PDE box with \(u_m\), plus ray-based computation of \(\qvec_b\).
+\end{notebox}
+
+\begin{notebox}
+\textbf{Slide 9: Thin-film benchmark.}
+Physical question: How do we validate the implementation? Governing parameter: \(\mathrm{Kn}=\mfp/L\). Approximation being tested: reduced ballistic-diffusive equation versus Fourier and Cattaneo limits. Figure to show: profiles for \(\mathrm{Kn}=0.01,0.1,1,10\).
+\end{notebox}
+
+\begin{notebox}
+\textbf{Slide 10: Relevance to superconducting qubits.}
+Physical question: Why does this matter for qubit poisoning? Governing idea: energy deposited in a small region can move through phonons and other carriers before local equilibrium is established. Design relevance: heat sinks and traps should be evaluated by how they alter energy and quasiparticle transport near the junction-sensitive region.
+\end{notebox}
+
+\section{Module 1 implementation checklist}
+Before moving to Module 2, the project should satisfy the following Module 1 checks:
+\begin{enumerate}[leftmargin=1.6em]
+    \item The code can compute \(q_b^*(\eta,t^*)\) with the correct finite-arrival lower limit \(\mu_t=\eta/(\mathrm{Kn}t^*)\).
+    \item The code can solve Eq.~\eqref{eq:bd_1d_dimensionless_expanded} for several \(\mathrm{Kn}\) values.
+    \item The diffusive limit trends toward Fourier-like behavior for \(\mathrm{Kn}\ll 1\) after early transients.
+    \item The quasi-ballistic cases show delayed energy arrival and boundary-memory effects.
+    \item The Cattaneo comparison is included to show why finite propagation speed alone is not the full physics.
+    \item The plotted quantity is clearly labeled as equivalent internal-energy temperature, not blindly treated as local thermodynamic temperature.
+\end{enumerate}
+
+\section{Module 4 interpretation for RadiationEffects\_proj2}
+The purpose of Module~4 in this project is different from the original thin-film validation use case. Here the ballistic-diffusive framework is used as a reduced thermal model for a damaged silicon device cross section. The thermal field is not an isolated curiosity. It changes defect diffusivities, annealing rates, carrier mobilities, and later the strength of thermal-electrical feedback in the coupled degradation model.
+
+The practical unknown used by the project can be written either as the medium energy density $u_m(x,y,t)$ or as an equivalent temperature field $T_m(x,y,t)=u_m/C$ when a constant volumetric heat capacity is assumed. The ballistic contribution is still treated separately because it carries the boundary-memory and finite-flight-time physics that a local Fourier law cannot represent.
+
+\subsection{Why the 2D reduction is the right next step}
+The existing executable ballistic-diffusive validation model is one-dimensional. That is appropriate for a first thin-film benchmark, but it suppresses lateral heat spreading, hot-spot broadening, and geometry-dependent boundary memory. In RadiationEffects\_proj2 the thermal field must live on the same 2D cross-sectional domain used by the electrostatic, defect-evolution, and later carrier-transport modules. Therefore the correct near-term adaptation is not a full angularly resolved 3D solve, but a 2D reduced ballistic-diffusive model on a rectangular silicon domain.
+
+\subsection{2D governing equation used as the Module 4 target}
+With Cartesian coordinates $(x,y)$, spatially varying thermal properties allowed in principle, and a reduced ballistic source divergence retained explicitly, the medium-energy equation becomes
+\begin{equation}
+\tau\,\pdv[2]{u_m}{t} + \pdv{u_m}{t}
+=
+\pdv{}{x}\left(\frac{k}{C}\pdv{u_m}{x}\right)
++
+\pdv{}{y}\left(\frac{k}{C}\pdv{u_m}{y}\right)
+-
+\nabla\cdot\qvec_b
++
+\left(\dot{q}_e + \tau\pdv{\dot{q}_e}{t}\right).
+\label{eq:module4_2d_um}
+\end{equation}
+If one introduces the equivalent medium temperature $T_m=u_m/C$ and treats $C$ as constant, the same equation can be written as
+\begin{equation}
+\tau C\,\pdv[2]{T_m}{t} + C\,\pdv{T_m}{t}
+=
+\pdv{}{x}\left(k\pdv{T_m}{x}\right)
++
+\pdv{}{y}\left(k\pdv{T_m}{y}\right)
+-
+\nabla\cdot\qvec_b
++
+\left(\dot{q}_e + \tau\pdv{\dot{q}_e}{t}\right).
+\label{eq:module4_2d_tm}
+\end{equation}
+This is the equation family that should define Module~4 in the revised project plan.
+
+\subsection{Source terms in the radiation-effects setting}
+In the original boundary-heating derivation, much attention naturally falls on hot and cold boundaries. In RadiationEffects\_proj2, the source structure is broader. The volumetric source term $\dot{q}_e(x,y,t)$ may represent several distinct physical mechanisms:
+\begin{enumerate}[leftmargin=1.6em]
+    \item localized radiation-deposition heating or an effective thermalized fraction of a deposition event,
+    \item Joule heating from current flow in a later coupled Module~5 or Module~6 solve,
+    \item optional reaction or defect-reconfiguration heating terms if those are later judged important.
+\end{enumerate}
+Therefore Module~4 should be implemented with volumetric-source flexibility from the start rather than only with boundary-driven transients.
+
+\subsection{How ballistic terms should be interpreted in this project}
+The ballistic contribution $\qvec_b$ does not mean that the entire silicon device is in a fully ballistic thermal regime. It means the reduced model reserves a separate channel for heat carriers that retain finite-flight-time and boundary-memory effects before joining the scattered medium population. In a large or strongly scattering device, the ballistic term may become weak and the model should reduce smoothly toward a diffusive limit. In a small structure or near a sharp transient, the ballistic term can materially alter early-time fluxes and local temperature rise.
+
+\subsection{Coupling to Module 3 defect evolution}
+Module~3 needs temperature because both defect migration and defect annealing are thermally activated. In the present reduced framework, Module~4 supplies $T(x,y,t)$ to the coefficient maps
+\begin{equation}
+D = D(T), \qquad k_{\mathrm{ann}} = k_{\mathrm{ann}}(T).
+\end{equation}
+This means a localized thermal transient can accelerate defect motion in one region while leaving another region nearly frozen. The thermal field therefore changes both the rate and the spatial pattern of defect evolution.
+
+\subsection{Coupling to Modules 5 and 6}
+Later modules may use the same temperature field to update carrier mobility, carrier statistics, recombination, and Joule-heating feedback. Module~6 then iterates among defect state, thermal state, electrostatic state, and carrier state until they are mutually consistent. In that coupled setting, Module~4 is no longer only a post-processing thermal step. It becomes one of the active feedback channels of the degradation simulator.
+
+\subsection{Verification logic for the revised Module 4}
+The first 2D implementation should be verified in stages.
+\begin{enumerate}[leftmargin=1.6em]
+    \item \textbf{Uniform-equilibrium preservation:} a spatially uniform initial state with no source should remain uniform.
+    \item \textbf{Diffusive-limit recovery:} when the relaxation time and ballistic correction are reduced appropriately, the solver should approach the continuum heat-equation result.
+    \item \textbf{Localized-pulse spreading:} a compact source should spread laterally in 2D and exhibit the expected transition from early localized response toward broader thermal diffusion.
+    \item \textbf{Boundary-memory sensitivity:} cases with strong boundary influence should show a measurable difference between the ballistic-diffusive model and a pure Fourier baseline.
+\end{enumerate}
+These tests are the right bridge between the original 1D benchmark and the intended 2D production module.
+
+\subsection{Summary of the revised Module 4 role}
+In the revised architecture, Module~4 is a single thermal-physics module based on ballistic-diffusive heat conduction rather than a split baseline-versus-comparison pair. The model is still reduced, but it carries a clearer microscopic foundation than a plain continuum heat equation and is therefore a better match to localized and quasi-ballistic thermal transport in silicon device structures.
+
+
+\section{References}
+\begin{sloppypar}
+\begin{enumerate}[label={[\arabic*]}]
+\item G. Chen, ``Ballistic-Diffusive Heat-Conduction Equations,'' \emph{Physical Review Letters} \textbf{86}, 2297--2300 (2001).
+\item G. Chen, ``Ballistic-Diffusive Equations for Transient Heat Conduction From Nano to Macroscales,'' \emph{Journal of Heat Transfer} \textbf{124}, 320--328 (2002).
+\item D. D. Joseph and L. Preziosi, ``Heat waves,'' \emph{Reviews of Modern Physics} \textbf{62}, 375--391 (1990).
+\item A. A. Joshi and A. Majumdar, ``Transient ballistic and diffusive phonon heat transport in thin films,'' \emph{Journal of Applied Physics} \textbf{74}, 31--39 (1993).
+\item J. M. Ziman, \emph{Electrons and Phonons}, Oxford University Press (1960).
+\item D. G. Cahill, W. K. Ford, K. E. Goodson, \emph{et al.}, ``Nanoscale thermal transport,'' \emph{Journal of Applied Physics} \textbf{93}, 793--818 (2003).
+\item G. Chen, \emph{Nanoscale Energy Transport and Conversion}, Oxford University Press (2005).
+\item M. F. Modest, \emph{Radiative Heat Transfer}, McGraw-Hill (1993).
+\end{enumerate}
+\end{sloppypar}
+
+\end{document}

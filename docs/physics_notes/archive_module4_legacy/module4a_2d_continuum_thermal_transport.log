@@ -1,9 +1,9 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.26 (TeX Live 2025/dev/Debian) (preloaded format=pdflatex 2026.2.6)  28 APR 2026 22:52
+This is pdfTeX, Version 3.141592653-2.6-1.40.26 (TeX Live 2025/dev/Debian) (preloaded format=pdflatex 2026.2.6)  18 APR 2026 19:09
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
-**module3_2d_defect_evolution.tex
-(./module3_2d_defect_evolution.tex
+**docs/physics_notes/module4a_2d_continuum_thermal_transport.tex
+(./docs/physics_notes/module4a_2d_continuum_thermal_transport.tex
 LaTeX2e <2024-11-01> patch level 2
 L3 programming layer <2025-01-18>
 (/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
@@ -23,7 +23,7 @@ File: size11.clo 2024/06/29 v1.4n Standard LaTeX file (size option)
 \belowcaptionskip=\skip50
 \bibindent=\dimen141
 )
-(../shared/project_style.tex
+(docs/physics_notes/../shared/project_style.tex
 (/usr/share/texlive/texmf-dist/tex/latex/geometry/geometry.sty
 Package: geometry 2020/01/02 v5.9 Page Geometry
 
@@ -890,6 +890,18 @@ Package: translations 2022/02/05 v1.12 internationalization of LaTeX2e packages
 )
 Package hyperref Info: Option `colorlinks' set `true' on input line 18.
 )
+(/usr/share/texlive/texmf-dist/tex/latex/amscls/amsthm.sty
+Package: amsthm 2020/05/29 v2.20.6
+\thm@style=\toks49
+\thm@bodyfont=\toks50
+\thm@headfont=\toks51
+\thm@notefont=\toks52
+\thm@headpunct=\toks53
+\thm@preskip=\skip98
+\thm@postskip=\skip99
+\thm@headsep=\skip100
+\dth@everypar=\toks54
+)
 Package translations Info: No language package found. I am going to use `englis
 h' as default language. on input line 12.
 LaTeX Font Info:    Trying to load font information for T1+lmr on input line 12
@@ -897,8 +909,9 @@ LaTeX Font Info:    Trying to load font information for T1+lmr on input line 12
 
 (/usr/share/texmf/tex/latex/lm/t1lmr.fd
 File: t1lmr.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
-) (./module3_2d_defect_evolution.aux)
-\openout1 = `module3_2d_defect_evolution.aux'.
+)
+(docs/physics_notes/module4a_2d_continuum_thermal_transport.aux)
+\openout1 = `module4a_2d_continuum_thermal_transport.aux'.
 
 LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 12.
 LaTeX Font Info:    ... okay on input line 12.
@@ -983,12 +996,12 @@ File: mt-cmr.cfg 2013/05/19 v2.2 microtype config. file: Computer Modern Roman
 \scratchbox=\box94
 \nofMPsegments=\count356
 \nofMParguments=\count357
-\everyMPshowfont=\toks49
+\everyMPshowfont=\toks55
 \MPscratchCnt=\count358
 \MPscratchDim=\dimen316
 \MPnumerator=\count359
 \makeMPintoPDFobject=\count360
-\everyMPtoPDFconversion=\toks50
+\everyMPtoPDFconversion=\toks56
 ) (/usr/share/texlive/texmf-dist/tex/latex/epstopdf-pkg/epstopdf-base.sty
 Package: epstopdf-base 2020-01-24 v2.11 Base part for package epstopdf
 Package epstopdf-base Info: Redefining graphics rule for `.eps' on input line 4
@@ -1000,9 +1013,10 @@ e
 ))
 Package hyperref Info: Link coloring ON on input line 12.
 
-(./module3_2d_defect_evolution.out) (./module3_2d_defect_evolution.out)
+(docs/physics_notes/module4a_2d_continuum_thermal_transport.out)
+(docs/physics_notes/module4a_2d_continuum_thermal_transport.out)
 \@outlinefile=\write4
-\openout4 = `module3_2d_defect_evolution.out'.
+\openout4 = `module4a_2d_continuum_thermal_transport.out'.
 
 
 
@@ -1034,37 +1048,42 @@ Package microtype Info: Loading generic protrusion settings for font family
 (microtype)             For optimal results, create family-specific settings.
 (microtype)             See the microtype manual for details.
 
-(./module3_2d_defect_evolution.toc
-LaTeX Font Info:    Trying to load font information for OT1+lmr on input line 4
-.
- (/usr/share/texmf/tex/latex/lm/ot1lmr.fd
+(docs/physics_notes/module4a_2d_continuum_thermal_transport.toc)
+\tf@toc=\write5
+\openout5 = `module4a_2d_continuum_thermal_transport.toc'.
+
+LaTeX Font Info:    Trying to load font information for OT1+lmr on input line 3
+8.
+
+(/usr/share/texmf/tex/latex/lm/ot1lmr.fd
 File: ot1lmr.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
 )
-LaTeX Font Info:    Trying to load font information for OML+lmm on input line 4
-.
+LaTeX Font Info:    Trying to load font information for OML+lmm on input line 3
+8.
 
 (/usr/share/texmf/tex/latex/lm/omllmm.fd
 File: omllmm.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
 )
 LaTeX Font Info:    Trying to load font information for OMS+lmsy on input line 
-4.
+38.
 
 (/usr/share/texmf/tex/latex/lm/omslmsy.fd
 File: omslmsy.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
 )
 LaTeX Font Info:    Trying to load font information for OMX+lmex on input line 
-4.
+38.
 
 (/usr/share/texmf/tex/latex/lm/omxlmex.fd
 File: omxlmex.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
 )
 LaTeX Font Info:    External font `lmex10' loaded for size
-(Font)              <10.95> on input line 4.
+(Font)              <10.95> on input line 38.
 LaTeX Font Info:    External font `lmex10' loaded for size
-(Font)              <8> on input line 4.
+(Font)              <8> on input line 38.
 LaTeX Font Info:    External font `lmex10' loaded for size
-(Font)              <6> on input line 4.
-LaTeX Font Info:    Trying to load font information for U+msa on input line 4.
+(Font)              <6> on input line 38.
+LaTeX Font Info:    Trying to load font information for U+msa on input line 38.
+
 
 (/usr/share/texlive/texmf-dist/tex/latex/amsfonts/umsa.fd
 File: umsa.fd 2013/01/14 v3.01 AMS symbols A
@@ -1072,7 +1091,8 @@ File: umsa.fd 2013/01/14 v3.01 AMS symbols A
 (/usr/share/texlive/texmf-dist/tex/latex/microtype/mt-msa.cfg
 File: mt-msa.cfg 2006/02/04 v1.1 microtype config. file: AMS symbols (a) (RS)
 )
-LaTeX Font Info:    Trying to load font information for U+msb on input line 4.
+LaTeX Font Info:    Trying to load font information for U+msb on input line 38.
+
 
 (/usr/share/texlive/texmf-dist/tex/latex/amsfonts/umsb.fd
 File: umsb.fd 2013/01/14 v3.01 AMS symbols B
@@ -1080,64 +1100,99 @@ File: umsb.fd 2013/01/14 v3.01 AMS symbols B
 (/usr/share/texlive/texmf-dist/tex/latex/microtype/mt-msb.cfg
 File: mt-msb.cfg 2005/06/01 v1.0 microtype config. file: AMS symbols (b) (RS)
 )
+Underfull \hbox (badness 3168) in paragraph at lines 54--55
+[]|\T1/lmr/m/n/10.95 (+20) Effective co-ef-fi-cient for heat ex-change
+ []
+
+
+Underfull \hbox (badness 1424) in paragraph at lines 60--61
+[]|\T1/lmr/m/n/10.95 (+20) Pre-exponential fac-tor in an Ar-rhe-nius
+ []
 
 [1{/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map}{/usr/share/texmf/fonts/en
 c/dvips/lm/lm-ec.enc}
 
-]
+{/usr/share/texmf/fonts/enc/dvips/lm/lm-mathit.enc}{/usr/share/texmf/fonts/enc/
+dvips/lm/lm-rm.enc}] [2{/usr/share/texmf/fonts/enc/dvips/lm/lm-mathsy.enc}]
 
-[2])
-\tf@toc=\write5
-\openout5 = `module3_2d_defect_evolution.toc'.
-
-
-Overfull \hbox (7.81583pt too wide) in alignment at lines 29--33
- [] [] [] 
- []
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 51--52
-[]|\T1/lmr/m/n/10.95 (+20) dimension
- []
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 51--52
-\T1/lmr/m/n/10.95 (+20) de-pends on
- []
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 51--52
-\T1/lmr/m/n/10.95 (+20) di-men-sional
- []
-
-
-Overfull \hbox (7.81583pt too wide) in alignment at lines 33--54
- [] [] [] 
- []
-
-[3{/usr/share/texmf/fonts/enc/dvips/lm/lm-mathit.enc}{/usr/share/texmf/fonts/en
-c/dvips/lm/lm-mathsy.enc}{/usr/share/texmf/fonts/enc/dvips/lm/lm-rm.enc}]
+[3]
 
 [4]
+LaTeX Font Info:    Trying to load font information for TS1+lmr on input line 1
+30.
+ (/usr/share/texmf/tex/latex/lm/ts1lmr.fd
+File: ts1lmr.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
+)
 
-[5]
+[5{/usr/share/texmf/fonts/enc/dvips/lm/lm-ts1.enc}]
 
 [6]
 
 [7]
 
 [8{/usr/share/texmf/fonts/enc/dvips/lm/lm-mathex.enc}]
+LaTeX Font Info:    External font `lmex10' loaded for size
+(Font)              <12> on input line 312.
+
+
+Package hyperref Warning: Token not allowed in a PDF string (Unicode):
+(hyperref)                removing `math shift' on input line 312.
+
+
+Package hyperref Warning: Token not allowed in a PDF string (Unicode):
+(hyperref)                removing `\partial' on input line 312.
+
+
+Package hyperref Warning: Token not allowed in a PDF string (Unicode):
+(hyperref)                removing `\partial' on input line 312.
+
+
+Package hyperref Warning: Token not allowed in a PDF string (Unicode):
+(hyperref)                removing `math shift' on input line 312.
+
+
+Package hyperref Warning: Token not allowed in a PDF string (Unicode):
+(hyperref)                removing `math shift' on input line 316.
+
+
+Package hyperref Warning: Token not allowed in a PDF string (Unicode):
+(hyperref)                removing `\alpha' on input line 316.
+
+
+Package hyperref Warning: Token not allowed in a PDF string (Unicode):
+(hyperref)                removing `\nabla' on input line 316.
+
+
+Package hyperref Warning: Token not allowed in a PDF string (Unicode):
+(hyperref)                removing `superscript' on input line 316.
+
+
+Package hyperref Warning: Token not allowed in a PDF string (Unicode):
+(hyperref)                removing `math shift' on input line 316.
+
+
+Package hyperref Warning: Token not allowed in a PDF string (Unicode):
+(hyperref)                removing `math shift' on input line 320.
+
+
+Package hyperref Warning: Token not allowed in a PDF string (Unicode):
+(hyperref)                removing `\rho' on input line 320.
+
+
+Package hyperref Warning: Token not allowed in a PDF string (Unicode):
+(hyperref)                removing `subscript' on input line 320.
+
+
+Package hyperref Warning: Token not allowed in a PDF string (Unicode):
+(hyperref)                removing `math shift' on input line 320.
+
+
 
 [9]
 
 [10]
-LaTeX Font Info:    Trying to load font information for TS1+lmr on input line 2
-87.
- (/usr/share/texmf/tex/latex/lm/ts1lmr.fd
-File: ts1lmr.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
-)
 
-[11{/usr/share/texmf/fonts/enc/dvips/lm/lm-ts1.enc}]
+[11]
 
 [12]
 
@@ -1147,42 +1202,46 @@ File: ts1lmr.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
 
 [15]
 
-[16]
-
-[17]
-
-[18]
-
-[19] (./module3_2d_defect_evolution.aux)
+[16] (docs/physics_notes/module4a_2d_continuum_thermal_transport.aux)
  ***********
 LaTeX2e <2024-11-01> patch level 2
 L3 programming layer <2025-01-18>
  ***********
-Package rerunfilecheck Info: File `module3_2d_defect_evolution.out' has not cha
-nged.
-(rerunfilecheck)             Checksum: 37D2E089A02E4CBCE3BF382947BB74F5;12787.
+
+
+Package rerunfilecheck Warning: File `module4a_2d_continuum_thermal_transport.o
+ut' has changed.
+(rerunfilecheck)                Rerun to get outlines right
+(rerunfilecheck)                or use package `bookmark'.
+
+Package rerunfilecheck Info: Checksums for `module4a_2d_continuum_thermal_trans
+port.out':
+(rerunfilecheck)             Before: 84B7AE9F314609EAE97BE82A1F4C09C8;13036
+(rerunfilecheck)             After:  7BD67F0B150C98CBA64CB74585105DE6;13248.
  ) 
 Here is how much of TeX's memory you used:
- 32003 strings out of 473197
- 644475 string characters out of 5718606
- 1028177 words of memory out of 5000000
- 54477 multiletter control sequences out of 15000+600000
- 624403 words of font info for 151 fonts, out of 8000000 for 9000
+ 32083 strings out of 473197
+ 646180 string characters out of 5718606
+ 1037572 words of memory out of 5000000
+ 54562 multiletter control sequences out of 15000+600000
+ 627315 words of font info for 154 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 121i,12n,124p,1024b,1209s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ 121i,12n,124p,1055b,1164s stack positions out of 10000i,1000n,20000p,200000b,200000s
 </usr/share/texmf/fonts/type1/public/lm/lmbx10.pfb></usr/share/texmf/fonts/ty
 pe1/public/lm/lmbx12.pfb></usr/share/texmf/fonts/type1/public/lm/lmex10.pfb></u
 sr/share/texmf/fonts/type1/public/lm/lmmi10.pfb></usr/share/texmf/fonts/type1/p
-ublic/lm/lmmi8.pfb></usr/share/texmf/fonts/type1/public/lm/lmr10.pfb></usr/shar
-e/texmf/fonts/type1/public/lm/lmr12.pfb></usr/share/texmf/fonts/type1/public/lm
-/lmr6.pfb></usr/share/texmf/fonts/type1/public/lm/lmr8.pfb></usr/share/texmf/fo
-nts/type1/public/lm/lmri10.pfb></usr/share/texmf/fonts/type1/public/lm/lmsy10.p
-fb></usr/share/texmf/fonts/type1/public/lm/lmsy8.pfb></usr/share/texmf/fonts/ty
-pe1/public/lm/lmtt12.pfb>
-Output written on module3_2d_defect_evolution.pdf (19 pages, 296745 bytes).
+ublic/lm/lmmi12.pfb></usr/share/texmf/fonts/type1/public/lm/lmmi8.pfb></usr/sha
+re/texmf/fonts/type1/public/lm/lmmib10.pfb></usr/share/texmf/fonts/type1/public
+/lm/lmr10.pfb></usr/share/texmf/fonts/type1/public/lm/lmr12.pfb></usr/share/tex
+mf/fonts/type1/public/lm/lmr6.pfb></usr/share/texmf/fonts/type1/public/lm/lmr8.
+pfb></usr/share/texmf/fonts/type1/public/lm/lmsy10.pfb></usr/share/texmf/fonts/
+type1/public/lm/lmsy8.pfb></usr/share/texmf/fonts/type1/public/lm/lmtt12.pfb></
+usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/symbols/msam10.pfb>
+Output written on docs/physics_notes/module4a_2d_continuum_thermal_transport.pd
+f (16 pages, 272014 bytes).
 PDF statistics:
- 536 PDF objects out of 1000 (max. 8388607)
- 481 compressed objects within 5 object streams
- 145 named destinations out of 1000 (max. 500000)
- 37797 words of extra memory for PDF output out of 42996 (max. 10000000)
+ 475 PDF objects out of 1000 (max. 8388607)
+ 418 compressed objects within 5 object streams
+ 140 named destinations out of 1000 (max. 500000)
+ 39829 words of extra memory for PDF output out of 42996 (max. 10000000)
 
