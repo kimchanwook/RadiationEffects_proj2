@@ -1,7 +1,10 @@
-function main_module4_thermal()
+function out = main_module4_thermal(caseName)
 % MAIN_MODULE4_THERMAL
-% Placeholder for the future 2D thermal module.
+% Convenience alias for the revised Module 4 ballistic-diffusive solver.
 
-disp('Module 4 is planned as a 2D thermal transport solver coupled to defect evolution.');
-disp('Implementation is not yet included in this package.');
+if nargin < 1
+    caseName = 'localized_pulse';
+end
+
+out = main_module4_2d_ballistic_diffusive_thermal(caseName);
 end
