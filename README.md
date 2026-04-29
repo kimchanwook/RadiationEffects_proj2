@@ -15,10 +15,9 @@ This repository builds a physics-based framework linking radiation energy deposi
 - Module 1 - interaction-resolved Geant4 radiation deposition campaign in silicon
 - Module 2 - 2D electrostatics with defect-dependent space charge
 - Module 3 - 2D defect diffusion-reaction evolution and annealing with material-aware kinetic coefficients with material-aware kinetic coefficients
-- Module 4a - 2D continuum thermal transport
-- Module 4b - 2D phonon-aware thermal transport
+- Module 4 - 2D ballistic-diffusive thermal transport in silicon
 - Module 5 - 2D drift-diffusion carrier transport with defect-assisted recombination
-- Module 6 - coupled multiphysics integration of Modules 2, 3, 4a/4b, and 5
+- Module 6 - coupled multiphysics integration of Modules 2, 3, 4, and 5
 - Module 7 - multiscale extrapolation and scalable prediction methods
 
 
@@ -67,9 +66,9 @@ This package now includes:
 
 - updated top-level `project_plan` and `README`
 - Module 3 2D physics note, verified first MATLAB path, and first material-aware kinetic-coefficient framework
-- first runnable Module 4a 2D continuum thermal solver path
-- Module 4a verification cases for uniform equilibrium, hotspot diffusion, and a steady-source relaxation case
-- automatic Module 4a output plots and summary files
+- archived legacy Module 4a/4b thermal notes and baseline MATLAB path for reference
+- new Module 4 architecture centered on 2D ballistic-diffusive thermal transport
+- new Module 4 documentation path plus first executable MATLAB implementation
 - shared 2D grid/plotting conventions aligned with Module 3
 
 ## Run order workflow
@@ -77,17 +76,16 @@ This package now includes:
 1. Run the interaction-resolved Geant4 campaign to generate deposited-energy, secondary-particle, and interaction-summary data.
 2. Convert Geant4 output into a defect-generation map or initial defect field.
 3. Evolve the defect field in MATLAB with Module 3.
-4. Solve the baseline temperature field with Module 4a.
-5. Compare against Module 4b when phonon-aware corrections are introduced.
-6. Use the defect field in Module 2 to compute electrostatics.
-7. Use electrostatics, thermal fields, and defect fields in Module 5 for carrier transport.
-8. Couple Modules 2-5 in Module 6.
-9. Use Module 7 for reduced-fidelity scaling, statistical extrapolation, or hybrid multiresolution prediction.
+4. Solve the thermal field with Module 4 using the reduced ballistic-diffusive model.
+5. Use the defect field in Module 2 to compute electrostatics.
+6. Use electrostatics, thermal fields, and defect fields in Module 5 for carrier transport.
+7. Couple Modules 2-5 in Module 6.
+8. Use Module 7 for reduced-fidelity scaling, statistical extrapolation, or hybrid multiresolution prediction.
 
 ## Immediate next technical objective
 
-The current baseline thermal step is Module 4a. The next major comparison task after baseline verification is to define what Module 4b must change in the predicted quantities of interest to justify the added complexity. Good comparison metrics include peak temperature, thermal gradients, annealing-rate changes, defect-history changes, and downstream electrical degradation metrics.
+The revised thermal step is now an executable Module 4 path, so the next technical objective is to verify it on the user's MATLAB environment, compare it against the legacy Fourier baseline in the diffusive limit, and then couple its temperature output back into Module 3 coefficient updates.
 
 ## Important note
 
-This archive was prepared as a consolidated project package with the requested architecture updates implemented in the plan and in the first Module 4a MATLAB code path. I could not execute MATLAB itself in this environment, so the MATLAB code was prepared and organized here, but final runtime verification still needs to be done on your machine.
+This archive was updated to reflect the replacement of the old Module 4a/4b split with a single Module 4 ballistic-diffusive thermal architecture. Documentation and project-plan updates were prioritized first, and the repository now also includes the first executable MATLAB path for the revised Module 4 architecture.

@@ -10,7 +10,6 @@
 \definecolor{accent3}{HTML}{F5F7FA}
 \allowdisplaybreaks
 \newtcolorbox{keybox}{colback=SoftBlue,colframe=TitleBlue,boxrule=0.8pt,arc=2mm,left=3mm,right=3mm,top=2mm,bottom=2mm}
-\newtcolorbox{notebox}{colback=SoftGray,colframe=AccentTeal,boxrule=0.6pt,arc=2mm,left=3mm,right=3mm,top=2mm,bottom=2mm}
 \rhead{Project Plan}
 
 \begin{document}
@@ -24,7 +23,7 @@
 \ProjectTOC
 
 \begin{notebox}
-\textbf{Current architecture revision.} Module 1 is now planned as an \textbf{interaction-resolved Geant4 campaign} with separate photon and neutron runs across targeted energy bands so that different microscopic interaction mechanisms can be studied intentionally rather than mixed together in one broad source case. Modules 2--6 are now 2D-first. Module 4 is split into \textbf{Module 4a} (continuum heat-equation thermal transport) and \textbf{Module 4b} (phonon-aware thermal transport). Module 7 remains the scaling and multiscale-prediction module.
+\textbf{Current architecture revision.} Module 1 is now planned as an \textbf{interaction-resolved Geant4 campaign} with separate photon and neutron runs across targeted energy bands so that different microscopic interaction mechanisms can be studied intentionally rather than mixed together in one broad source case. Modules 2--6 are now 2D-first. Module 4 is now a single \textbf{two-dimensional ballistic-diffusive thermal-transport module} adapted from the ballistic-diffusive heat-conduction framework developed in the FEM\_BallisticDiffusion\_PINN project. The older Module 4a/4b thermal notes are archived as legacy baseline material. Module 7 remains the scaling and multiscale-prediction module.
 \end{notebox}
 
 \section{Project objective}
@@ -42,20 +41,22 @@ The intended physics chain is:
 \end{enumerate}
 
 \section{Module roadmap}
-\begin{longtable}{p{0.08\linewidth} p{0.30\linewidth} p{0.52\linewidth}}
+{\small
+\renewcommand{\arraystretch}{1.08}
+\begin{longtable}{>{\RaggedRight\arraybackslash}p{0.06\linewidth} >{\RaggedRight\arraybackslash}p{0.33\linewidth} >{\RaggedRight\arraybackslash}p{0.51\linewidth}}
 \toprule
 \textbf{No.} & \textbf{Module} & \textbf{Purpose}\\
 \midrule
 1 & Interaction-resolved Geant4 radiation deposition campaign in silicon & Run separate photon and neutron simulations in targeted energy bands so that distinct interaction mechanisms can be isolated, compared, and translated into deposition maps, secondary-particle spectra, and damage-precursor metrics for later modules.\\
 2 & Two-dimensional electrostatics with defect-dependent space charge & Solve the 2D electrostatic problem for a damaged silicon structure. Convert dopants and charged defects into electric potential, electric field, and depletion-structure changes.\\
 3 & Two-dimensional defect evolution with material-aware kinetic coefficients & Evolve vacancies, interstitials, complexes, and effective defect species in 2D using diffusion, reaction, migration, and annealing laws whose reduced coefficients can depend on temperature, charge state, dopants, and electric field.\\
-4a & Two-dimensional continuum thermal transport & Solve the baseline temperature field with the continuum heat equation and use it to update diffusion coefficients, reaction rates, annealing rates, and other temperature-dependent physics.\\
-4b & Two-dimensional phonon-aware thermal transport & Extend the thermal model beyond a plain bulk conductivity by incorporating phonon-mediated transport ideas, defect-dependent thermal transport, and reduced nonequilibrium or size-effect corrections when they materially affect the prediction.\\
+4 & Two-dimensional ballistic-diffusive thermal transport in silicon & Use a reduced ballistic-diffusive heat-conduction framework to evolve the 2D thermal field in silicon, retain finite-flight-time and boundary-memory effects beyond Fourier conduction, support volumetric radiation-related heat sources, and update temperature-dependent defect and device coefficients. A first executable MATLAB path is now included using a reduced rectangular-domain ballistic-flux closure.\\
 5 & Two-dimensional drift-diffusion carrier transport with defect-assisted recombination & Predict how the damaged device transports electrons and holes under the altered field, temperature, and trap landscape.\\
-6 & Coupled two-dimensional multiphysics degradation model & Couple Modules 2, 3, 4a/4b, and 5 into a self-consistent simulator for defect evolution, field evolution, thermal evolution, and carrier-transport degradation.\\
+6 & Coupled two-dimensional multiphysics degradation model & Couple Modules 2, 3, 4, and 5 into a self-consistent simulator for defect evolution, field evolution, thermal evolution, and carrier-transport degradation.\\
 7 & Multiscale extrapolation and scalable prediction & Develop methods for making predictions on much larger spatial, temporal, or statistical scales than the direct high-fidelity simulation can afford. This module covers controlled approximations, quantified error bars, statistical upscaling, and hybrid multiresolution workflows.\\
 \bottomrule
 \end{longtable}
+}
 
 \section{Project narrative and module descriptions}
 \textbf{Radiation-Induced Defect Evolution and Device Degradation in Silicon}
@@ -78,19 +79,15 @@ This module models how radiation-induced defects modify the electrostatic state 
 
 This module describes the time evolution of radiation-induced defects after they are created. Defects are not static: they can diffuse, recombine, cluster, dissociate, or anneal depending on temperature and local conditions. In the upgraded Module~3 plan, the diffusion and annealing coefficients are treated as material-aware reduced kinetic coefficients rather than as universal constants. Their microscopic origin lies in bonding, lattice geometry, and electronic structure, while the first implemented simulation-level dependencies are temperature, defect charge state, dopant environment, and electric field. A 2D diffusion-reaction model then evolves the resulting defect concentrations in space and time. This is one of the core physics modules of the project because it determines how initial damage develops into a changing defect landscape, rather than treating radiation damage as frozen in place.
 
-\textbf{Module 4a. Two-Dimensional Continuum Thermal Transport}
+\textbf{Module 4. Two-Dimensional Ballistic-Diffusive Thermal Transport in Silicon}
 
-This module adds temperature as an active physical driver using the continuum heat equation. Temperature influences defect mobility, reaction rates, and annealing kinetics, so the defect-evolution problem is inherently thermally sensitive. Module 4a calculates the baseline temperature field in the device, and that temperature field feeds into the defect-evolution equations. This branch is the production baseline because it is simpler, cheaper, and easier to validate.
-
-\textbf{Module 4b. Two-Dimensional Phonon-Aware Thermal Transport}
-
-This module is the richer thermal comparison branch. It retains the same project role as Module 4a but tries to represent heat transport in silicon more faithfully when phonon-mediated transport, defect scattering, size effects, or reduced nonequilibrium corrections matter. Module 4b exists so the project can test whether these additional thermal-transport effects change the quantities of interest enough to justify the extra complexity.
+This module adds temperature as an active physical driver using a reduced ballistic-diffusive heat-conduction model derived from the carrier Boltzmann picture. The purpose is to retain a clearer microscopic foundation than a plain Fourier heat equation while still keeping the solver executable on the same 2D device cross section used by the other modules. The thermal field controls defect diffusivities, annealing rates, and later carrier-transport coefficients. In the revised architecture, Module 4 accepts volumetric source terms appropriate for radiation-related heating and retains an explicit ballistic contribution through a first reduced rectangular-domain boundary-emission closure so that finite-flight-time and boundary-memory effects can already be represented in the initial implementation.
 
 \textbf{Module 5. Two-Dimensional Drift-Diffusion Carrier Transport with Defect-Assisted Recombination}
 
 This module translates material damage into electrical performance changes. Using 2D drift-diffusion transport equations, the model solves for electron and hole motion under the influence of the internal electric field and carrier concentration gradients. Radiation-induced defects enter through trap-assisted recombination, trapping, and lifetime degradation. In other words, this module shows how the evolving defect population, altered electrostatics, and temperature field affect measurable device behavior such as leakage current, charge collection, recombination losses, or degraded diode response.
 
-\textbf{Module 6. Combined Multiphysics Model Using Modules 2, 3, 4a/4b, and 5}
+\textbf{Module 6. Combined Multiphysics Model Using Modules 2, 3, 4, and 5}
 
 This module integrates the previous physics pieces into a coupled framework. The defect population changes the space charge; the space charge changes the electric field; the electric field influences carrier transport; the temperature affects defect migration and annealing; and carrier behavior and local power dissipation can in turn interact with the thermal state. This module is where the project becomes a true device-degradation simulator rather than a collection of separate models. Its purpose is to produce a self-consistent prediction of how radiation exposure evolves into long-term electrical degradation.
 
@@ -161,17 +158,15 @@ arrow/.style={-{Latex[length=2.4mm]}, very thick, draw=accent}
 \node[box] (m1) {\textbf{Step 1. Module 1: Geant4 radiation transport}\\Run the Geant4 silicon geometry and score deposited energy, hit coordinates, optional timing information, and any derived damage-source products.};
 \node[box, below=of m1] (handoff) {\textbf{Step 2. Geant4-to-MATLAB handoff}\\Bin or interpolate the Geant4 output into a 2D deposition map or initial defect-source map on a MATLAB-side grid.};
 \node[box, below=of handoff] (m3) {\textbf{Step 3. Module 3: defect evolution}\\Evolve the 2D defect state under diffusion, reactions, clustering, dissociation, annealing, and optional source terms.};
-\node[box, below=of m3] (m4a) {\textbf{Step 4. Module 4a: continuum thermal field}\\Solve or update the baseline 2D temperature field and use it to modify defect and transport coefficients.};
-\node[box, below=of m4a] (m4b) {\textbf{Step 5. Module 4b: phonon-aware comparison branch}\\Apply the richer thermal branch when defect-dependent or phonon-aware transport corrections are needed and compare against Module 4a.};
-\node[box, below=of m4b] (m2) {\textbf{Step 6. Module 2: electrostatics}\\Build the net space-charge density from dopants and charged defects, then solve for electric potential and electric field.};
-\node[box, below=of m2] (m5) {\textbf{Step 7. Module 5: carrier transport}\\Solve the 2D electron and hole transport problem with field-driven drift, concentration-driven diffusion, and defect-assisted recombination or trapping.};
-\node[box, below=of m5] (m6) {\textbf{Step 8. Module 6: coupled iteration}\\Iterate Modules 2, 3, 4a/4b, and 5 until the defect state, temperature field, electric field, and carrier state are mutually consistent to a chosen tolerance.};
-\node[box, below=of m6] (m7) {\textbf{Step 9. Module 7: scalable prediction}\\Apply reduced-order, approximation, statistical-upscaling, or hybrid multiresolution methods to extend the prediction to larger devices, longer times, larger domains, or rarer-event statistics.};
+\node[box, below=of m3] (m4) {\textbf{Step 4. Module 4: ballistic-diffusive thermal field}\\Solve or update the 2D temperature field with the reduced ballistic-diffusive thermal model and use it to modify defect and transport coefficients.};
+\node[box, below=of m4] (m2) {\textbf{Step 5. Module 2: electrostatics}\\Build the net space-charge density from dopants and charged defects, then solve for electric potential and electric field.};
+\node[box, below=of m2] (m5) {\textbf{Step 6. Module 5: carrier transport}\\Solve the 2D electron and hole transport problem with field-driven drift, concentration-driven diffusion, and defect-assisted recombination or trapping.};
+\node[box, below=of m5] (m6) {\textbf{Step 7. Module 6: coupled iteration}\\Iterate Modules 2, 3, 4, and 5 until the defect state, temperature field, electric field, and carrier state are mutually consistent to a chosen tolerance.};
+\node[box, below=of m6] (m7) {\textbf{Step 8. Module 7: scalable prediction}\\Apply reduced-order, approximation, statistical-upscaling, or hybrid multiresolution methods to extend the prediction to larger devices, longer times, larger domains, or rarer-event statistics.};
 \draw[arrow] (m1) -- (handoff);
 \draw[arrow] (handoff) -- (m3);
-\draw[arrow] (m3) -- (m4a);
-\draw[arrow] (m4a) -- (m4b);
-\draw[arrow] (m4b) -- (m2);
+\draw[arrow] (m3) -- (m4);
+\draw[arrow] (m4) -- (m2);
 \draw[arrow] (m2) -- (m5);
 \draw[arrow] (m5) -- (m6);
 \draw[arrow] (m6) -- (m7);
@@ -179,7 +174,7 @@ arrow/.style={-{Latex[length=2.4mm]}, very thick, draw=accent}
 \end{center}
 
 \begin{notebox}
-\textbf{Important distinction.} Module 4a is the baseline thermal branch and should be built first. Module 4b is a comparison branch rather than the first production dependency. In simplified studies, thermal information does not always have to be solved before electrostatics, but in the intended coupled workflow the temperature field should be available before the tightly coupled 2D solve because temperature changes diffusion, annealing, mobility, and recombination parameters.
+\textbf{Important distinction.} The revised Module 4 is not a plain Fourier baseline. It is a reduced ballistic-diffusive thermal model chosen because it preserves more of the microscopic transport physics while remaining executable in 2D. In simplified studies, thermal information does not always have to be solved before electrostatics, but in the intended coupled workflow the temperature field should be available before the tightly coupled 2D solve because temperature changes diffusion, annealing, mobility, and recombination parameters.
 \end{notebox}
 
 \section{Recommended coding order}
@@ -187,8 +182,7 @@ arrow/.style={-{Latex[length=2.4mm]}, very thick, draw=accent}
     \item \textbf{Module 1:} Geant4 geometry, scoring, and export format.
     \item \textbf{Module 3:} 2D defect evolution on a structured grid.
     \item \textbf{Module 2:} 2D electrostatics with prescribed charged defects.
-    \item \textbf{Module 4a:} 2D continuum thermal solver plus temperature-dependent coefficients.
-    \item \textbf{Module 4b:} reduced phonon-aware thermal extension after the continuum baseline is working.
+    \item \textbf{Module 4:} 2D ballistic-diffusive thermal solver plus temperature-dependent coefficient handoff to later modules.
     \item \textbf{Module 5:} 2D drift-diffusion with prescribed electrostatic field, thermal field, and defect/trap fields.
     \item \textbf{Module 6:} weak coupling, then stronger feedback and iterative convergence.
     \item \textbf{Module 7:} scalable-prediction methods after at least one credible high-fidelity coupled workflow exists.
@@ -215,13 +209,12 @@ arrow/.style={-{Latex[length=2.4mm]}, very thick, draw=accent}
 \midrule
 \path{matlab/main_module2_electrostatics.m} & Top-level entry for the 2D electrostatic solve.\\
 \path{matlab/main_module3_2d_defect_evolution.m} & Top-level entry for the 2D defect-evolution solve.\\
-\path{matlab/main_module4a_2d_continuum_thermal.m} & Top-level entry for the Module 4a 2D continuum thermal solve.\\
-\path{matlab/main_module4b_phonon_aware_thermal.m} & Planned top-level entry for the Module 4b phonon-aware thermal comparison branch.\\
+\path{matlab/main_module4_2d_ballistic_diffusive_thermal.m} & Top-level entry for the Module 4 two-dimensional ballistic-diffusive thermal solve; first executable MATLAB implementation included.\\
 \path{matlab/main_module5_drift_diffusion.m} & Top-level entry for the 2D carrier-transport solve.\\
-\path{matlab/main_module6_multiphysics.m} & Top-level coupled driver that orchestrates Modules 2, 3, 4a/4b, and 5.\\
+\path{matlab/main_module6_multiphysics.m} & Top-level coupled driver that orchestrates Modules 2, 3, 4, and 5.\\
 \path{matlab/src/grid/} & Shared 2D grid generation and spatial operators.\\
 \path{matlab/src/module3_defects/} & Module 3 defect evolution operators and initialization helpers.\\
-\path{matlab/src/module4a_thermal/} & Module 4a thermal operators, initialization helpers, and source-term assembly for the baseline continuum branch.\\
+\path{matlab/src/module4_thermal/} & Module 4 ballistic-diffusive thermal operators, initialization helpers, source-term assembly, reduced ballistic-flux closures, and verification support.\\
 \path{matlab/src/electrostatics/} & Planned 2D Poisson operators, charge assembly, and field postprocessing.\\
 \path{matlab/src/transport/} & Planned drift-diffusion operators, recombination models, mobility models, and current extraction.\\
 \path{matlab/src/diagnostics/} & Shared diagnostics, error metrics, and summary writers.\\
@@ -232,24 +225,21 @@ arrow/.style={-{Latex[length=2.4mm]}, very thick, draw=accent}
 \bottomrule
 \end{longtable}
 
-\section{Thermal split rationale and comparison strategy}
-\subsection{Module 4a: why it comes first}
-Module 4a is the baseline production branch because it uses the continuum heat equation, is simpler to verify, and gives the temperature field required by later modules with minimal additional modeling assumptions.
+\section{Thermal-model rationale and comparison strategy}
+\subsection{Why the ballistic-diffusive model is now primary}
+The revised Module 4 becomes the primary thermal branch because it preserves a clearer microscopic connection to finite-speed heat-carrier transport than the old continuum baseline while still remaining executable in 2D. The model is more ambitious than Fourier conduction, but it is still substantially simpler than a full angularly resolved phonon Boltzmann solve.
 
-\subsection{Module 4b: what it must add}
-Module 4b exists to capture situations in which heat transport is changed materially by phonon-mediated effects, defect scattering, size effects, or reduced nonequilibrium corrections. Module 4b should not be added merely because it is more detailed. It should be added because it changes the quantities of interest enough to matter.
-
-\subsection{Recommended comparison metrics for 4a versus 4b}
-At minimum, compare:
+\subsection{How it should still be benchmarked}
+Even though the split 4a/4b architecture is removed, it is still useful to compare the new Module 4 against a simple Fourier benchmark when validating the implementation. Useful metrics include
 \begin{itemize}[leftmargin=1.5em]
-    \item peak temperature,
-    \item spatial temperature gradients,
-    \item time history of temperature at hot spots,
-    \item defect-diffusion or annealing coefficient changes induced by temperature,
-    \item downstream changes in defect histories or electrical degradation metrics,
+    \item peak temperature and hot-spot width,
+    \item early-time surface or boundary heat flux,
+    \item lateral spreading rates of a localized thermal pulse,
+    \item annealing-rate differences induced through temperature changes,
+    \item downstream defect-history changes after thermal feedback is coupled back into Module 3,
     \item added computational cost.
 \end{itemize}
-A useful rule is that Module 4b should earn its place by changing one or more project-level quantities of interest enough to justify the extra complexity.
+A useful rule is that the ballistic-diffusive module should earn its additional complexity by changing one or more project-level quantities of interest enough to matter.
 
 \section{Module interfaces in the new 2D plan}
 \subsection{Module 1 to Module 3 handoff}
@@ -258,7 +248,7 @@ The first strong interface should now be a 2D deposition or defect-source map ac
 \subsection{Module 3 to Module 2 handoff}
 After a defect-evolution run, MATLAB should save at minimum coordinate arrays, effective defect fields, charged-defect density fields, trap-density fields, and time-history diagnostics for provenance.
 
-\subsection{Module 2 and Module 4a/4b to Module 5 handoff}
+\subsection{Module 2 and Module 4 to Module 5 handoff}
 Carrier transport should read electric potential $\phi(x,y)$, electric-field components $E_x(x,y)$ and $E_y(x,y)$, temperature $T(x,y)$, and trap or recombination parameters derived from the defect state.
 
 \section{Verification strategy under the 2D architecture}
@@ -271,8 +261,7 @@ Each module needs at least one low-complexity verification path.
 1 & Compare deposition trends against known silicon behavior and verify that the exported 2D binning is internally consistent.\\
 2 & Use manufactured or symmetric charge configurations whose 2D potential and field patterns are physically obvious; verify sign conventions and boundary-condition behavior.\\
 3 & Check pure diffusion, pure annealing, and symmetry-preserving source cases in 2D. Total inventory should behave correctly under the chosen boundaries.\\
-4a & Recover known 2D heat-conduction behavior on simple rectangular domains with simple source terms and boundary conditions.\\
-4b & Demonstrate that the phonon-aware branch reduces to the Module 4a limit when phonon corrections are turned off, and quantify when defect-dependent transport changes the result.\\
+4 & Recover expected limits of the 2D ballistic-diffusive thermal model, including equilibrium preservation, localized-pulse spreading, and measurable deviations from a Fourier baseline when boundary-memory effects matter; formal diffusive-limit comparison remains the next validation step.\\
 5 & Verify defect-free transport first, then turn on simple trap-assisted recombination. Check that zero-field or symmetric cases behave sensibly.\\
 6 & Confirm that decoupled or weakly coupled limits reduce to standalone solutions. Track iterative residuals and relaxation behavior.\\
 7 & Every scalable-prediction method must be benchmarked against a higher-fidelity reference. The benchmark should report both speedup and error metrics.\\
@@ -295,9 +284,9 @@ This document should be revised whenever a module definition changes, the dimens
 \begin{enumerate}[leftmargin=1.6em]
     \item Keep the top-level \texttt{README.md}, \texttt{project\_plan.tex}, and \texttt{project\_plan.pdf} synchronized whenever the project architecture changes.
     \item Verify the first 2D Module 3 code path on the user's MATLAB environment.
-    \item Implement and verify the first Module 4a continuum thermal baseline in MATLAB.
-    \item Define the first reduced phonon-aware closure path for Module 4b and the metrics it must change enough to justify the extra complexity.
-    \item Update the Module 2, 4a/4b, and 5 implementation notes so their first solver architecture is 2D rather than 1D.
+    \item Completed: implemented the first 2D reduced ballistic-diffusive Module 4 MATLAB path with uniform-equilibrium, localized-pulse, and boundary-heating cases.
+    \item Keep the Module 4 note, file map, and run-order documentation synchronized with the implemented single-module thermal architecture.
+    \item Update the Module 2, 4, and 5 implementation notes so their first solver architecture is 2D rather than 1D where applicable.
     \item Decide the first benchmark quantity of interest for Module 7 so that future approximations can be measured against something physically meaningful.
 \end{enumerate}
 

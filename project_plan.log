@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.26 (TeX Live 2025/dev/Debian) (preloaded format=pdflatex 2026.2.6)  19 APR 2026 02:00
+This is pdfTeX, Version 3.141592653-2.6-1.40.26 (TeX Live 2025/dev/Debian) (preloaded format=pdflatex 2026.2.6)  28 APR 2026 23:25
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -906,8 +906,8 @@ zlibrarypositioning.code.tex
 File: tikzlibrarypositioning.code.tex 2023-01-15 v3.1.10 (3.1.10)
 )
 Package translations Info: No language package found. I am going to use `englis
-h' as default language. on input line 16.
-LaTeX Font Info:    Trying to load font information for T1+lmr on input line 16
+h' as default language. on input line 15.
+LaTeX Font Info:    Trying to load font information for T1+lmr on input line 15
 .
  (/usr/share/texmf/tex/latex/lm/t1lmr.fd
 File: t1lmr.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
@@ -915,24 +915,24 @@ File: t1lmr.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
 (./project_plan.aux)
 \openout1 = `project_plan.aux'.
 
-LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 16.
-LaTeX Font Info:    ... okay on input line 16.
-LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 16.
-LaTeX Font Info:    ... okay on input line 16.
-LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 16.
-LaTeX Font Info:    ... okay on input line 16.
-LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 16.
-LaTeX Font Info:    ... okay on input line 16.
-LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 16.
-LaTeX Font Info:    ... okay on input line 16.
-LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 16.
-LaTeX Font Info:    ... okay on input line 16.
-LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 16.
-LaTeX Font Info:    ... okay on input line 16.
-LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 16.
-LaTeX Font Info:    ... okay on input line 16.
-LaTeX Font Info:    Checking defaults for PU/pdf/m/n on input line 16.
-LaTeX Font Info:    ... okay on input line 16.
+LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 15.
+LaTeX Font Info:    ... okay on input line 15.
+LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 15.
+LaTeX Font Info:    ... okay on input line 15.
+LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 15.
+LaTeX Font Info:    ... okay on input line 15.
+LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 15.
+LaTeX Font Info:    ... okay on input line 15.
+LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 15.
+LaTeX Font Info:    ... okay on input line 15.
+LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 15.
+LaTeX Font Info:    ... okay on input line 15.
+LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 15.
+LaTeX Font Info:    ... okay on input line 15.
+LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 15.
+LaTeX Font Info:    ... okay on input line 15.
+LaTeX Font Info:    Checking defaults for PU/pdf/m/n on input line 15.
+LaTeX Font Info:    ... okay on input line 15.
 
 *geometry* driver: auto-detecting
 *geometry* detected driver: pdftex
@@ -968,22 +968,22 @@ LaTeX Font Info:    ... okay on input line 16.
 * \@reversemarginfalse
 * (1in=72.27pt=25.4mm, 1cm=28.453pt)
 
-LaTeX Info: Redefining \microtypecontext on input line 16.
-Package microtype Info: Applying patch `item' on input line 16.
-Package microtype Info: Applying patch `toc' on input line 16.
-Package microtype Info: Applying patch `eqnum' on input line 16.
+LaTeX Info: Redefining \microtypecontext on input line 15.
+Package microtype Info: Applying patch `item' on input line 15.
+Package microtype Info: Applying patch `toc' on input line 15.
+Package microtype Info: Applying patch `eqnum' on input line 15.
 
-Package microtype Warning: Unable to apply patch `footnote' on input line 16.
+Package microtype Warning: Unable to apply patch `footnote' on input line 15.
 
-Package microtype Info: Applying patch `verbatim' on input line 16.
-LaTeX Info: Redefining \microtypesetup on input line 16.
+Package microtype Info: Applying patch `verbatim' on input line 15.
+LaTeX Info: Redefining \microtypesetup on input line 15.
 Package microtype Info: Generating PDF output.
 Package microtype Info: Character protrusion enabled (level 2).
 Package microtype Info: Using default protrusion set `alltext'.
 Package microtype Info: Automatic font expansion enabled (level 2),
 (microtype)             stretch: 20, shrink: 20, step: 1, non-selected.
 Package microtype Info: Using default expansion set `alltext-nott'.
-LaTeX Info: Redefining \showhyphens on input line 16.
+LaTeX Info: Redefining \showhyphens on input line 15.
 Package microtype Info: No adjustment of tracking.
 Package microtype Info: No adjustment of interword spacing.
 Package microtype Info: No adjustment of character kerning.
@@ -1013,7 +1013,7 @@ Package epstopdf-base Info: Redefining graphics rule for `.eps' on input line 4
 File: epstopdf-sys.cfg 2010/07/13 v1.3 Configuration of (r)epstopdf for TeX Liv
 e
 ))
-Package hyperref Info: Link coloring ON on input line 16.
+Package hyperref Info: Link coloring ON on input line 15.
 
 (./project_plan.out) (./project_plan.out)
 \@outlinefile=\write4
@@ -1038,9 +1038,9 @@ File: translations-basic-dictionary-english.trsl (english translation file `tra
 nslations-basic-dictionary')
 )
 Package translations Info: loading dictionary `translations-basic-dictionary' f
-or `english'. on input line 16.
+or `english'. on input line 15.
 LaTeX Font Info:    Trying to load font information for T1+lmtt on input line 2
-1.
+0.
  (/usr/share/texmf/tex/latex/lm/t1lmtt.fd
 File: t1lmtt.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
 )
@@ -1104,31 +1104,6 @@ c/dvips/lm/lm-ec.enc}
 \openout5 = `project_plan.toc'.
 
 
-Underfull \hbox (badness 3919) in paragraph at lines 49--49
-[]|\T1/lmr/m/n/10.95 (+20) Interaction-resolved Geant4
- []
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 50--50
-\T1/lmr/m/n/10.95 (+20) ics with defect-dependent
- []
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 53--53
-[]|\T1/lmr/m/n/10.95 (+20) Two-dimensional phonon-
- []
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 54--54
-[]|\T1/lmr/m/n/10.95 (+20) Two-dimensional drift-
- []
-
-
-Underfull \hbox (badness 7116) in paragraph at lines 54--54
-\T1/lmr/m/n/10.95 (+20) diffusion car-rier trans-port
- []
-
-
 
 [2]
 
@@ -1140,113 +1115,105 @@ Underfull \hbox (badness 7116) in paragraph at lines 54--54
 
 [6{/usr/share/texmf/fonts/enc/dvips/lm/lm-mathit.enc}{/usr/share/texmf/fonts/en
 c/dvips/lm/lm-rm.enc}{/usr/share/texmf/fonts/enc/dvips/lm/lm-mathsy.enc}]
-Underfull \hbox (badness 10000) in paragraph at lines 128--128
+Underfull \hbox (badness 10000) in paragraph at lines 125--125
 []|\T1/lmr/bx/n/10.95 (+20) Approximate plan-
  []
 
 
-Underfull \hbox (badness 1082) in paragraph at lines 134--135
+Underfull \hbox (badness 1082) in paragraph at lines 131--132
 []|\T1/lmr/m/n/10.95 (+20) Study pho-tonu-clear re-ac-tions, re-
  []
 
 
-Underfull \hbox (badness 1400) in paragraph at lines 134--135
+Underfull \hbox (badness 1400) in paragraph at lines 131--132
 \T1/lmr/m/n/10.95 (+20) on-daries that can change defect-
  []
 
 
-Underfull \hbox (badness 3623) in paragraph at lines 135--136
+Underfull \hbox (badness 3623) in paragraph at lines 132--133
 []|\T1/lmr/m/n/10.95 (+20) Study high-energy cas-cades and
  []
+
+
 
 [7]
 
 [8]
 
 [9]
-Overfull \vbox (60.63011pt too high) has occurred while \output is active []
-
-
-
-[10]
-Underfull \hbox (badness 10000) in paragraph at lines 205--205
+Underfull \hbox (badness 10000) in paragraph at lines 199--199
 []|$\T1/lmtt/m/n/10.95 docs / implementation _
  []
 
-[11]
-Underfull \hbox (badness 10000) in paragraph at lines 216--216
+[10]
+Underfull \hbox (badness 10000) in paragraph at lines 210--210
 []|$\T1/lmtt/m/n/10.95 matlab / main _ module2 _
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 217--217
+Underfull \hbox (badness 10000) in paragraph at lines 211--211
 []|$\T1/lmtt/m/n/10.95 matlab / main _ module3 _ 2d _
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 218--218
-[]|$\T1/lmtt/m/n/10.95 matlab / main _ module4a _ 2d _
+Underfull \hbox (badness 10000) in paragraph at lines 212--212
+[]|$\T1/lmtt/m/n/10.95 matlab / main _ module4 _ 2d _
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 219--219
-[]|$\T1/lmtt/m/n/10.95 matlab / main _ module4b _
+Underfull \hbox (badness 10000) in paragraph at lines 212--212
+\T1/lmtt/m/n/10.95 ballistic _ diffusive _ thermal .
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 220--220
+Underfull \hbox (badness 10000) in paragraph at lines 213--213
 []|$\T1/lmtt/m/n/10.95 matlab / main _ module5 _ drift _
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 221--221
+Underfull \hbox (badness 10000) in paragraph at lines 214--214
 []|$\T1/lmtt/m/n/10.95 matlab / main _ module6 _
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 224--224
-[]|$\T1/lmtt/m/n/10.95 matlab / src / module4a _
- []
 
-
-
-[12]
+[11]
 LaTeX Font Info:    Trying to load font information for TS1+lmr on input line 2
-45.
+35.
  (/usr/share/texmf/tex/latex/lm/ts1lmr.fd
 File: ts1lmr.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
 )
 
-[13{/usr/share/texmf/fonts/enc/dvips/lm/lm-ts1.enc}]
+[12{/usr/share/texmf/fonts/enc/dvips/lm/lm-ts1.enc}]
 
-[14]
+[13]
 
-[15] (./project_plan.aux)
+[14] (./project_plan.aux)
  ***********
 LaTeX2e <2024-11-01> patch level 2
 L3 programming layer <2025-01-18>
  ***********
 Package rerunfilecheck Info: File `project_plan.out' has not changed.
-(rerunfilecheck)             Checksum: DFB4A916E7C6E3FDF669228BB84535E6;6137.
+(rerunfilecheck)             Checksum: 17C03BFBD3341FE97709E257CE460B59;5934.
  ) 
 Here is how much of TeX's memory you used:
- 32402 strings out of 473197
- 655281 string characters out of 5718606
- 1040953 words of memory out of 5000000
- 54942 multiletter control sequences out of 15000+600000
- 614127 words of font info for 148 fonts, out of 8000000 for 9000
+ 32416 strings out of 473197
+ 655372 string characters out of 5718606
+ 1040996 words of memory out of 5000000
+ 54947 multiletter control sequences out of 15000+600000
+ 620610 words of font info for 156 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 121i,12n,124p,1201b,1195s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ 121i,12n,124p,1201b,1170s stack positions out of 10000i,1000n,20000p,200000b,200000s
 </usr/share/texmf/fonts/type1/public/lm/lmbx10.pfb></usr/share/texmf/fonts/ty
 pe1/public/lm/lmbx12.pfb></usr/share/texmf/fonts/type1/public/lm/lmmi10.pfb></u
 sr/share/texmf/fonts/type1/public/lm/lmmi8.pfb></usr/share/texmf/fonts/type1/pu
 blic/lm/lmr10.pfb></usr/share/texmf/fonts/type1/public/lm/lmr12.pfb></usr/share
 /texmf/fonts/type1/public/lm/lmr8.pfb></usr/share/texmf/fonts/type1/public/lm/l
 msy10.pfb></usr/share/texmf/fonts/type1/public/lm/lmtt10.pfb>
-Output written on project_plan.pdf (15 pages, 231581 bytes).
+Output written on project_plan.pdf (14 pages, 230199 bytes).
 PDF statistics:
- 314 PDF objects out of 1000 (max. 8388607)
- 273 compressed objects within 3 object streams
- 73 named destinations out of 1000 (max. 500000)
- 31453 words of extra memory for PDF output out of 35830 (max. 10000000)
+ 302 PDF objects out of 1000 (max. 8388607)
+ 262 compressed objects within 3 object streams
+ 70 named destinations out of 1000 (max. 500000)
+ 35541 words of extra memory for PDF output out of 35830 (max. 10000000)
 
