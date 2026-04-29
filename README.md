@@ -1,6 +1,7 @@
 # RadiationEffects_proj2
 
-This repository builds a physics-based framework linking radiation energy deposition in silicon to long-term device degradation. The top-level `README.md`, `project_plan.tex`, and `project_plan.pdf` are the three maintained architecture documents and should be updated whenever the project architecture changes.
+This repository builds a physics-based framework linking radiation energy deposition in silicon to long-term device degradation. The top-level `README.md`, `project_plan.tex`, and `project_plan.pdf` are the three maintained architecture documents and should be updated whenever the project architecture changes. `This work was conducted with the assistance of a large language model (LLM), specifically ChatGPT`.
+
 
 ## High-level structure
 
@@ -89,3 +90,5 @@ The revised thermal step is now an executable Module 4 path, so the next technic
 ## Important note
 
 This archive was updated to reflect the replacement of the old Module 4a/4b split with a single Module 4 ballistic-diffusive thermal architecture. Documentation and project-plan updates were prioritized first, and the repository now also includes the first executable MATLAB path for the revised Module 4 architecture.
+
+
