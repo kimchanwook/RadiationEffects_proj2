@@ -1,0 +1,1073 @@
+
+\documentclass[11pt]{article}
+\input{../shared/project_style.tex}
+\usepackage{parskip}
+\rhead{Slides Outline}
+
+\begin{document}
+
+\DocTitle{RadiationEffects\_proj2 Slide Outline}{Reduced-order modeling strategy built on a full radiation-effects physics framework}{Planning document for a 30-minute interview presentation: full-model roadmap, importance scoring, disciplined model reduction, and extrapolation from reduced-order results}
+
+\begin{overviewbox}
+\textbf{Purpose.} This document is not the final PowerPoint deck. It is a slide-planning outline for a physics-and-modeling presentation based on \textbf{Radiation Effects Project 2}. The revised strategy is to first state the full physics framework as the ideal reference model, then explain how to quantify the importance of each module, reduce the model in a defensible order, and extrapolate reduced-order results back toward full-scale interpretation. The intended audience includes scientists and engineers who may not specialize in radiation effects, semiconductor physics, or multiphysics simulation.
+\end{overviewbox}
+
+\ProjectTOC
+
+\SymbolsAcronymsSection
+\begin{symtable}
+BD & Ballistic-diffusive & Reduced thermal-transport model that treats boundary-originating carriers ballistically and internally scattered carriers diffusively.\\
+BTE & Boltzmann transport equation & Microscopic transport equation for the carrier distribution function.\\
+ROM & Reduced-order model & Lower-cost model that preserves the dominant physics needed for a chosen quantity of interest.\\
+QoI & Quantity of interest & Final output that determines importance, such as peak temperature, leakage current, defect density, or risk score.\\
+Ablation score & Module-impact score & Output change caused by removing, freezing, or simplifying one module relative to a reference model.\\
+Sensitivity score & Parameter-impact score & Output sensitivity to uncertain physical parameters or closure coefficients.\\
+Coupling matrix & Feedback-strength map & Quantifies how strongly one module state changes another module state and the final output.\\
+\(C_j\) & Defect concentration & Concentration of defect species \(j\) used in Module 3 and later coupled modules.\\
+\(\rho\) & Space-charge density & Net charge density entering Poisson's equation in Module 2.\\
+\(\phi\) & Electric potential & Scalar electrostatic potential solved in Module 2.\\
+\(n,p\) & Electron and hole densities & Carrier populations used in Module 5 drift-diffusion transport.\\
+\(\qvec_b\) & Ballistic heat flux & Boundary-memory heat-flux contribution retained in Module 4.\\
+\(u_m\) & Medium/scattered energy & Internal-energy field associated with the scattered part of the carrier population.\\
+\(Q\) & Volumetric heat source & Radiation-related, electrical, or externally imposed source term for Module 4.\\
+\(\mfp\) & Mean free path & Average distance traveled by a heat carrier between scattering events.\\
+\(\mathrm{Kn}\) & Knudsen number & Ratio \(\mathrm{Kn}=\mfp/L\), used to organize diffusive versus ballistic transport regimes.\\
+\end{symtable}
+
+\section{How to use this slide outline}
+Each slide entry gives six items:
+\begin{enumerate}[leftmargin=1.6em]
+    \item the main question the slide should answer,
+    \item the core message the audience should remember,
+    \item the equation or equations that should be shown,
+    \item a figure idea,
+    \item a physics drawing idea,
+    \item the speaker emphasis that should guide the verbal explanation.
+\end{enumerate}
+The final slides should stay visually sparse. The derivation, physical explanation, and comparisons should mostly live in the speaker notes and in the spoken delivery.
+
+\begin{notebox}
+\textbf{Presentation principle.} The talk should not sound like ``I always prefer the most complex model.'' It should sound like ``I understand the full physics, so I know how to reduce the model without losing the physics that controls the decision.''
+\end{notebox}
+
+\section{Part I: Presentation framing and full-model logic (4 slides)}
+
+\begin{notebox}
+\textbf{Strategic framing.} This revised outline is built for a 30-minute interview presentation where the central message is not ``I will always build the most complex model.'' The central message is: start from the full physics framework as the reference truth model, quantify what physics actually controls the quantity of interest, reduce the model in a disciplined order, and extrapolate reduced-order results back toward full-scale interpretation with uncertainty bounds.
+\end{notebox}
+
+\section{Slide 1: Start with the unlimited-time physics model}
+\begin{physicsbox}
+\textbf{Main question.} What would I model if schedule and computational cost were not the limiting factors?
+\end{physicsbox}
+
+\textbf{Core message.} The full model is the physics reference, not necessarily the first deliverable. It defines what mechanisms exist, which state variables couple to each other, and what would be sacrificed when the model is reduced.
+
+\textbf{Equations to show:}
+\begin{equation*}
+\dot{q}_{\mathrm{rad}} \longrightarrow C_j \longrightarrow \rho,\phi,T \longrightarrow n,p,J_n,J_p \longrightarrow y_{\mathrm{device}}.
+\end{equation*}
+\begin{equation*}
+\mathcal{M}_{\mathrm{full}}:
+\{S_{\mathrm{dep}},C_j,T,\phi,n,p\}\mapsto \mathbf{y},
+\qquad
+\mathbf{y}=\text{quantity of interest}.
+\end{equation*}
+
+\textbf{Figure idea.} Show a full physics chain from radiation deposition to device response, with every module enabled.
+
+\textbf{Physics drawing idea.} A silicon device cross section containing an incoming particle, defect cloud, hot spot, distorted electric-field lines, and changed current flow.
+
+\textbf{Speaker emphasis.} Be explicit that the full model is a reference architecture. The goal is to understand the maximum possible physics content first, then decide what can be safely simplified for a deadline-driven calculation.
+
+\section{Slide 2: Full complexity is a map of possible physics, not a project schedule}
+\begin{physicsbox}
+\textbf{Main question.} How do we avoid confusing physical completeness with the right first implementation?
+\end{physicsbox}
+
+\textbf{Core message.} A complete physics framework identifies mechanisms; a useful reduced-order model ranks them and keeps the ones that control the answer.
+
+\textbf{Equations to show:}
+\begin{equation*}
+\mathcal{M}_{\mathrm{full}}
+\rightarrow
+\{\text{mechanisms}\}
+\rightarrow
+\{\text{importance scores}\}
+\rightarrow
+\mathcal{M}_{\mathrm{ROM}}.
+\end{equation*}
+\begin{equation*}
+\mathbf{x}=\{C_j,T,\phi,n,p\},
+\qquad
+\mathbf{y}=g(\mathbf{x}),
+\qquad
+\text{keep physics that strongly changes }\mathbf{y}.
+\end{equation*}
+
+\textbf{Figure idea.} Two-panel figure: left is a dense full physics graph, right is a reduced graph with only dominant paths retained.
+
+\textbf{Physics drawing idea.} Draw many possible causal arrows through the system, then highlight only the arrows that dominate the final device response.
+
+\textbf{Speaker emphasis.} Say that complexity is only useful if it changes the decision or prediction. If a mechanism is physically real but weak for the chosen quantity of interest, it should be deferred, parameterized, or bounded rather than fully solved immediately.
+
+\section{Slide 3: Overview logic for this presentation}
+\begin{physicsbox}
+\textbf{Main question.} What is the decision workflow I would use under schedule pressure?
+\end{physicsbox}
+
+\textbf{Core message.} The workflow is full-model framing, module-level physics explanation, importance quantification, stepwise reduction, and extrapolation back to full-scale interpretation.
+
+\textbf{Equations to show:}
+\begin{align*}
+\boxed{\text{full physics}}
+&\rightarrow \boxed{\text{importance ranking}}
+\rightarrow \boxed{\text{model reduction}}\\
+&\rightarrow \boxed{\text{calibrated extrapolation}}
+\rightarrow \boxed{\text{decision-ready result}}.
+\end{align*}
+\begin{equation*}
+\text{reduce first where }\quad
+\frac{\text{computational cost}}{\text{impact on }\mathbf{y}}
+\quad\text{is largest}.
+\end{equation*}
+
+\textbf{Figure idea.} A flowchart with five stages: full model, scoring, reduction, extrapolation, decision.
+
+\textbf{Physics drawing idea.} Show the full silicon damage chain at the top and a simplified dominant-path chain underneath it.
+
+\textbf{Speaker emphasis.} This slide should make the panel hear the practical message early: the speaker understands deep physics, but the plan is to deliver fast, controlled reduced-order results first and reserve complex modeling for the highest-impact pieces.
+
+\section{Slide 4: What counts as a good reduced-order model?}
+\begin{physicsbox}
+\textbf{Main question.} What constraints should a reduced model satisfy before it is trusted?
+\end{physicsbox}
+
+\textbf{Core message.} A reduced model is acceptable only if it preserves the dominant causal pathway, the relevant conservation laws, the correct limiting behavior, and a quantified error relative to the full model or data.
+
+\textbf{Equations to show:}
+\begin{equation*}
+\epsilon_{\mathrm{ROM}}(\mathbf{p})
+=
+\frac{\|\mathbf{y}_{\mathrm{full}}(\mathbf{p})-
+\mathbf{y}_{\mathrm{ROM}}(\mathbf{p})\|}{\|\mathbf{y}_{\mathrm{full}}(\mathbf{p})\|+\epsilon_0}.
+\end{equation*}
+\begin{equation*}
+\mathcal{M}_{\mathrm{ROM}}\text{ is useful if }\quad
+\epsilon_{\mathrm{ROM}} < \epsilon_{\mathrm{tol}}
+\quad\text{for the decision being made.}
+\end{equation*}
+
+\textbf{Figure idea.} A Pareto plot with model cost on one axis and prediction error on the other.
+
+\textbf{Physics drawing idea.} Three nested models of the same device: full 2D multiphysics, reduced 1D physics, and lumped/scoring model.
+
+\textbf{Speaker emphasis.} Stress that reduction is not guessing. It is a controlled approximation process where the quantity of interest determines what physics must be retained.
+
+\section{Part II: Individual full-model modules (7 slides)}
+
+\section{Slide 5: Module 1 --- radiation deposition and damage seeding}
+\begin{physicsbox}
+\textbf{Main question.} What does Module 1 provide to the rest of the framework?
+\end{physicsbox}
+
+\textbf{Core message.} Module 1 uses radiation transport to generate the initial spatial forcing: where energy is deposited, what interactions occur, and how that deposition seeds the later defect-evolution problem.
+
+\textbf{Equations to show:}
+\begin{align*}
+S_{\mathrm{dep}}(x,y,t) &\equiv \text{deposited-energy or source map},\\
+D_{\mathrm{dep}}(x,y) &= \frac{1}{\rho_m}\int S_{\mathrm{dep}}(x,y,t)\,dt,\\
+\Phi(E,\Omega) &\longrightarrow S_{\mathrm{dep}},\; \text{interaction tallies},\; \text{damage precursors}.
+\end{align*}
+
+\textbf{Extended physics summary for speaker notes.}
+\begin{enumerate}[leftmargin=1.6em]
+    \item Module 1 is the place where the outside radiation environment first becomes an internal material forcing function.
+    \item A particle-transport calculation answers where particles go, how they scatter, how much energy they deposit, and what interaction channels dominate.
+    \item In silicon, the same total deposited energy can have different consequences depending on whether it is spread smoothly or concentrated along tracks or small hot spots.
+    \item The deposition map is therefore more informative than a single scalar dose because it preserves the spatial structure of the radiation insult.
+    \item Physically, Module 1 does not yet know which defects will survive; it only identifies where the material was excited or damaged enough to seed later evolution.
+    \item This distinction is important because prompt energy deposition and final device degradation are separated by intermediate physics, especially defect migration, annealing, and charge-state evolution.
+    \item For a non-specialist, Module 1 is like mapping where sparks land before asking which parts of the material actually burn, heal, or remain damaged.
+    \item For an expert, Module 1 is the Monte-Carlo or radiation-transport interface that supplies source terms, interaction tallies, and spatially resolved initial conditions to continuum modules.
+    \item The main output should be a source map that can be consistently interpreted by Module 3 as defect seeding and by Module 4 as thermal or energy-deposition forcing.
+    \item The most important speaker message is that Module 1 creates the initial condition, but it does not by itself predict the evolved damage state.
+\end{enumerate}
+
+\textbf{Figure idea.} A deposition map from a particle-transport run, with track structure or localized hotspots highlighted.
+
+\textbf{Physics drawing idea.} Incident particle entering silicon, showing scattering events, energy transfer, and a map of where the material first receives the radiation insult.
+
+\textbf{Speaker emphasis.} Explain that Module 1 is the interface between external radiation physics and internal material/device physics. It does not yet tell us the evolved damage state; it gives the initial spatial insult.
+
+\section{Slide 6: Module 2 --- electrostatics with defect-dependent space charge}
+\begin{physicsbox}
+\textbf{Main question.} How does a damaged defect population alter the electrostatic state of the device?
+\end{physicsbox}
+
+\textbf{Core message.} Module 2 translates the current charged-defect and dopant populations into electric potential and field maps through Poisson's equation.
+
+\textbf{Equations to show:}
+\begin{align*}
+\nabla\cdot(\epsilon\nabla\phi) &= -\rho,\\
+\rho &= q\left(p-n+N_D^+-N_A^-+\sum_j z_j C_j\right),\\
+\bm{E} &= -\nabla\phi,\\
+\nabla\cdot\bm{E} &= \frac{\rho}{\epsilon}.
+\end{align*}
+
+\textbf{Extended physics summary for speaker notes.}
+\begin{enumerate}[leftmargin=1.6em]
+    \item Module 2 asks how the current distribution of charge inside the semiconductor shapes the electric potential and electric field.
+    \item The governing intuition is Gauss's law: charge is the source of electric-field divergence, so changing the charge distribution changes the field geometry.
+    \item In an ideal device, dopants and contacts create a designed electrostatic landscape that drives carriers in the intended direction.
+    \item Radiation-induced defects can add unwanted charge, remove mobile carriers, trap carriers, or alter local charge neutrality.
+    \item A charged defect-rich region can bend field lines, perturb depletion widths, and change where carriers accelerate or collect.
+    \item Module 2 therefore turns a materials-state variable, the defect concentration and charge state, into an electromagnetic-state variable, the potential \(\phi(x,y,t)\).
+    \item For a non-specialist, the useful picture is that charged defects act like small hidden batteries or obstacles that distort the internal electrical landscape.
+    \item For an expert, this module is a Poisson solve with source terms assembled from mobile charge, ionized dopants, and defect charge states.
+    \item The module is not trying to predict defect motion; it takes the current defect map from Module 3 and computes the field consequence of that map.
+    \item The key output for later modules is \(\bm{E}=-\nabla\phi\), because carrier drift in Module 5 depends directly on the electric field.
+\end{enumerate}
+
+\textbf{Figure idea.} A 2D potential map and electric-field-line plot over a device cross section with a localized defect-rich region.
+
+\textbf{Physics drawing idea.} Show charged defects locally bending field lines and perturbing depletion structure or junction fields.
+
+\textbf{Speaker emphasis.} Make clear that Module 2 does not evolve the defects; it translates the current defect state into an electrostatic consequence that later feeds transport.
+
+\section{Slide 7: Module 3 --- defect evolution in space and time}
+\begin{physicsbox}
+\textbf{Main question.} How does the radiation-created defect population evolve after the initial event?
+\end{physicsbox}
+
+\textbf{Core message.} Module 3 advances defect concentrations through diffusion, reaction, clustering, dissociation, and annealing, with coefficients that can depend on temperature, fields, and local material state.
+
+\textbf{Equations to show:}
+\begin{equation*}
+\frac{\partial C_j}{\partial t}
+=\nabla\cdot\bigl(D_j\nabla C_j\bigr)
++R_j(C_1,C_2,\dots,T,E)+S_j(x,y,t).
+\end{equation*}
+\begin{align*}
+D_j(T) &= D_{0,j}\exp\!\left(-\frac{E_{D,j}}{\kB T}\right),\\
+k_j(T) &= k_{0,j}\exp\!\left(-\frac{E_{A,j}}{\kB T}\right),\\
+\tau_D &\sim \frac{L^2}{D_j},\qquad \tau_A\sim \frac{1}{k_j}.
+\end{align*}
+
+\textbf{Extended physics summary for speaker notes.}
+\begin{enumerate}[leftmargin=1.6em]
+    \item Module 3 is the time-evolution engine for the damaged material state.
+    \item Radiation may create vacancies, interstitials, and defect complexes, but those defects do not necessarily stay where they were born.
+    \item Defects can diffuse through the lattice, react with each other, become trapped at impurities, cluster into larger complexes, or anneal away.
+    \item The physical competition is between spreading, reaction, and healing, and this competition determines whether the damage becomes more diffuse or more localized with time.
+    \item Diffusion is controlled by migration barriers, so the rate is exponentially sensitive to temperature through the Arrhenius factor.
+    \item Annealing is also thermally activated, which means a modest temperature change can strongly change how quickly defects disappear or transform.
+    \item For a non-specialist, Module 3 is like watching smoke spread, chemically react, and disappear after an initial burst, except the ``smoke'' is crystal damage.
+    \item For an expert, the module is a reaction-diffusion system for one or more defect populations with effective kinetic coefficients.
+    \item The output of Module 3 feeds Module 2 through charged defect concentration, Module 4 through defect-dependent thermal scattering in later refinements, and Module 5 through trap and recombination populations.
+    \item The speaker should emphasize that without Module 3 the model would incorrectly freeze the radiation damage at its birth configuration.
+\end{enumerate}
+
+\textbf{Figure idea.} A time sequence of defect concentration maps spreading, reacting, and relaxing.
+
+\textbf{Physics drawing idea.} Vacancies and interstitials migrating, recombining, and annealing in a silicon lattice, with arrows indicating competing timescales.
+
+\textbf{Speaker emphasis.} Stress that Module 3 is the engine that converts the initial deposition pattern into a changing damage landscape. Without this step, the project would assume the material damage stays frozen.
+
+\section{Slide 8: Module 4 --- ballistic-diffusive thermal transport}
+\begin{physicsbox}
+\textbf{Main question.} Why is thermal transport its own module, and what makes it different from a plain heat equation?
+\end{physicsbox}
+
+\textbf{Core message.} Module 4 models heat transport in a regime where finite carrier flight lengths and boundary memory matter, so the thermal problem is richer than ordinary Fourier conduction.
+
+\textbf{Equations to show:}
+\begin{equation*}
+\tau\frac{\partial^2 u_m}{\partial t^2}+\frac{\partial u_m}{\partial t}
+=\nabla\cdot\left(\frac{k}{C}\nabla u_m\right)-\nabla\cdot\qvec_b
++\left(Q+\tau\frac{\partial Q}{\partial t}\right).
+\end{equation*}
+\begin{align*}
+I_\omega &= I^b_\omega+I^m_\omega,\\
+\mathrm{Kn} &= \frac{\mfp}{L}.
+\end{align*}
+
+\textbf{Extended physics summary for speaker notes.}
+\begin{enumerate}[leftmargin=1.6em]
+    \item Module 4 computes how thermal energy moves after radiation deposits energy or after later device operation creates local heating.
+    \item The simplest heat equation assumes that temperature is locally well-defined and that heat flux responds immediately to the local temperature gradient.
+    \item That assumption can be too crude when the heated region is small, the time scale is short, or heat carriers travel a meaningful distance before scattering.
+    \item In silicon, heat is carried mainly by lattice vibrations, or phonons, and those phonons have finite speeds and finite mean free paths.
+    \item The ballistic-diffusive idea separates carriers that retain directional or boundary memory from carriers that have scattered enough to behave more diffusively.
+    \item This matters because a heat pulse does not instantly become a smooth local temperature field; part of the energy can travel before equilibrating.
+    \item For a non-specialist, Module 4 is the difference between heat spreading like ink in water and heat carriers flying like tiny packets before they scatter.
+    \item For an expert, the module is a reduced descendant of the Boltzmann transport equation, using a ballistic flux correction plus a medium/scattered energy PDE.
+    \item The temperature field from Module 4 feeds back into Module 3 because defect diffusion and annealing are thermally activated.
+    \item The temperature field also matters later for Module 5 because mobility, recombination, and carrier statistics can depend on temperature.
+\end{enumerate}
+
+\textbf{Figure idea.} A 2D thermal field with ballistic boundary rays and a smoother scattered-temperature background.
+
+\textbf{Physics drawing idea.} Localized hot spot, outward-moving heat carriers, partial scattering, and boundary-emitted carriers contributing nonlocal thermal memory.
+
+\textbf{Speaker emphasis.} Keep this slide high-level. The goal is to show why Module 4 exists in the chain and to set up the later deep dive.
+
+\section{Slide 9: Module 5 --- carrier transport and recombination under damage}
+\begin{physicsbox}
+\textbf{Main question.} Once fields, temperature, and defects are known, how is device behavior predicted?
+\end{physicsbox}
+
+\textbf{Core message.} Module 5 converts the damaged material state into an electrical-performance problem by solving carrier drift, diffusion, and recombination in the perturbed field and trap landscape.
+
+\textbf{Equations to show:}
+\begin{align*}
+\bm{J}_n &= q\mu_n n\bm{E} + qD_n\nabla n,\\
+\bm{J}_p &= q\mu_p p\bm{E} - qD_p\nabla p,\\
+\frac{\partial n}{\partial t} &= \frac{1}{q}\nabla\cdot \bm{J}_n + G - R,\\
+\frac{\partial p}{\partial t} &= -\frac{1}{q}\nabla\cdot \bm{J}_p + G - R,\\
+R &\rightarrow R_{\mathrm{rad}}(n,p,C_j,T).
+\end{align*}
+
+\textbf{Extended physics summary for speaker notes.}
+\begin{enumerate}[leftmargin=1.6em]
+    \item Module 5 is where the framework turns the damaged material state into an electrical device response.
+    \item In a semiconductor, electrons and holes move partly because electric fields push them and partly because concentration gradients make them diffuse.
+    \item Radiation-induced defects affect this motion by changing the electric field, creating traps, enhancing recombination, and possibly reducing mobility.
+    \item Drift describes field-driven motion, while diffusion describes spreading from high concentration to low concentration.
+    \item Recombination describes processes in which electrons and holes are removed as mobile carriers, often through defect levels in the band gap.
+    \item A damaged region can therefore act like an electrical sink, a scattering region, or a barrier that redirects current flow.
+    \item For a non-specialist, Module 5 is the step where hidden microscopic damage becomes visible as a changed current, voltage, leakage, or collection efficiency.
+    \item For an expert, it is the drift-diffusion and continuity-equation layer coupled to defect-assisted recombination and electrostatic fields.
+    \item The module depends on Module 2 for \(\bm{E}\), Module 3 for defect populations, and Module 4 for temperature-dependent transport coefficients.
+    \item The key message is that device degradation is not caused by defects in an abstract sense; it is caused by how defects alter carrier motion and recombination.
+\end{enumerate}
+
+\textbf{Figure idea.} A current-density map flowing around a damaged region, with local recombination or trapping zones indicated.
+
+\textbf{Physics drawing idea.} Electrons and holes drifting under a bent field while defects act as recombination centers and mobility modifiers.
+
+\textbf{Speaker emphasis.} This is where the materials physics becomes a device-performance prediction. Emphasize that damage matters electrically because it modifies both the driving fields and the recombination/trapping landscape.
+
+\section{Slide 10: Module 6 --- self-consistent multiphysics coupling}
+\begin{physicsbox}
+\textbf{Main question.} Why can the modules not remain independent forever?
+\end{physicsbox}
+
+\textbf{Core message.} In the final framework, defects, temperature, fields, and carrier populations all feed back on one another, so the full problem must be iterated to consistency.
+
+\textbf{Equations to show:}
+\begin{equation*}
+\{C_j(x,y,t),\; T(x,y,t),\; \phi(x,y,t),\; n(x,y,t),\; p(x,y,t)\}
+\quad \text{solved iteratively to consistency.}
+\end{equation*}
+\begin{align*}
+D_j &= D_j(T),\\
+R_j &= R_j(T,E,C_1,C_2,\dots),\\
+\bm{J}_n,\bm{J}_p &\text{ depend on } T,\phi,\text{ and defect-assisted recombination},\\
+\mathcal{F}(C_j,T,\phi,n,p)&=0 \quad \text{at coupled convergence}.
+\end{align*}
+
+\textbf{Extended physics summary for speaker notes.}
+\begin{enumerate}[leftmargin=1.6em]
+    \item Module 6 is the point where the project stops treating each physics process as a one-way calculation and starts treating the device as an interacting system.
+    \item In reality, defects, temperature, electric fields, and carrier populations do not wait for one another in a strict sequence; they evolve together.
+    \item Defects can change the field, the field can change carrier motion, carrier motion can generate heat, heat can accelerate defect motion, and defects can change recombination.
+    \item A one-way chain is useful for building and debugging the framework, but it can miss feedback loops that amplify or suppress degradation.
+    \item The coupled solve can be introduced gradually, starting with weak coupling and later moving toward iterative self-consistency.
+    \item For a non-specialist, Module 6 is like moving from separate weather ingredients to a full weather model where temperature, wind, pressure, and moisture interact.
+    \item For an expert, the module is a coupled nonlinear multiphysics problem linking reaction-diffusion, Poisson electrostatics, thermal transport, and carrier continuity equations.
+    \item The convergence target is not simply numerical agreement; it is a state in which each module's output is physically compatible with the inputs used by the others.
+    \item This module is also where stability, coupling order, time-step control, and verification become more important than in isolated single-physics runs.
+    \item The key speaker message is that true degradation prediction requires feedback, because damaged devices are coupled physical systems.
+\end{enumerate}
+
+\textbf{Figure idea.} A coupling loop diagram among Modules 2, 3, 4, and 5.
+
+\textbf{Physics drawing idea.} Circular arrows connecting defect map, temperature map, potential map, and carrier map over the same device cross section.
+
+\textbf{Speaker emphasis.} Explain that the project becomes a true degradation simulator only when these feedbacks are allowed to interact rather than being treated as one-way post-processing.
+
+\section{Slide 11: Module 7 --- scaling, surrogates, and practical prediction}
+\begin{physicsbox}
+\textbf{Main question.} How does the framework move beyond one small high-fidelity simulation into useful prediction?
+\end{physicsbox}
+
+\textbf{Core message.} Module 7 is the scale-bridging layer: it uses reduced-order models, surrogate models, or statistical upscaling to extend the physically grounded simulations toward larger devices, longer times, or rarer events.
+
+\textbf{Equations to show:}
+\begin{equation*}
+\mathcal{M}_{\mathrm{high\,fidelity}}
+\;\longrightarrow\;
+\mathcal{M}_{\mathrm{reduced/surrogate/upscaled}}
+\;\longrightarrow\;
+\text{practical prediction with quantified uncertainty}.
+\end{equation*}
+\begin{equation*}
+\hat{y}=\mathcal{S}\!\bigl(\text{radiation environment},\; \text{geometry},\; \text{material parameters},\; \text{operating conditions}\bigr).
+\end{equation*}
+
+\textbf{Extended physics summary for speaker notes.}
+\begin{enumerate}[leftmargin=1.6em]
+    \item Module 7 addresses the fact that the most detailed simulation is rarely the one that can be run for every device, every radiation condition, and every long time scale.
+    \item A high-fidelity local model can explain mechanisms, but practical prediction often requires many cases, large domains, uncertainty studies, or rapid design comparisons.
+    \item Scaling therefore means preserving the important physics while reducing the computational burden enough that the model becomes usable.
+    \item Reduced-order models can keep dominant modes or responses while discarding unnecessary detail.
+    \item Surrogate models can learn mappings from inputs to outputs after being trained on carefully selected high-fidelity simulations.
+    \item Statistical upscaling can translate local damage statistics into larger-area or longer-time predictions.
+    \item For a non-specialist, Module 7 is like using detailed local microscope images to build a reliable picture of how the whole material or device will behave.
+    \item For an expert, it is the uncertainty-aware model-reduction layer that converts mechanism-resolved simulations into computationally tractable prediction workflows.
+    \item The module should not replace physics with black-box fitting; it should use the physics modules to constrain and validate the reduced prediction layer.
+    \item The key message is that the project becomes useful when it can move from a beautiful single simulation to repeatable, scalable, uncertainty-aware prediction.
+\end{enumerate}
+
+\textbf{Figure idea.} A high-fidelity local simulation feeding into a reduced or surrogate model that predicts behavior across a much larger device or many-device ensemble.
+
+\textbf{Physics drawing idea.} Small detailed damaged-region simulation on the left, large-area chip or system-level prediction on the right, connected by an upscaling arrow.
+
+\textbf{Speaker emphasis.} The project is scientifically valuable only if it can eventually inform prediction, not just produce beautiful local field maps. Module 7 is the bridge from mechanism to practical use.
+
+\section{Part III: Quantifying importance and impact (5 slides)}
+
+\section{Slide 12: Define the quantity of interest before ranking physics}
+\begin{physicsbox}
+\textbf{Main question.} What final output is the model actually trying to predict or rank?
+\end{physicsbox}
+
+\textbf{Core message.} Importance cannot be defined in the abstract. A module is important only relative to a chosen output, such as peak defect density, field distortion, leakage-current change, temperature rise, or a pass/fail margin.
+
+\textbf{Equations to show:}
+\begin{equation*}
+\mathbf{y}=\begin{bmatrix}
+\max C_d & \max T & \max |\Delta E| & \Delta I_{\mathrm{leak}} & P_{\mathrm{fail}}
+\end{bmatrix}^{T}.
+\end{equation*}
+\begin{equation*}
+\Delta y_k = y_k - y_{k,0},
+\qquad
+m_k=\frac{|\Delta y_k|}{\sigma_{k,\mathrm{req}}}.
+\end{equation*}
+
+\textbf{Figure idea.} A target-output panel listing several possible quantities of interest and showing that different outputs emphasize different modules.
+
+\textbf{Physics drawing idea.} Show one defect hot spot producing several possible observables: thermal peak, field distortion, leakage current, and final device margin.
+
+\textbf{Speaker emphasis.} A reduced-order model should be designed around the question being asked. The same physics chain may reduce differently if the goal is peak temperature, long-time defect population, or device leakage.
+
+\section{Slide 13: Module ablation score}
+\begin{physicsbox}
+\textbf{Main question.} How do I measure whether a module actually affects the final result?
+\end{physicsbox}
+
+\textbf{Core message.} Remove or simplify one module at a time, compare the output with the reference model, and use the change in the quantity of interest as an impact score.
+
+\textbf{Equations to show:}
+\begin{equation*}
+A_i =
+\frac{\|\mathbf{y}_{\mathrm{full}}-
+\mathbf{y}_{(-i)}\|_W}{\|\mathbf{y}_{\mathrm{full}}\|_W+\epsilon_0},
+\qquad
+\|\mathbf{a}\|_W^2=\mathbf{a}^{T}W\mathbf{a}.
+\end{equation*}
+\begin{equation*}
+\mathbf{y}_{(-i)}=\text{output with module }i\text{ removed, frozen, or replaced by baseline closure}.
+\end{equation*}
+
+\textbf{Figure idea.} A bar chart ranking Modules 1--7 by ablation impact for one chosen output metric.
+
+\textbf{Physics drawing idea.} Show the full module chain, then gray out one module at a time and compare the final output arrow thickness.
+
+\textbf{Speaker emphasis.} This is the simplest defensible importance test. If removing a module barely changes the answer, that module is a candidate for replacement by a cheaper closure in the first deliverable.
+
+\section{Slide 14: Sensitivity and uncertainty score}
+\begin{physicsbox}
+\textbf{Main question.} Which uncertain physical parameters control the output most strongly?
+\end{physicsbox}
+
+\textbf{Core message.} A module may be important because its parameters are both uncertain and influential. Sensitivity analysis separates physics that is merely present from physics that controls prediction uncertainty.
+
+\textbf{Equations to show:}
+\begin{equation*}
+S_{k\ell}=
+\frac{p_\ell}{y_k}\frac{\partial y_k}{\partial p_\ell},
+\qquad
+I_{\ell}^{\mathrm{sens}}=\sum_k w_k |S_{k\ell}|.
+\end{equation*}
+\begin{equation*}
+\mathrm{Var}(y_k)\approx
+\sum_{\ell}\left(\frac{\partial y_k}{\partial p_\ell}\right)^2\mathrm{Var}(p_\ell).
+\end{equation*}
+
+\textbf{Figure idea.} Tornado chart of the most important parameters: defect diffusivity, annealing rate, thermal relaxation time, trap density, carrier mobility, or source-map amplitude.
+
+\textbf{Physics drawing idea.} Show a knob for each physical coefficient and draw larger output arrows for knobs that strongly move the final answer.
+
+\textbf{Speaker emphasis.} A high-fidelity module with poorly known parameters may not improve a deadline result. If the dominant uncertainty is a parameter, calibration or bounding may be more valuable than a more complex PDE solve.
+
+\section{Slide 15: Coupling-strength matrix}
+\begin{physicsbox}
+\textbf{Main question.} Which feedback loops are strong enough to keep in the first coupled model?
+\end{physicsbox}
+
+\textbf{Core message.} Couplings should be ranked by how much a perturbation in one physics state changes another state and ultimately changes the output.
+
+\textbf{Equations to show:}
+\begin{equation*}
+K_{i\to j}=\frac{\|\delta \mathbf{x}_j\|}{\|\delta \mathbf{x}_i\|+\epsilon_0},
+\qquad
+G_{i\to y}=\frac{\|\delta\mathbf{y}\|}{\|\delta \mathbf{x}_i\|+\epsilon_0}.
+\end{equation*}
+\begin{equation*}
+\mathbf{x}=\{S_{\mathrm{dep}}, C_j, T, \phi, n,p\},
+\qquad
+\text{rank paths by }K_{i\to j}G_{j\to y}.
+\end{equation*}
+
+\textbf{Figure idea.} A heatmap showing coupling strength between modules: deposition to defects, temperature to defect kinetics, defects to electrostatics, electrostatics to carrier transport, and carrier transport to Joule heating.
+
+\textbf{Physics drawing idea.} A directed graph over a silicon cross section where arrow thickness means physical influence strength.
+
+\textbf{Speaker emphasis.} This slide gives a principled way to decide between one-way coupling, sequential coupling, and full iteration. Weak feedback can be treated as post-processing; strong feedback requires coupled solves.
+
+\section{Slide 16: Cost-impact score for reduction priority}
+\begin{physicsbox}
+\textbf{Main question.} What do I simplify first when time is limited?
+\end{physicsbox}
+
+\textbf{Core message.} Reduce modules that are expensive, weakly influential, and poorly constrained before reducing modules that dominate the quantity of interest.
+
+\textbf{Equations to show:}
+\begin{equation*}
+R_i=\frac{C_i}{I_i+\epsilon_0},
+\qquad
+I_i=w_A A_i+w_S I_i^{\mathrm{sens}}+w_K I_i^{\mathrm{coupling}}.
+\end{equation*}
+\begin{equation*}
+\text{large }R_i\Rightarrow\text{reduce early},
+\qquad
+\text{large }I_i\Rightarrow\text{preserve, calibrate, or bound carefully}.
+\end{equation*}
+
+\textbf{Figure idea.} Cost versus impact scatter plot. The upper-left region is high-impact/low-cost physics to keep; the lower-right region is low-impact/high-cost physics to reduce first.
+
+\textbf{Physics drawing idea.} Place each module on a reduction-priority ladder, with high-cost low-impact items at the top of the ``simplify first'' list.
+
+\textbf{Speaker emphasis.} This is the reduced-order modeling argument in one slide: reduction is not based on personal preference. It is based on cost, output impact, coupling strength, and uncertainty.
+
+\section{Part IV: Step-by-step reduction of the full model (6 slides)}
+
+\section{Slide 17: Reduction ladder}
+\begin{physicsbox}
+\textbf{Main question.} What is the disciplined order for simplifying the physics framework?
+\end{physicsbox}
+
+\textbf{Core message.} Reduction should proceed from safest to riskiest: freeze weak feedbacks, replace expensive modules with response maps, reduce dimension where gradients are weak, collapse fast physics into algebraic closures, and only then remove mechanisms.
+
+\textbf{Equations to show:}
+\begin{equation*}
+\mathcal{M}_{\mathrm{full}}
+\rightarrow
+\mathcal{M}_{\mathrm{sequential}}
+\rightarrow
+\mathcal{M}_{\mathrm{1D/0D}}
+\rightarrow
+\mathcal{M}_{\mathrm{response\;surface}}
+\rightarrow
+\mathcal{M}_{\mathrm{scoring}}.
+\end{equation*}
+\begin{equation*}
+\text{preserve: conservation laws, dominant timescales, dominant source terms, and output sensitivity.}
+\end{equation*}
+
+\textbf{Figure idea.} A staircase diagram from full multiphysics to fast scoring model, with validation gates between steps.
+
+\textbf{Physics drawing idea.} Show the same damaged device represented at decreasing resolution: detailed 2D fields, 1D profiles, lumped compartments, and final scalar risk score.
+
+\textbf{Speaker emphasis.} The goal is to deliver a useful result early without losing the ability to re-introduce physics where the scoring shows it matters.
+
+\section{Slide 18: Reduce coupling before reducing physics}
+\begin{physicsbox}
+\textbf{Main question.} What simplification is usually safer than deleting a physical mechanism?
+\end{physicsbox}
+
+\textbf{Core message.} The first reduction is often to change a fully coupled problem into a sequential or weakly coupled problem while retaining the same physical mechanisms.
+
+\textbf{Equations to show:}
+\begin{equation*}
+\text{full iteration: }\quad
+\mathbf{x}^{m+1}=\mathcal{F}(\mathbf{x}^{m}),
+\qquad
+\|\mathbf{x}^{m+1}-\mathbf{x}^{m}\|<\epsilon.
+\end{equation*}
+\begin{equation*}
+\text{sequential ROM: }\quad
+S_{\mathrm{dep}}\to C_j\to T\to \phi\to n,p\to\mathbf{y}.
+\end{equation*}
+
+\textbf{Figure idea.} Side-by-side coupling loop: full self-consistent iteration versus one-pass sequential workflow.
+
+\textbf{Physics drawing idea.} Draw circular feedback arrows in the full model, then replace weak arrows with one-way arrows in the reduced model.
+
+\textbf{Speaker emphasis.} This is a strong interview message: deadlines often do not require eliminating physics, only eliminating expensive feedback loops that do not move the final metric.
+
+\section{Slide 19: Dimension reduction rule}
+\begin{physicsbox}
+\textbf{Main question.} When can a 2D model be reduced to 1D or a lumped model?
+\end{physicsbox}
+
+\textbf{Core message.} Reduce dimension only when the neglected spatial gradients carry little energy or little output sensitivity compared with the retained direction.
+
+\textbf{Equations to show:}
+\begin{equation*}
+\eta_y(u)=
+\frac{\int_\Omega |\partial u/\partial y|^2\,d\Omega}
+{\int_\Omega \left(|\partial u/\partial x|^2+|\partial u/\partial y|^2\right)d\Omega+\epsilon_0}.
+\end{equation*}
+\begin{equation*}
+\eta_y\ll 1 \Rightarrow \text{1D approximation may be acceptable for state }u.
+\end{equation*}
+
+\textbf{Figure idea.} Three fields with different dimensionality: nearly layered 1D field, moderately 2D field, and strongly localized 2D hot spot.
+
+\textbf{Physics drawing idea.} Show contour lines that are almost flat in one direction for reducible physics and strongly curved for non-reducible physics.
+
+\textbf{Speaker emphasis.} The criterion should be field-specific. Defect evolution may need 2D while electrostatics or thermal response might be temporarily treated as 1D, or vice versa, depending on gradients and the output metric.
+
+\section{Slide 20: Module-by-module first reductions}
+\begin{physicsbox}
+\textbf{Main question.} What would I simplify first in each module while preserving the dominant physics?
+\end{physicsbox}
+
+\textbf{Core message.} Each module has a natural reduced version: deposition maps instead of repeated Monte Carlo, analytic or 1D electrostatics, reduced defect networks, Fourier or lumped thermal limits when justified, simplified carrier transport, and sequential coupling.
+
+\textbf{Equations to show:}
+\begin{align*}
+\text{Module 1: }&S_{\mathrm{dep}}(x,y)\to \widehat{S}_{\mathrm{dep}}(r;E,\theta),\notag\\
+\text{Module 3: }&\{C_1,\dots,C_N\}\to \{C_{\mathrm{mobile}},C_{\mathrm{trap}},C_{\mathrm{annealed}}\},\notag\\
+\text{Module 4: }&\mathrm{BD}\to \text{Fourier or lumped thermal model if }\mathrm{Kn}\ll 1,\notag\\
+\text{Module 6: }&\text{fully coupled}\to\text{sequential with selected feedbacks}.\notag
+\end{align*}
+
+\textbf{Figure idea.} A table with columns: module, full version, reduced version, risk of reduction, validation check.
+
+\textbf{Physics drawing idea.} Show every module with a ``full'' and ``reduced'' icon, connected by arrows labeled with the assumption needed for the reduction.
+
+\textbf{Speaker emphasis.} Keep this slide very practical. It shows the panel that the framework can produce a fast answer without abandoning physics discipline.
+
+\section{Slide 21: Preserve invariants and limiting behavior}
+\begin{physicsbox}
+\textbf{Main question.} What must not be broken when the model is reduced?
+\end{physicsbox}
+
+\textbf{Core message.} A reduced model should preserve core balances: deposited energy, defect accounting, charge consistency, correct diffusion or ballistic limits, and monotonic behavior where physics demands it.
+
+\textbf{Equations to show:}
+\begin{align*}
+\int_\Omega Q\,d\Omega &\approx \text{preserved thermal/source power},\\
+\frac{d}{dt}\int_\Omega C_j\,d\Omega &= \int_\Omega \left(S_j+R_j\right)d\Omega + \text{boundary fluxes},\\
+\nabla\cdot(\epsilon\nabla\phi)&=-\rho.
+\end{align*}
+
+\textbf{Figure idea.} Checklist figure with four validation gates: source conservation, defect balance, charge consistency, limiting behavior.
+
+\textbf{Physics drawing idea.} Draw a simplified model that still conserves total deposited energy and total charge, even after the geometry is collapsed.
+
+\textbf{Speaker emphasis.} Good reduction is not just about matching one curve. It should avoid unphysical artifacts, such as creating energy, violating charge consistency, or predicting the wrong limiting regime.
+
+\section{Slide 22: Deliverable timeline logic}
+\begin{physicsbox}
+\textbf{Main question.} How would I deliver fast results without closing the door to deeper physics?
+\end{physicsbox}
+
+\textbf{Core message.} Build a fast baseline first, validate it against simple tests, identify dominant errors, and only spend high-fidelity modeling effort where the error or uncertainty budget demands it.
+
+\textbf{Equations to show:}
+\begin{equation*}
+\mathbf{y}^{(0)}_{\mathrm{fast} }
+\rightarrow
+\mathbf{y}^{(1)}_{\mathrm{calibrated} }
+\rightarrow
+\mathbf{y}^{(2)}_{\mathrm{physics\;enriched} }
+\rightarrow
+\mathbf{y}^{(3)}_{\mathrm{targeted\;high\;fidelity} }.
+\end{equation*}
+\begin{equation*}
+\Delta\epsilon^{(m)}=
+\epsilon^{(m)}-\epsilon^{(m+1)},
+\qquad
+\text{add physics when }\Delta\epsilon^{(m)}\text{ is worth the cost}.
+\end{equation*}
+
+\textbf{Figure idea.} Timeline from day-one reduced model to later high-fidelity targeted refinement, with decision checkpoints.
+
+\textbf{Physics drawing idea.} Show a rough map becoming a detailed map only around the physically important damaged region.
+
+\textbf{Speaker emphasis.} The phrase to communicate is: fast first, honest error bars, then targeted complexity where it pays off.
+
+\section{Part V: Extrapolation from reduced-order results to full-scale interpretation (4 slides)}
+
+\section{Slide 23: Reduced-order result plus discrepancy model}
+\begin{physicsbox}
+\textbf{Main question.} How do I interpret a reduced-order result as an approximation to the full-scale model?
+\end{physicsbox}
+
+\textbf{Core message.} Treat the reduced model as a fast baseline and explicitly model the difference between the reduced prediction and a small number of higher-fidelity or experimental anchor points.
+
+\textbf{Equations to show:}
+\begin{equation*}
+\mathbf{y}_{\mathrm{full}}(\mathbf{p})
+=
+\mathbf{y}_{\mathrm{ROM}}(\mathbf{p})+\boldsymbol{\delta}(\mathbf{p})+\boldsymbol{\epsilon}.
+\end{equation*}
+\begin{equation*}
+\widehat{\mathbf{y}}(\mathbf{p})
+=\mathbf{y}_{\mathrm{ROM}}(\mathbf{p})+\widehat{\boldsymbol{\delta}}(\mathbf{p}).
+\end{equation*}
+
+\textbf{Figure idea.} Plot reduced-model predictions, a few full-model anchor points, and a learned discrepancy correction band.
+
+\textbf{Physics drawing idea.} Draw a coarse simulation curve being shifted and widened by a correction term derived from sparse high-fidelity checks.
+
+\textbf{Speaker emphasis.} The reduced model should not pretend to be the full model. It should say what it predicts, what it neglects, and how the neglected part is corrected or bounded.
+
+\section{Slide 24: Statistical extrapolation and uncertainty quantification}
+\begin{physicsbox}
+\textbf{Main question.} How do I attach confidence bounds to reduced-order predictions?
+\end{physicsbox}
+
+\textbf{Core message.} Use an ensemble over uncertain inputs and model discrepancy to turn a single reduced-order result into a probabilistic prediction interval.
+
+\textbf{Equations to show:}
+\begin{equation*}
+P(\mathbf{y}\mid \mathbf{d})
+=\int P(\mathbf{y}\mid \mathbf{p},\mathcal{M})P(\mathbf{p}\mid\mathbf{d})\,d\mathbf{p}.
+\end{equation*}
+\begin{equation*}
+\mathbf{p}^{(s)}\sim P(\mathbf{p}),
+\qquad
+\mathbf{y}^{(s)}=\mathcal{M}_{\mathrm{ROM}}(\mathbf{p}^{(s)})+\boldsymbol{\delta}^{(s)}.
+\end{equation*}
+
+\textbf{Figure idea.} Fan plot of possible outcomes, showing median prediction and uncertainty bounds.
+
+\textbf{Physics drawing idea.} Show many slightly different reduced simulations caused by uncertain source strength, defect kinetics, and thermal coefficients.
+
+\textbf{Speaker emphasis.} A fast model is much more useful when it gives a range and a confidence level, not just a single number that may be over-interpreted.
+
+\section{Slide 25: Physics-based extrapolation using nondimensional groups}
+\begin{physicsbox}
+\textbf{Main question.} How can reduced results be scaled beyond the exact simulated case?
+\end{physicsbox}
+
+\textbf{Core message.} Extrapolate using nondimensional groups that encode regime, not by blindly fitting dimensional variables.
+
+\textbf{Equations to show:}
+\begin{equation*}
+\mathrm{Kn}=\frac{\mfp}{L},
+\qquad
+\mathrm{Da}=\frac{\tau_{\mathrm{transport}}}{\tau_{\mathrm{reaction}}},
+\qquad
+\mathrm{Pe}=\frac{vL}{D},
+\qquad
+\mathrm{Bi}=\frac{hL}{k}.
+\end{equation*}
+\begin{equation*}
+\mathbf{y}=Y\left(\mathrm{Kn},\mathrm{Da},\mathrm{Pe},\mathrm{Bi},\frac{E}{E_0},\frac{T}{T_0},\ldots\right).
+\end{equation*}
+
+\textbf{Figure idea.} Regime map with axes such as Knudsen number and Damkohler number, showing where different reduced models are valid.
+
+\textbf{Physics drawing idea.} Place the same device in several transport regimes: diffusive, quasi-ballistic, reaction-limited, transport-limited.
+
+\textbf{Speaker emphasis.} This gives the extrapolation physical meaning. If the nondimensional regime changes, the reduced model may no longer be valid even if the geometry looks similar.
+
+\section{Slide 26: Interpreting reduced-order outputs for decisions}
+\begin{physicsbox}
+\textbf{Main question.} How do I convert reduced-model outputs into a defensible engineering or scientific conclusion?
+\end{physicsbox}
+
+\textbf{Core message.} Interpret outputs through margins, rankings, and validity flags rather than claiming more precision than the reduced model can support.
+
+\textbf{Equations to show:}
+\begin{equation*}
+\mathrm{risk\;score}=\sum_k w_k\frac{y_k-y_{k,\mathrm{safe}}}{\sigma_k+\epsilon_0},
+\qquad
+\mathrm{validity}=\mathbb{1}\{\mathbf{p}\in\mathcal{D}_{\mathrm{calibrated}}\}.
+\end{equation*}
+\begin{equation*}
+\text{decision}=
+\begin{cases}
+\text{safe margin}, & \mathrm{risk}<r_1,\\
+\text{needs targeted high fidelity}, & r_1\leq \mathrm{risk}<r_2,\\
+\text{high concern}, & \mathrm{risk}\geq r_2.
+\end{cases}
+\end{equation*}
+
+\textbf{Figure idea.} Decision chart with green/yellow/red regions and a separate indicator for whether the case is inside the calibrated regime.
+
+\textbf{Physics drawing idea.} Show reduced-model result boxes feeding a decision gate: accept, refine, or escalate to high-fidelity simulation.
+
+\textbf{Speaker emphasis.} This is where the modeling strategy becomes useful to a team. Reduced-order modeling is not just faster computation; it is a way to support timely decisions with transparent assumptions.
+
+\section{Part VI: Conclusion (2 slides)}
+
+\section{Slide 27: Main conclusion}
+\begin{physicsbox}
+\textbf{Main question.} What is the single message the panel should remember?
+\end{physicsbox}
+
+\textbf{Core message.} I can build from first-principles physics, but I would deliver through a reduced-order hierarchy: full physics as the reference, importance scoring as the filter, reduced models as the fast deliverable, and calibrated extrapolation as the interpretation layer.
+
+\textbf{Equations to show:}
+\begin{equation*}
+\boxed{\mathcal{M}_{\mathrm{full}}}
+\xrightarrow{\text{rank}}
+\boxed{\mathcal{M}_{\mathrm{ROM}}}
+\xrightarrow{\text{calibrate}}
+\boxed{\widehat{\mathcal{M}}_{\mathrm{decision}}}.
+\end{equation*}
+
+\textbf{Figure idea.} One final summary graphic: full physics framework on the left, reduction/scoring engine in the middle, decision-ready prediction on the right.
+
+\textbf{Physics drawing idea.} Show the full silicon radiation-damage chain compressed into a smaller dominant-path model with uncertainty bounds.
+
+\textbf{Speaker emphasis.} End by contrasting two capabilities: deep physics understanding and deadline-aware model reduction. The strongest message is that these are not opposites; the physics tells you how to reduce responsibly.
+
+\section{Slide 28: Backup discussion slide - what I would do first on a new problem}
+\begin{physicsbox}
+\textbf{Main question.} If given a new high-energy physics modeling task, what is my first execution plan?
+\end{physicsbox}
+
+\textbf{Core message.} Define the output metric, build the simplest physics-preserving model, rank missing mechanisms by expected impact, add complexity only where it moves the answer, and maintain an uncertainty-aware path back to fuller physics.
+
+\textbf{Equations to show:}
+\begin{equation*}
+\text{first-week plan: }
+\mathbf{y},\; \mathcal{M}_0,\; \{A_i,S_i,K_{i\to j}\},\; \epsilon_{\mathrm{ROM}},\; \text{next refinement}.
+\end{equation*}
+
+\textbf{Figure idea.} A one-week execution board: define metrics, implement reduced model, run sensitivity, compare to anchor, decide next physics upgrade.
+
+\textbf{Physics drawing idea.} Simple dominant-path sketch for an arbitrary new high-energy system, emphasizing that the workflow transfers beyond silicon radiation effects.
+
+\textbf{Speaker emphasis.} This slide can be held as a panel-interview backup. It translates the project into how you would behave on their actual work: deliver quickly, quantify assumptions, and deepen the model only when needed.
+
+
+
+\section{Appendix: Extra Module 4 deep-dive slides (10 slides)}
+
+\begin{notebox}
+\textbf{How to use this appendix.} These slides are not meant to displace the reduced-order modeling strategy in the main 30-minute talk. They are backup technical slides for panel questions about the ballistic-diffusive thermal module. They preserve the earlier Module 4 deep-dive structure: start from why Fourier conduction is insufficient, move through the Boltzmann transport equation, introduce the ballistic-diffusive split, and end with the project-specific 2D implementation and validation plan.
+\end{notebox}
+
+\section{Appendix Slide A1: Why ordinary Fourier heat conduction is not enough here}
+\begin{physicsbox}
+\textbf{Main question.} Why does Module 4 need more than the ordinary heat equation?
+\end{physicsbox}
+
+\textbf{Core message.} Radiation-related heating can be highly localized and transient. When carrier flight distances and system scales are comparable, a purely local constitutive law loses important physics.
+
+\textbf{Equations to show:}
+\begin{align*}
+\qvec&=-k\nabla T,\\
+C\frac{\partial T}{\partial t}&=\nabla\cdot(k\nabla T)+Q.
+\end{align*}
+
+\textbf{Figure idea.} A localized heat pulse with two conceptual predictions: an immediate smooth Fourier response versus a finite-flight-time carrier picture.
+
+\textbf{Physics drawing idea.} Draw heat carriers leaving a small hot region; some scatter quickly while others travel ballistically before depositing energy elsewhere.
+
+\textbf{Speaker emphasis.} The point is not that Fourier is useless. The point is that it assumes local equilibrium and local closure from the start, which can be too crude for early-time or short-length-scale transport.
+
+\section{Appendix Slide A2: Heat carriers, mean free path, and the meaning of temperature}
+\begin{physicsbox}
+\textbf{Main question.} What is actually transporting the energy, and when is temperature a subtle quantity?
+\end{physicsbox}
+
+\textbf{Core message.} Heat is carried by microscopic excitations that move a finite mean free path before scattering. Outside local equilibrium, it is often better to think in terms of equivalent internal-energy temperature rather than strict thermodynamic temperature.
+
+\textbf{Equations to show:}
+\begin{align*}
+\mfp &= v\tau,\\
+\mathrm{Kn} &= \frac{\mfp}{L},\\
+\Delta u &= C\,\Delta T.
+\end{align*}
+
+\textbf{Figure idea.} Large-device versus small-device scattering picture, plus a boundary layer with a directional nonequilibrium distribution.
+
+\textbf{Physics drawing idea.} One inset with many randomizing collisions, one inset with nearly straight carrier flights, and a separate sketch comparing isotropic and directional carrier distributions.
+
+\textbf{Speaker emphasis.} This slide sets up the organizing parameter for the module: the Knudsen number tells whether the thermal problem behaves diffusively, quasi-ballistically, or strongly ballistically.
+
+\section{Appendix Slide A3: Microscopic starting point --- the Boltzmann transport equation}
+\begin{physicsbox}
+\textbf{Main question.} What microscopic transport equation motivates the ballistic-diffusive model?
+\end{physicsbox}
+
+\textbf{Core message.} The correct starting point is the carrier distribution function in phase space. Streaming moves carriers through space; scattering relaxes the distribution toward local equilibrium.
+
+\textbf{Equations to show:}
+\begin{equation*}
+\frac{\partial f}{\partial t}+\bm{v}\cdot\nabla_{\rvec} f=-\frac{f-f_0}{\tau}.
+\end{equation*}
+
+\textbf{Figure idea.} A packet of heat carriers moving through the material while collisions gradually isotropize the distribution.
+
+\textbf{Physics drawing idea.} Draw a local distribution function at one point deforming from a directional shape toward an isotropic equilibrium shape over a relaxation time.
+
+\textbf{Speaker emphasis.} This is the deepest physics slide in the Module 4 sequence. Make clear that the reduced model is not ad hoc; it is a computationally cheaper descendant of the BTE.
+
+\section{Appendix Slide A4: Diffusive limit and why Cattaneo is still incomplete}
+\begin{physicsbox}
+\textbf{Main question.} If Fourier fails, can Cattaneo solve the problem by itself?
+\end{physicsbox}
+
+\textbf{Core message.} Fourier conduction is the strong-scattering limit of the BTE. Cattaneo improves on Fourier by introducing finite flux relaxation, but it still treats all heat transport as one local continuum field and misses boundary-originating ballistic memory.
+
+\textbf{Equations to show:}
+\begin{align*}
+\qvec&=-k\nabla T,\\
+\tau\frac{\partial \qvec}{\partial t}+\qvec&=-k\nabla T.
+\end{align*}
+
+\textbf{Figure idea.} A comparison between Fourier's immediate-response picture, a Cattaneo thermal-wave picture, and a ballistic-arrival picture from a boundary.
+
+\textbf{Physics drawing idea.} Draw one boundary-emitted carrier ray that retains memory of where it came from; contrast that with a smooth continuum wavefront.
+
+\textbf{Speaker emphasis.} Say explicitly that finite propagation speed is necessary but not sufficient. Cattaneo still lacks a separate channel for boundary-emitted carriers.
+
+\section{Appendix Slide A5: The ballistic-diffusive split}
+\begin{physicsbox}
+\textbf{Main question.} How do we keep the essential nonlocal BTE physics without solving the full phase-space problem?
+\end{physicsbox}
+
+\textbf{Core message.} Split the thermal carrier population into two parts: a ballistic piece that remembers boundaries and a medium/scattered piece that can be represented by lower-order angular moments.
+
+\textbf{Equations to show:}
+\begin{equation*}
+I_\omega = I_{b\omega}+I_{m\omega}.
+\end{equation*}
+
+\textbf{Figure idea.} A material domain with straight boundary-originating rays for \(I_{b\omega}\) and a cloud-like scattered background for \(I_{m\omega}\).
+
+\textbf{Physics drawing idea.} Color the ballistic carriers differently from the scattered carriers to show that the model is physically splitting the transport channels, not just algebraically rearranging the same heat equation.
+
+\textbf{Speaker emphasis.} This is the conceptual heart of the module. Once the audience accepts this split, the later reduced PDE makes physical sense.
+
+\section{Appendix Slide A6: Ballistic component by characteristics and retarded boundary time}
+\begin{physicsbox}
+\textbf{Main question.} How does the ballistic part carry nonlocal boundary memory into the interior?
+\end{physicsbox}
+
+\textbf{Core message.} A ballistic carrier observed at an interior point must have left the boundary earlier and survived scattering along its path. The interior ballistic state therefore depends on retarded boundary information.
+
+\textbf{Equations to show:}
+\begin{equation*}
+I_{b\omega}(t,\rvec,\hat{\Omega})
+=I_{w\omega}\left(t-\frac{s-s_0}{v},\rvec-(s-s_0)\hat{\Omega}\right)
+\exp\left[-\int_{s_0}^{s}\frac{ds'}{v\tau_\omega}\right].
+\end{equation*}
+
+\textbf{Figure idea.} A boundary-to-interior ray with travel distance, arrival time, and exponential attenuation annotated.
+
+\textbf{Physics drawing idea.} Draw several rays at different angles reaching one interior point; some arrive in time, some do not, which visually explains finite arrival-time causality.
+
+\textbf{Speaker emphasis.} Emphasize that this is where the model keeps the \emph{memory} that Fourier and Cattaneo wash out. The interior field depends on what the boundary did earlier, not just on local gradients now.
+
+\section{Appendix Slide A7: Medium/scattered component and P1 closure}
+\begin{physicsbox}
+\textbf{Main question.} Once the ballistic part is separated out, how is the scattered part simplified enough to solve?
+\end{physicsbox}
+
+\textbf{Core message.} The medium/scattered population is more isotropic than the ballistic part. A first-order angular expansion keeps the dominant isotropic term and the first directional correction.
+
+\textbf{Equations to show:}
+\begin{equation*}
+I_{m\omega}=J_{0\omega}+\bm{J}_{1\omega}\cdot\hat{\Omega}.
+\end{equation*}
+
+\textbf{Figure idea.} Angular distribution plot showing a nearly isotropic scattered population compared with the strongly directional ballistic population.
+
+\textbf{Physics drawing idea.} Use a polar sketch: ballistic energy concentrated into narrow angular lobes, scattered energy distributed almost uniformly with a weak directional bias.
+
+\textbf{Speaker emphasis.} This is the step that makes the model numerically executable. The full angular dependence is not solved directly; it is reduced to spatial fields through a controlled closure.
+
+\section{Appendix Slide A8: Final reduced ballistic-diffusive PDE}
+\begin{physicsbox}
+\textbf{Main question.} What is the actual reduced equation that Module 4 wants to solve?
+\end{physicsbox}
+
+\textbf{Core message.} The medium/scattered energy satisfies a Cattaneo-like PDE, but it is driven by the divergence of the ballistic heat flux. That forcing term is the key physics missing from ordinary local models.
+
+\textbf{Equations to show:}
+\begin{equation*}
+\tau\frac{\partial^2 u_m}{\partial t^2}+\frac{\partial u_m}{\partial t}
+=\nabla\cdot\left(\frac{k}{C}\nabla u_m\right)-\nabla\cdot\qvec_b
++\left(\dot{q}_e+\tau\frac{\partial \dot{q}_e}{\partial t}\right).
+\end{equation*}
+
+\textbf{Figure idea.} A block diagram showing \(\qvec_b\) computed from ballistic boundary transport, then fed into a PDE solve for \(u_m\), with total energy assembled from ballistic and medium pieces.
+
+\textbf{Physics drawing idea.} One panel for ballistic rays, one panel for the smoother medium field, and one panel showing the total temperature or energy field as the sum of both contributions.
+
+\textbf{Speaker emphasis.} Do not rush this slide. Go term by term: relaxation term, medium diffusion term, ballistic forcing term, and volumetric source term.
+
+\section{Appendix Slide A9: Revised Module 4 target for \texttt{RadiationEffects\_proj2}}
+\begin{physicsbox}
+\textbf{Main question.} How is the original ballistic-diffusive derivation adapted into the new 2D Module 4 for this project?
+\end{physicsbox}
+
+\textbf{Core message.} The project does not directly solve the full angular 3D problem. It uses a 2D reduced ballistic-diffusive thermal model in silicon, with volumetric radiation-related source terms and a reduced ballistic closure appropriate for a rectangular computational domain.
+
+\textbf{Equations to show:}
+\begin{equation*}
+\tau\frac{\partial^2 T_m}{\partial t^2}+\frac{\partial T_m}{\partial t}
+=\nabla\cdot\bigl(\alpha\nabla T_m\bigr)
+-\frac{1}{\rho_m c_p}\nabla\cdot\qvec_b
++\frac{1}{\rho_m c_p}\left(Q+\tau\frac{\partial Q}{\partial t}\right).
+\end{equation*}
+\begin{align*}
+D_j &= D_j(T),\\
+R_j &= R_j(T,E,C_1,C_2,\dots),\\
+J_n, J_p &\text{ later depend on } T,\phi,\text{ and defect-assisted recombination.}
+\end{align*}
+
+\textbf{Figure idea.} A 2D silicon rectangle with localized internal heating, boundary-memory arrows, and coupling arrows to Module 3 and Module 5.
+
+\textbf{Physics drawing idea.} Show a radiation-generated hot spot inside the domain, outward ballistic carrier paths, scattered thermal spreading, and side annotations: ``updates defect kinetics'' and ``updates carrier transport coefficients.''
+
+\textbf{Speaker emphasis.} This is the project-specific landing slide. Explain clearly that Module 4 is now the thermal bridge between the defect-evolution physics and the later electrical-performance physics.
+
+\section{Appendix Slide A10: Validation strategy and the plots that should matter}
+\begin{physicsbox}
+\textbf{Main question.} How should Module 4 be validated before it is trusted inside the larger multiphysics chain?
+\end{physicsbox}
+
+\textbf{Core message.} Validation should start with simple canonical tests such as uniform equilibrium, localized pulse spreading, and boundary heating, while also keeping the original thin-film logic in mind as a derivational benchmark. The important plots are the ones that distinguish ballistic-diffusive physics from ordinary local conduction.
+
+\textbf{Equations to show:}
+\begin{equation*}
+\frac{\partial^2 \theta_m}{\partial t^{*2}}+\frac{\partial \theta_m}{\partial t^*}
+=\frac{\mathrm{Kn}^2}{3}\frac{\partial^2 \theta_m}{\partial \eta^2}
+-\mathrm{Kn}\frac{\partial q_b^*}{\partial \eta}.
+\end{equation*}
+
+\textbf{Figure idea.} A validation slide with four boxes: thin-film benchmark logic, 2D uniform equilibrium, 2D localized pulse, and 2D boundary heating; beside them, expected output plots such as total temperature, medium temperature, ballistic flux, and comparison against Fourier or Cattaneo baselines.
+
+\textbf{Physics drawing idea.} For the thin film, draw finite-arrival directions reaching an interior point. For the 2D case, show a hot region whose spread is shaped by both ballistic memory and scattering.
+
+\textbf{Speaker emphasis.} Tell the audience exactly what would count as success: equilibrium stays uniform, localized pulse spreading is finite and physically sensible, boundary heating propagates inward with retained memory, and the model trends toward Fourier behavior in the strong-scattering limit.
+
+
+\section{Suggested presentation compression}
+For a strict 30-minute interview presentation, this full outline is intentionally overcomplete. A compressed version could use:
+\begin{enumerate}[leftmargin=1.6em]
+    \item Slides 1--4 for the strategic framing,
+    \item two or three selected module slides from Slides 5--11,
+    \item Slides 12, 13, and 16 for importance scoring,
+    \item Slides 17, 19, and 20 for reduction strategy,
+    \item Slides 23 and 25 for extrapolation,
+    \item Slide 27 for the conclusion.
+\end{enumerate}
+This produces a talk that still acknowledges the full physics framework but spends most of the time on the reduced-order modeling strategy that is most relevant to the interview feedback.
+
+\end{document}
