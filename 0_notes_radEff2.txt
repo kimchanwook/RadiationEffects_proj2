@@ -1,0 +1,224 @@
+%% ============================================================================
+%% ============================================================================
+%% ============================================================================
+%% ============================================================================
+%% ============================================================================
+%% Notes for radiation effects project
+%% ============================================================================
+%% ============================================================================
+%% ============================================================================
+%% ============================================================================
+%% ============================================================================
+
+%% ----------------------------------------------------------------------------
+%% [TODO]
+
+- Slides: Project Overview
+	- Make image of radiation striking onto silicon
+	- Table for variabels and acronyms defined
+	- Equations
+	- Bullet Points
+	- Script: Mention about simulation being 2D first, test computational cost -> 1D or 3D
+
+
+%% ----------------------------------------------------------------------------
+%% References/Textbooks
+
+- 0_SS_Streetman - Solid State Electronic Devices [EE/0_Nano_electronics]
+- 0_SSP_Kittel - Introduction to solids state physics [0_CMP]
+- Claeys - Radiation effects in advanced semiconductor materials and devices 
+- GangChen
+
+
+%% ============================================================================
+%% ============================================================================
+%% Slides
+%% ============================================================================
+%% ============================================================================
+%% ----------------------------------------------------------------------------
+%% Project Overview
+
+[Images/Plots]
+
+
+[Equations]
+
+
+[Define varaibles and acronyms]
+
+
+[Bullet Points]
+- Objective 1: A Multiphysics Simulation Framework from Radiation Damage to Device Degradation
+	- Module 1: Geant4 radiation transport
+	- Module 2: Electrostatics
+	- Module 3: Defect diffusion and annealing
+	- Module 4: Thermal transport
+	- Module 5: Charge carrier transport
+	- Module 6: Multiphysics coupling: Modules 2 - 5
+- Objective 2: Reduce Model Complexity While Preserving the Core Physics
+	- Importance quantification and ranking of each module
+	- Stepwise reduction of simulation with minimum loss of simulation fidelity
+	- Extrapolation back to full-scale interpretation.
+
+
+[Script]
+- The physics I am trying to simulate is the pathway from radiation energy deposition on top of the device to device degradation in silicon. 
+- A radiation event first creates a localized disturbance in the material through ionization, energy deposition, or even knocking out atoms at the lattice sites, initiating the defect generation. 
+- Those defects do not remain static; they diffuse, anneal, react, and modify the local electrical and thermal environment of the device. 
+- In a full-physics model, each stage of this chain can be represented by coupled transport, defect-kinematics, electrostatic, thermal, and carrier-transport equations. 
+- The central challenge is to identify which parts of this chain dominate the final device response, so that the model can be reduced efficiently while preserving the physics that matters most.
+
+
+
+
+%% ----------------------------------------------------------------------------
+%% Part 1: Full-Scale Multiphysics Simulation if infinite time
+
+[Images/Plots]
+- Boxed Module Summary with arrows
+
+
+
+[Script]
+- Building a multiphysics simulation takes step by step implementation of each physics and combining them at the end. 
+
+- The objective of this simulation tool is to provide a metric system for quantifying the effectiveness of shielding and mitigation methods against defects induced not only from radiation but from any errors from device fabrication. 
+
+- Module 5: Although the device could be performing to acceptable standards in RT, a small defect could be amplified and accumulated to detrimental device killing effects.
+
+
+%% ----------------------------------------------------------------------------
+%% Module 1 - Radiation Transport with Geant4 and 2D Energy Deposition Map in Silicon
+
+[Images/Plots]
+[Equations]
+[Define varaibles and acronyms]
+[Bullet Points]
+[Script]
+
+%% ----------------------------------------------------------------------------
+%% Module 2 - Electrostatistics with Defect-dependent Space Charge 
+
+[Images/Plots]
+[Equations]
+[Define varaibles and acronyms]
+[Bullet Points]
+[Script]
+
+%% ----------------------------------------------------------------------------
+%% Module 3 - Defect Evolution: Diffusion and Annealing
+
+[Images/Plots]
+[Equations]
+[Define varaibles and acronyms]
+[Bullet Points]
+[Script]
+
+%% ----------------------------------------------------------------------------
+%% Module 4 - 
+
+[Images/Plots]
+[Equations]
+[Define varaibles and acronyms]
+[Bullet Points]
+[Script]
+
+%% ----------------------------------------------------------------------------
+%% Module 5 - 
+
+[Images/Plots]
+[Equations]
+[Define varaibles and acronyms]
+[Bullet Points]
+[Script]
+
+%% ----------------------------------------------------------------------------
+%% Module 6 - 
+
+[Images/Plots]
+[Equations]
+[Define varaibles and acronyms]
+[Bullet Points]
+[Script]
+
+%% ----------------------------------------------------------------------------
+%% Part 2: Reduce Model Complexity While Preserving the Core Physics
+
+[Images/Plots]
+[Equations]
+[Define varaibles and acronyms]
+[Bullet Points]
+[Script]
+
+%% ============================================================================
+%% ============================================================================
+%% Slides End
+%% ============================================================================
+%% ============================================================================
+
+
+
+
+
+%% ----------------------------------------------------------------------------
+%% 
+
+
+
+
+%% ----------------------------------------------------------------------------
+%% 
+
+
+%% ----------------------------------------------------------------------------
+%% 
+
+
+%% ----------------------------------------------------------------------------
+%% 
+
+
+%% ----------------------------------------------------------------------------
+%% 
+
+
+%% ----------------------------------------------------------------------------
+%% 
+
+
+
+
+
+
+
+%% ============================================================================
+%% ============================================================================
+%% ============================================================================
+%% ============================================================================
+%% ============================================================================
+%% LATER
+%% ============================================================================
+%% ============================================================================
+%% ============================================================================
+%% ============================================================================
+%% ============================================================================
+
+
+
+
+
+
+
+
+%% ============================================================================
+%% ============================================================================
+%% ============================================================================
+%% ============================================================================
+%% ============================================================================
+%% DONE
+%% ============================================================================
+%% ============================================================================
+%% ============================================================================
+%% ============================================================================
+%% ============================================================================
+
