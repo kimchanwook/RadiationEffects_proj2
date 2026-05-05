@@ -1,0 +1,887 @@
+\documentclass[11pt]{article}
+\input{../shared/project_style.tex}
+\newcommand{\Edep}{E_{\mathrm{dep}}}
+\newcommand{\Erad}{E_{\mathrm{rad}}}
+\newcommand{\qrad}{\dot{q}_{\mathrm{rad}}}
+\newcommand{\qth}{\dot{q}_{\mathrm{th}}}
+\newcommand{\qion}{\dot{q}_{\mathrm{ion}}}
+\newcommand{\qnuc}{\dot{q}_{\mathrm{nuc}}}
+\newcommand{\qesc}{\dot{q}_{\mathrm{esc}}}
+\newcommand{\PhiFlu}{\Phi}
+\newcommand{\Phidot}{\dot{\Phi}}
+\newcommand{\LET}{\mathrm{LET}}
+\newcommand{\NIEL}{\mathrm{NIEL}}
+\newcommand{\Efield}{\mathbf{E}}
+\newcommand{\xpos}{\mathbf{x}}
+\newcommand{\rpos}{\mathbf{r}}
+\newcommand{\uhat}{\hat{\mathbf{u}}}
+\newcommand{\pvec}{\mathbf{p}}
+\newcommand{\Jrad}{\mathbf{J}_{\mathrm{rad}}}
+\newcommand{\epspair}{\varepsilon_{eh}}
+\newcommand{\rhoSi}{\rho_{\mathrm{Si}}}
+\newcommand{\Ed}{E_{\mathrm{d}}}
+\newcommand{\Geh}{G_{eh}}
+\newcommand{\Gdef}{G_{\mathrm{def}}}
+\rhead{Module 1 Physics Note}
+
+\begin{document}
+
+\DocTitle{Module 1: Radiation Transport and Initial Energy Deposition in Silicon}{Derivation-Focused Physics Note for \texttt{RadiationEffects\_proj2}}{Geant4 source maps for defect generation, electrostatics, thermal transport, and carrier transport}
+
+\hrule
+\vspace{0.8em}
+
+\begin{overviewbox}
+\textbf{Purpose of this note.} This note develops the physics role of Module 1 in \texttt{RadiationEffects\_proj2}. Module 1 is the radiation-transport front end: it converts an incident particle or photon field into spatially resolved energy-deposition, ionization, recoil, secondary-particle, and interaction maps in silicon. The central quantity introduced here is
+\begin{equation*}
+\qrad(\rpos,t) = \frac{\partial \Edep}{\partial V\,\partial t},
+\end{equation*}
+which is the radiation-induced volumetric energy-deposition rate. This is not automatically identical to heat. It is the first radiation forcing map from which later modules derive thermal sources, defect-generation sources, trap-charge maps, and carrier-generation sources.
+\end{overviewbox}
+
+\ProjectTOC
+
+\SymbolsAcronymsSection
+
+\renewcommand{\arraystretch}{1.22}
+\begin{longtable}{p{0.22\textwidth} p{0.55\textwidth} p{0.16\textwidth}}
+\toprule
+\textbf{Symbol / acronym} & \textbf{Meaning} & \textbf{Typical units} \\
+\midrule
+\endhead
+$\rpos=(x,y,z)$ & Position in the silicon device & m \\
+$(x,y)$ & Two-dimensional project coordinates after depth averaging or 2D scoring & m \\
+$t$ & Time & s \\
+$V$, $\Delta V_i$ & Volume, volume of scoring cell $i$ & m$^3$ \\
+$A_b$ & Beam or source normalization area & m$^2$ \\
+$N_{\mathrm{hist}}$ & Number of simulated primary histories & dimensionless \\
+$\Edep$ & Energy deposited in silicon by radiation transport steps & J or eV \\
+$\qrad$ & Radiation-induced volumetric energy-deposition rate, $\partial E_{\mathrm{dep}}/(\partial V\partial t)$ & W/m$^3$ \\
+$\qth$ & Thermalized heat-source rate passed to Module 4 & W/m$^3$ \\
+$\qion$ & Ionization/excitation part of deposited energy rate & W/m$^3$ \\
+$\qnuc$ & Nonionizing or nuclear-recoil part of deposited energy rate & W/m$^3$ \\
+$\Phidot$ & Incident particle fluence rate & m$^{-2}$s$^{-1}$ \\
+$\PhiFlu$ & Incident particle fluence & m$^{-2}$ \\
+$D_{\mathrm{dose}}$ & Absorbed dose & Gy = J/kg \\
+$\rhoSi$ & Silicon mass density & kg/m$^3$ \\
+$S(E)$ & Stopping power for a particle with kinetic energy $E$ & J/m \\
+$S_{\mathrm{ion}}$ & Ionizing stopping power & J/m \\
+$S_{\mathrm{nuc}}$ & Nuclear or nonionizing stopping power & J/m \\
+$\LET$ & Linear energy transfer & J/m, often keV/$\mu$m \\
+$\NIEL$ & Nonionizing energy loss & J m$^2$/kg or MeV cm$^2$/g \\
+$\epspair$ & Mean energy to create one electron-hole pair in silicon & J or eV \\
+$\Geh$ & Electron-hole pair generation rate & m$^{-3}$s$^{-1}$ \\
+$G_j$ & Generation rate of defect species $j$ & m$^{-3}$s$^{-1}$ \\
+$C_j$ & Concentration of defect species $j$ after Module 3 evolution & m$^{-3}$ \\
+$\Ed$ & Displacement threshold energy for a lattice atom & J or eV \\
+$T_R$ & Recoil kinetic energy transferred to a lattice atom & J or eV \\
+$N_{FP}$ & Number of Frenkel pairs estimated from recoil damage energy & dimensionless \\
+$\eta_{\mathrm{ion}}$, $\eta_{\mathrm{th}}$, $\eta_j$ & Partition fractions into ionization, thermalization, or defect species $j$ & dimensionless \\
+Geant4 & Monte Carlo particle-transport toolkit used for Module 1 & -- \\
+SEU / SEE & Single-event upset / single-event effect & -- \\
+TID & Total ionizing dose & -- \\
+DDD & Displacement damage dose & -- \\
+\bottomrule
+\end{longtable}
+
+\section{Role of Module 1 in the full radiation-effects chain}
+
+The complete project is built around a causal chain:
+\begin{equation}
+\text{incident radiation}
+\longrightarrow
+\text{energy deposition and recoils}
+\longrightarrow
+\text{defect generation}
+\longrightarrow
+\text{field, temperature, and carrier changes}
+\longrightarrow
+\text{device degradation}.
+\end{equation}
+Module 1 is responsible for the first two arrows. It does not yet solve electrostatics, defect diffusion, heat flow, or carrier transport. Instead, it produces the source maps that make those later calculations physically anchored.
+
+The most compact slide-level form of the project chain is
+\begin{equation}
+\qrad
+\longrightarrow
+C_j
+\longrightarrow
+\rho,\phi,T
+\longrightarrow
+n,p,\mathbf{J}_n,\mathbf{J}_p
+\longrightarrow
+ y_{\mathrm{device}}.
+\label{eq:project_chain_compact}
+\end{equation}
+Here $\qrad$ is the radiation energy-deposition source produced by Module 1, $C_j$ are defect concentrations evolved by Module 3, $\rho$ is space-charge density solved in Module 2, $\phi$ is electrostatic potential solved in Module 2, $T$ is temperature solved in Module 4, $n$ and $p$ are electron and hole densities solved in Module 5, $\mathbf{J}_n$ and $\mathbf{J}_p$ are electron and hole current densities solved in Module 5, and $y_{\mathrm{device}}$ is a reduced measurable device response.
+
+\begin{physicsbox}
+\textbf{Main physics point.} Module 1 should not be described as merely a heat source. Radiation first creates a spatial distribution of deposited energy, ionization, electronic excitation, displaced atoms, nuclear recoils, secondaries, and sometimes escaping particles. Only after partitioning and thermalization does part of that deposited energy become the heat source used by Module 4.
+\end{physicsbox}
+
+\section{What Module 1 computes}
+
+For each incident particle history, a Monte Carlo transport calculation follows the primary particle and its secondaries through the silicon geometry. Each transport step may lose energy continuously, deposit energy locally, produce secondary particles, scatter elastically or inelastically, or leave the scoring region.
+
+At the module-interface level, the useful outputs are not the raw step list alone. The useful outputs are binned fields such as
+\begin{align}
+E_{\mathrm{dep},i} &= \text{energy deposited in cell } i, \\
+N_{\mathrm{int},i}^{(a)} &= \text{number of interactions of type } a \text{ in cell } i, \\
+G_{eh,i} &= \text{electron-hole generation rate in cell } i, \\
+G_{j,i} &= \text{defect-generation rate for defect species } j \text{ in cell } i, \\
+\dot{q}_{\mathrm{rad},i} &= \text{volumetric energy-deposition rate in cell } i.
+\end{align}
+The cell index $i$ refers to a spatial scoring bin. In the project geometry, this bin may be a 3D voxel, a 2D cell obtained by depth averaging, or a directly scored 2D map.
+
+The essential conceptual distinction is therefore
+\begin{equation}
+\text{transport event list}
+\longrightarrow
+\text{scored spatial maps}
+\longrightarrow
+\text{continuum source terms for Modules 2--5}.
+\end{equation}
+
+\section{Defining the radiation energy-deposition source}
+
+\subsection{Continuum definition}
+
+The central source quantity is the volumetric radiation energy-deposition rate:
+\begin{equation}
+\boxed{
+\qrad(\rpos,t)
+=
+\frac{\partial \Edep}{\partial V\,\partial t}
+}
+\label{eq:qrad_definition}
+\end{equation}
+where $\Edep$ is the energy deposited by radiation in a small volume element $\partial V$ during a small time interval $\partial t$. The unit is
+\begin{equation}
+[\qrad] = \frac{\mathrm{J}}{\mathrm{m}^3\,\mathrm{s}} = \mathrm{W/m^3}.
+\end{equation}
+
+Equation~\eqref{eq:qrad_definition} is the formal definition that should appear whenever the slide shorthand $\qrad$ is used. It is the mathematically precise version of the phrase ``initial energy-deposition map.''
+
+The corresponding fluence-integrated deposited-energy density is
+\begin{equation}
+u_{\mathrm{dep}}(\rpos)
+=
+\frac{\partial \Edep}{\partial V},
+\label{eq:energy_density_definition}
+\end{equation}
+with units J/m$^3$. If the irradiation is delivered over a duration $\Delta t$, then a simple average source is
+\begin{equation}
+\qrad(\rpos) \approx \frac{u_{\mathrm{dep}}(\rpos)}{\Delta t}.
+\end{equation}
+
+\subsection{Relation to absorbed dose}
+
+Absorbed dose is energy deposited per unit mass:
+\begin{equation}
+D_{\mathrm{dose}}(\rpos)
+=
+\frac{\partial \Edep}{\partial m}.
+\end{equation}
+For a material of mass density $\rho_m$, where $\partial m=\rho_m\partial V$, the local dose rate is
+\begin{equation}
+\dot{D}_{\mathrm{dose}}(\rpos,t)
+=
+\frac{1}{\rho_m}\qrad(\rpos,t).
+\label{eq:dose_rate_relation}
+\end{equation}
+For silicon, $\rho_m=\rhoSi$. Thus a Module 1 energy-deposition map can be interpreted either as a volumetric source $\qrad$ or as a dose-rate map $\dot{D}_{\mathrm{dose}}$, depending on which later physical model is being driven.
+
+\subsection{Why the radiation source is not automatically heat}
+
+The notation $\dot{q}$ often suggests heat generation, but in this project $\qrad$ should be interpreted more broadly. A deposited radiation energy density may be partitioned as
+\begin{equation}
+\qrad
+=
+\qion + \qnuc + \qth + \dot{q}_{\mathrm{other}},
+\label{eq:qrad_partition_schematic}
+\end{equation}
+where $\qion$ is the part initially deposited into ionization and electronic excitation, $\qnuc$ is the part initially associated with nuclear recoils and displacement damage, $\qth$ is the part already thermalized into local lattice or carrier heat, and $\dot{q}_{\mathrm{other}}$ collects any model-dependent residual categories such as escaping secondaries, delayed de-excitation, or unresolved channels.
+
+A more useful project-level statement is
+\begin{align}
+\qth(\rpos,t) &= \eta_{\mathrm{th}}(\rpos,t)\,\qrad(\rpos,t), \\
+\Geh(\rpos,t) &= \eta_{\mathrm{ion}}(\rpos,t)\frac{\qrad(\rpos,t)}{\epspair}, \\
+G_j(\rpos,t) &= \Gamma_j\!\left[\qnuc,\;\text{recoil spectrum},\;\text{particle type},\;T,\;\text{material state}\right].
+\end{align}
+Here $\eta_{\mathrm{th}}$ is the fraction of deposited energy that becomes the Module 4 heat source on the timescale of interest, $\eta_{\mathrm{ion}}$ is the effective ionization partition, $\epspair$ is the average energy required to create an electron-hole pair in silicon, and $\Gamma_j$ is a model operator that converts recoil or damage information into defect species $j$.
+
+\begin{notebox}
+For a reduced first implementation, $\eta_{\mathrm{th}}$, $\eta_{\mathrm{ion}}$, and the defect-yield parameters may be constants. For a more physical implementation, they should depend on particle type, energy, local electric field, temperature, and microscopic material state.
+\end{notebox}
+
+\section{From discrete Monte Carlo steps to a binned source map}
+
+\subsection{Discrete step scoring}
+
+A Geant4 event history is composed of many transport steps. Let $s$ label a step. For step $s$, the transport code records or can be configured to record quantities such as
+\begin{equation}
+\left(\rpos_s,\;\Delta \ell_s,\;\Delta E_{\mathrm{dep},s},\;\text{particle type},\;\text{process name},\;\text{parent ID}\right),
+\end{equation}
+where $\rpos_s$ is the representative step position, $\Delta \ell_s$ is the step length, and $\Delta E_{\mathrm{dep},s}$ is the energy deposited during that step.
+
+If the device domain is partitioned into cells $\Delta V_i$, the deposited energy in cell $i$ for one history can be estimated as
+\begin{equation}
+E_{\mathrm{dep},i}^{(h)}
+=
+\sum_{s\in h} W_{is}\,\Delta E_{\mathrm{dep},s},
+\label{eq:event_cell_dep}
+\end{equation}
+where $h$ labels the primary history and $W_{is}$ is a binning weight. In the simplest nearest-cell scoring, $W_{is}=1$ if the step position lies inside cell $i$ and $W_{is}=0$ otherwise. A more careful segment-overlap scoring lets $W_{is}$ be the fraction of the step segment lying inside cell $i$.
+
+After $N_{\mathrm{hist}}$ histories, the sample-mean deposited energy per primary in cell $i$ is
+\begin{equation}
+\left< E_{\mathrm{dep},i}\right>
+=
+\frac{1}{N_{\mathrm{hist}}}
+\sum_{h=1}^{N_{\mathrm{hist}}}E_{\mathrm{dep},i}^{(h)}.
+\label{eq:mean_dep_per_primary}
+\end{equation}
+This is the most basic Monte Carlo estimate underlying the Module 1 source map.
+
+\subsection{Normalization to fluence rate}
+
+Suppose the physical irradiation has fluence rate $\Phidot$ through a source area $A_b$. Then the number of incident primaries per unit time is
+\begin{equation}
+\dot{N}_{\mathrm{phys}} = \Phidot A_b.
+\end{equation}
+If the Monte Carlo sample mean in Eq.~\eqref{eq:mean_dep_per_primary} gives energy deposited per primary, then the physical energy-deposition rate in cell $i$ is
+\begin{equation}
+\dot{E}_{\mathrm{dep},i}
+=
+\Phidot A_b \left<E_{\mathrm{dep},i}\right>.
+\end{equation}
+Dividing by the cell volume gives the binned volumetric source:
+\begin{equation}
+\boxed{
+\dot{q}_{\mathrm{rad},i}
+=
+\frac{\Phidot A_b}{\Delta V_i N_{\mathrm{hist}}}
+\sum_{h=1}^{N_{\mathrm{hist}}} E_{\mathrm{dep},i}^{(h)}
+}
+\label{eq:qrad_binned_fluence_rate}
+\end{equation}
+with units W/m$^3$. This equation is the practical Geant4-to-continuum bridge for a steady beam or time-averaged irradiation.
+
+If the relevant input is fluence $\PhiFlu$ rather than fluence rate, then the fluence-integrated deposited-energy density is
+\begin{equation}
+ u_{\mathrm{dep},i}
+=
+\frac{\PhiFlu A_b}{\Delta V_i N_{\mathrm{hist}}}
+\sum_{h=1}^{N_{\mathrm{hist}}} E_{\mathrm{dep},i}^{(h)}.
+\label{eq:fluence_integrated_energy_density}
+\end{equation}
+The corresponding absorbed dose in cell $i$ is
+\begin{equation}
+D_{\mathrm{dose},i}
+=
+\frac{u_{\mathrm{dep},i}}{\rhoSi}.
+\label{eq:binned_dose}
+\end{equation}
+
+\subsection{Uncertainty of the scored map}
+
+Because Module 1 is Monte Carlo based, each source-map value is an estimate with statistical uncertainty. Define the per-history cell energy values $E_{\mathrm{dep},i}^{(h)}$. The sample variance of the deposited energy per history is
+\begin{equation}
+ s_i^2
+=
+\frac{1}{N_{\mathrm{hist}}-1}
+\sum_{h=1}^{N_{\mathrm{hist}}}
+\left(E_{\mathrm{dep},i}^{(h)}-\left<E_{\mathrm{dep},i}\right>\right)^2.
+\end{equation}
+The standard error of the mean deposited energy per history is
+\begin{equation}
+\sigma_{\left<E\right>,i}
+=
+\frac{s_i}{\sqrt{N_{\mathrm{hist}}}}.
+\end{equation}
+Using Eq.~\eqref{eq:qrad_binned_fluence_rate}, the uncertainty in the binned source is approximately
+\begin{equation}
+\sigma_{\dot{q}_{\mathrm{rad},i}}
+=
+\frac{\Phidot A_b}{\Delta V_i}\frac{s_i}{\sqrt{N_{\mathrm{hist}}}}.
+\end{equation}
+
+This uncertainty matters because later modules may amplify spatial noise. For example, a noisy defect-generation map can create artificial sharp gradients in Module 3, and a noisy charged-defect map can create artificial field curvature in Module 2.
+
+\section{Radiation transport as an energy-balance problem}
+
+For a single incident primary with initial kinetic energy $E_0$, the broad energy accounting is
+\begin{equation}
+E_0 + E_{\mathrm{rest,changes}}
+=
+E_{\mathrm{dep}} + E_{\mathrm{escape}} + E_{\mathrm{stored}}.
+\label{eq:energy_accounting_single_event}
+\end{equation}
+Here $E_{\mathrm{escape}}$ is energy carried out of the scoring region by transmitted or secondary particles, and $E_{\mathrm{stored}}$ is energy retained in long-lived material changes such as defects or metastable excitations. In many device-scale energy-deposition problems, $E_{\mathrm{stored}}$ is small compared with prompt electronic energy deposition, but it is precisely the important part for displacement damage and long-term degradation.
+
+For a transport path parameterized by distance $s$, the continuous energy loss can be written schematically as
+\begin{equation}
+-\dv{E}{s} = S(E,\text{particle},\text{material}),
+\label{eq:stopping_power_general}
+\end{equation}
+where $S$ is the stopping power. In a solid target, the stopping can be separated conceptually into
+\begin{equation}
+S(E) = S_{\mathrm{ion}}(E) + S_{\mathrm{nuc}}(E) + S_{\mathrm{rad}}(E)+\cdots,
+\label{eq:stopping_partition}
+\end{equation}
+where $S_{\mathrm{ion}}$ corresponds to ionization and electronic excitation, $S_{\mathrm{nuc}}$ corresponds to energy transfer to nuclei and atomic recoils, and $S_{\mathrm{rad}}$ corresponds to radiative losses such as bremsstrahlung for electrons. The relative importance of these terms depends strongly on particle type and energy.
+
+\begin{physicsbox}
+\textbf{The key Module 1 task is not merely to find how much energy is lost.} It is to determine where the energy is lost, into which channels it is deposited, and which secondaries or recoils are produced. The same total deposited energy can have very different device consequences depending on spatial localization and microscopic channel.
+\end{physicsbox}
+
+\section{Charged-particle energy loss and linear energy transfer}
+
+\subsection{Stopping power and LET}
+
+For charged particles, the simplest conceptual picture is that the particle loses energy as it travels through matter. If the particle travels an incremental distance $ds$ and deposits energy $dE_{\mathrm{dep}}$, the local linear energy transfer can be written as
+\begin{equation}
+\LET = \frac{dE_{\mathrm{dep}}}{ds}.
+\label{eq:let_definition}
+\end{equation}
+Many radiation-effects discussions use $\LET$ because it measures how densely energy is deposited along a track. A high-$\LET$ track can create a dense ionization column, large transient charge, and strong local heating. A low-$\LET$ track deposits energy more sparsely.
+
+For a binned cell $i$, a Monte Carlo estimator of an effective cell LET for a given particle class can be written as
+\begin{equation}
+\LET_i^{\mathrm{eff}}
+=
+\frac{\sum_{s\in i} \Delta E_{\mathrm{dep},s}}{\sum_{s\in i} \Delta \ell_s},
+\label{eq:cell_let_estimator}
+\end{equation}
+provided the step set $s\in i$ is restricted to the relevant charged particle type. This is not a replacement for the full deposited-energy map, but it is useful for diagnosing dense-track events.
+
+\subsection{Qualitative derivation of charged-particle stopping}
+
+A fast charged particle passing through silicon exerts a Coulomb force on atomic electrons. The electric field of the moving projectile perturbs bound and valence electrons, transferring energy into ionization and excitation. At the device scale, many such microscopic collisions combine into a mean stopping power.
+
+The qualitative scaling can be understood from Coulomb interaction strength. A projectile with charge number $z$ and speed $v$ interacts more strongly when its charge is larger and when it spends more time near the target electrons. Therefore the collisional stopping approximately increases with $z^2$ and decreases with $v^2$ over an important energy range:
+\begin{equation}
+S_{\mathrm{ion}} \propto \frac{z^2}{v^2}\times \text{logarithmic correction}.
+\end{equation}
+A more detailed high-energy charged-particle expression contains the same basic structure:
+\begin{equation}
+-\left<\dv{E}{x}\right>
+\sim
+\frac{z^2}{\beta^2}
+\left[\ln\left(\frac{\text{maximum transferable electronic energy}}{\text{mean excitation scale}}\right)-\text{corrections}\right],
+\label{eq:bethe_bloch_schematic}
+\end{equation}
+where $\beta=v/c$ is the projectile speed divided by the speed of light. Equation~\eqref{eq:bethe_bloch_schematic} is included to show the physical dependence; Geant4 supplies the actual process models and material-dependent stopping behavior.
+
+\subsection{Why a charged-particle track can look straight or tortuous}
+
+Whether the track is visually straight depends on the ratio of forward momentum to accumulated scattering. Heavy charged particles such as protons or ions often maintain a relatively straight path over micrometer device scales, while electrons can scatter through large angles because their mass is small. This difference matters for Module 1 drawings:
+\begin{itemize}
+\item A MeV-scale proton in silicon can be drawn as a relatively straight primary track with ionization along the path and occasional nuclear-recoil events.
+\item A MeV-scale electron should be drawn with stronger angular scattering and possible radiative secondaries.
+\item A heavy ion should be drawn as a dense, localized ionization column with high LET.
+\item A photon should not be drawn as a continuously ionizing charged track; it deposits energy at interaction sites through secondary charged particles.
+\item A neutron should not be drawn as a directly ionizing track; it produces recoil nuclei and secondaries at discrete nuclear collisions.
+\end{itemize}
+
+\section{Photon interactions in silicon}
+
+Photons are electrically neutral. Therefore a photon does not continuously ionize silicon in the same way a charged particle does. It deposits energy through discrete interactions that create charged secondaries or transfer energy to the material.
+
+\subsection{Photoelectric absorption}
+
+In the photoelectric effect, the photon is absorbed and an electron is emitted from an atomic shell. The outgoing electron kinetic energy is approximately
+\begin{equation}
+T_e = h\nu - E_b,
+\end{equation}
+where $h\nu$ is photon energy and $E_b$ is the binding energy of the electron. The emitted photoelectron then deposits energy as a charged particle through ionization and excitation.
+
+For Module 1, the practical consequence is that a photon energy-deposition event appears as a localized interaction point followed by a charged-electron track.
+
+\subsection{Compton scattering}
+
+In Compton scattering, a photon scatters from an electron and transfers part of its energy to that electron. If the incident photon energy is $E_\gamma$ and the scattering angle is $\theta$, the scattered photon energy is
+\begin{equation}
+E_\gamma'
+=
+\frac{E_\gamma}{1+\frac{E_\gamma}{m_e c^2}(1-\cos\theta)}.
+\label{eq:compton_scattered_energy}
+\end{equation}
+The recoil electron kinetic energy is
+\begin{equation}
+T_e = E_\gamma - E_\gamma'.
+\end{equation}
+Thus Compton scattering creates a secondary electron, and that electron is often the immediate agent of local ionization.
+
+\subsection{Pair production}
+
+For photon energy above twice the electron rest energy,
+\begin{equation}
+E_\gamma > 2m_e c^2 = \SI{1.022}{MeV},
+\end{equation}
+pair production can occur in the field of a nucleus or electron. The photon creates an electron-positron pair, and the excess energy becomes kinetic energy:
+\begin{equation}
+E_\gamma = 2m_e c^2 + T_{e^-}+T_{e^+}+E_{\mathrm{recoil}}.
+\end{equation}
+The electron and positron then deposit energy as charged particles. The positron may eventually annihilate, producing secondary photons.
+
+\subsection{Photonuclear reactions}
+
+At sufficiently high photon energy, a photon can interact with the nucleus, ejecting nucleons or creating nuclear excitation. For radiation effects in silicon, photonuclear interactions matter because they can produce energetic nuclear fragments or neutrons that cause displacement damage more directly than ordinary electronic ionization.
+
+The important Module 1 lesson is that photon energy deposition is mechanism-dependent. A low-energy photoelectric event, a Compton event, a pair-production event, and a photonuclear event can produce very different spatial and microscopic damage patterns even if the incident particle is always a photon.
+
+\section{Neutron interactions in silicon}
+
+Neutrons carry no electric charge, so they do not directly lose energy through Coulomb ionization. Their damage relevance comes from nuclear interactions. A neutron can scatter elastically from a silicon nucleus, scatter inelastically, be captured, or induce reactions that produce charged particles and recoils.
+
+\subsection{Elastic recoil energy transfer}
+
+For an elastic collision between a neutron of kinetic energy $E_n$ and a target nucleus of mass number $A$, the maximum recoil energy transferred to the nucleus is
+\begin{equation}
+T_{R,\max}
+=
+\frac{4A}{(1+A)^2}E_n.
+\label{eq:neutron_recoil_max}
+\end{equation}
+For silicon, $A\approx 28$, so a single elastic collision can transfer a finite but not complete fraction of the neutron energy to a silicon recoil. That recoil is charged as a nucleus and can produce dense local displacement and ionization along a short path.
+
+\subsection{Why neutron maps are sparse but important}
+
+A neutron can travel a significant distance before a nuclear collision, so neutron-induced energy deposition may look spatially sparse. However, when a collision occurs, the recoil nucleus can deposit energy densely and create displacement damage efficiently. Therefore neutron damage is often less about continuous dose along a smooth track and more about stochastic recoil events and secondary charged particles.
+
+For Module 1, neutron scoring should preserve at least the following information:
+\begin{equation}
+\text{neutron collision site},\quad
+\text{recoil species},\quad
+T_R,\quad
+\text{secondary particles},\quad
+\text{local nonionizing energy deposition}.
+\end{equation}
+This information is more useful for Module 3 than a total energy-deposition map alone.
+
+\section{Displacement damage and defect source construction}
+
+\subsection{Vacancy-interstitial pair creation}
+
+A lattice atom is displaced when it receives enough kinetic energy to leave its lattice site. The minimum energy required is represented by the displacement threshold energy $\Ed$. If a silicon atom is displaced from its lattice site, it leaves behind a vacancy and becomes an interstitial or initiates a displacement cascade. The simplest defect object is therefore a Frenkel pair:
+\begin{equation}
+\text{silicon lattice atom}
+\longrightarrow
+\text{vacancy} + \text{interstitial}.
+\end{equation}
+
+Let $T_R$ be the recoil energy of a primary knock-on atom. Only part of $T_R$ becomes permanent displacement damage; much of it may become ionization, phonons, or sub-threshold atomic motion. A reduced estimate of the number of Frenkel pairs may be written as
+\begin{equation}
+N_{FP}(T_R)
+\approx
+\begin{cases}
+0, & T_R < \Ed, \\
+\kappa\dfrac{T_R}{2\Ed}, & T_R \gg \Ed,
+\end{cases}
+\label{eq:frenkel_pair_estimator}
+\end{equation}
+where $\kappa$ is an efficiency factor. This expression is not meant to be an atomistic cascade model. It is a reduced bridge from recoil energy to a defect-generation count.
+
+\subsection{From recoil energy to a defect-generation rate}
+
+Let $G_V$ be the vacancy generation rate and $G_I$ be the interstitial generation rate. For the simplest Frenkel-pair source, the two are initially equal:
+\begin{equation}
+G_V(\rpos,t) = G_I(\rpos,t) = G_{FP}(\rpos,t).
+\end{equation}
+A binned Monte Carlo estimate may be written as
+\begin{equation}
+G_{FP,i}
+=
+\frac{\Phidot A_b}{\Delta V_i N_{\mathrm{hist}}}
+\sum_{h=1}^{N_{\mathrm{hist}}}
+\sum_{r\in i,h} N_{FP}(T_{R,r}),
+\label{eq:fp_source_binned}
+\end{equation}
+where $r$ indexes recoil events in cell $i$ for history $h$.
+
+This source then becomes the initial input to Module 3:
+\begin{equation}
+\pdv{C_V}{t}=G_V + \text{migration, reaction, annealing terms},
+\end{equation}
+\begin{equation}
+\pdv{C_I}{t}=G_I + \text{migration, reaction, annealing terms}.
+\end{equation}
+
+\subsection{NIEL-based reduced source}
+
+For some particles and energies, the nonionizing energy loss provides a convenient reduced measure of displacement damage. If $S_{\NIEL}(E)$ is a mass nonionizing energy-loss coefficient, then the nonionizing energy-deposition rate per unit volume can be represented as
+\begin{equation}
+\qnuc(\rpos,t)
+\approx
+\rhoSi\,\Phidot(\rpos,t)\,S_{\NIEL}(E).
+\label{eq:niel_qnuc}
+\end{equation}
+A reduced defect-generation source can then be written as
+\begin{equation}
+G_{FP}(\rpos,t)
+\approx
+\eta_{FP}\frac{\qnuc(\rpos,t)}{E_{FP}^{\mathrm{eff}}},
+\label{eq:niel_defect_source}
+\end{equation}
+where $E_{FP}^{\mathrm{eff}}$ is an effective energy cost per surviving Frenkel pair and $\eta_{FP}$ is an efficiency factor.
+
+Equation~\eqref{eq:niel_defect_source} is less interaction-resolved than Eq.~\eqref{eq:fp_source_binned}, but it is useful when the project needs a reduced source term rather than full recoil-event detail.
+
+\section{Ionization source and electron-hole pair generation}
+
+Radiation that deposits energy into electronic excitation can create electron-hole pairs. In silicon, the mean energy to create one electron-hole pair is often represented by $\epspair$. Then the electron-hole pair generation rate can be estimated from the ionizing part of the deposition source:
+\begin{equation}
+\boxed{
+\Geh(\rpos,t)
+=
+\frac{\qion(\rpos,t)}{\epspair}
+}
+\label{eq:geh_from_qion}
+\end{equation}
+If the model does not explicitly separate ionizing and nonionizing channels, a reduced partition factor may be used:
+\begin{equation}
+\Geh(\rpos,t)
+=
+\eta_{\mathrm{ion}}\frac{\qrad(\rpos,t)}{\epspair}.
+\label{eq:geh_from_qrad_eta}
+\end{equation}
+
+This source can enter Module 5 as a transient carrier-generation term:
+\begin{align}
+\pdv{n}{t} &= \cdots + \Geh - R(n,p,C_j,T), \\
+\pdv{p}{t} &= \cdots + \Geh - R(n,p,C_j,T),
+\end{align}
+where $R$ is the recombination rate, which may be strongly modified by radiation-induced defects.
+
+\begin{notebox}
+The same deposited energy can affect both prompt charge collection and long-term degradation. Prompt ionization matters for transient current and single-event effects. Defect production matters for mobility degradation, trap-assisted recombination, leakage, and changes in depletion structure.
+\end{notebox}
+
+\section{Thermal source passed to Module 4}
+
+Module 4 needs a heat source, not merely a total radiation-deposition source. Define
+\begin{equation}
+\qth(\rpos,t) = \eta_{\mathrm{th}}(\rpos,t)\,\qrad(\rpos,t).
+\label{eq:qth_from_qrad}
+\end{equation}
+The thermalization fraction $\eta_{\mathrm{th}}$ depends on the time window of the thermal calculation. If Module 4 studies long-time temperature evolution after prompt electronic thermalization, $\eta_{\mathrm{th}}$ may be close to one for the locally retained deposited energy. If Module 4 studies ultrafast or nonlocal carrier-mediated transport, then the distinction between prompt local heat, mobile energetic carriers, emitted phonons, and boundary-reflected carriers becomes important.
+
+For the ballistic-diffusive Module 4 architecture, the source should ideally retain some information about localization and time structure:
+\begin{equation}
+\qth(\rpos,t)
+\neq
+\text{only a smooth uniform heat source}.
+\end{equation}
+A localized radiation event may create a hot spot whose spatial scale is comparable to carrier mean free paths. In that case, the thermal response can carry memory of the initial deposition geometry.
+
+\section{Mapping three-dimensional transport to a two-dimensional project model}
+
+\subsection{Full 3D source}
+
+Radiation transport is naturally three-dimensional. The most general Module 1 output is
+\begin{equation}
+\qrad(x,y,z,t).
+\end{equation}
+However, the current project architecture solves Modules 2--6 in two spatial dimensions. Therefore Module 1 needs a controlled mapping from 3D scoring to 2D source fields.
+
+\subsection{Depth averaging}
+
+If the 2D device plane is $(x,y)$ and the out-of-plane coordinate is $z$, a depth-averaged source over thickness $L_z$ can be defined as
+\begin{equation}
+\bar{q}_{\mathrm{rad}}(x,y,t)
+=
+\frac{1}{L_z}
+\int_{z_0}^{z_0+L_z}
+\qrad(x,y,z,t)\,dz.
+\label{eq:depth_averaged_qrad}
+\end{equation}
+The resulting quantity still has units W/m$^3$ because of the division by $L_z$.
+
+If instead one wants an areal deposition rate, the appropriate definition is
+\begin{equation}
+\dot{Q}_{\mathrm{rad}}^{A}(x,y,t)
+=
+\int_{z_0}^{z_0+L_z}
+\qrad(x,y,z,t)\,dz,
+\label{eq:areal_qrad}
+\end{equation}
+with units W/m$^2$. The project should avoid mixing Eqs.~\eqref{eq:depth_averaged_qrad} and \eqref{eq:areal_qrad}. Module 2--5 continuum equations generally expect volumetric source or concentration units, so the depth-averaged volumetric definition in Eq.~\eqref{eq:depth_averaged_qrad} is usually the cleaner choice.
+
+\subsection{When 2D is physically acceptable}
+
+A 2D reduction is appropriate when one of the following is true:
+\begin{itemize}
+\item the structure is approximately invariant in the out-of-plane direction;
+\item the measured quantity averages over the out-of-plane direction;
+\item the goal is reduced physics understanding rather than exact layout-specific prediction;
+\item the Geant4 map is used to generate representative lateral and depth-dependent source profiles.
+\end{itemize}
+It is less appropriate when the radiation event is intrinsically localized in all three dimensions and the detailed 3D topology controls the response.
+
+\section{Interaction-resolved campaign philosophy}
+
+A single broad radiation run can produce an energy-deposition map, but it may hide which physical mechanisms created that map. The current project plan therefore treats Module 1 as an interaction-resolved campaign. The goal is to run targeted particle and energy cases so that the dominant mechanisms are interpretable.
+
+\subsection{Photon campaign logic}
+
+For photons, different energy ranges emphasize different interaction classes:
+\begin{equation}
+\text{Rayleigh / photoelectric / Compton / pair production / photonuclear / very-high-energy reactions}.
+\end{equation}
+These ranges overlap rather than forming hard boundaries. The purpose of separating them is not to claim that one process exists alone. The purpose is to make the source-map morphology understandable.
+
+For example:
+\begin{itemize}
+\item Photoelectric-dominated cases tend to create localized electron energy deposition near absorption sites.
+\item Compton-dominated cases create recoil-electron tracks and scattered photons.
+\item Pair-production cases create electron-positron tracks and annihilation-related secondaries.
+\item Photonuclear cases can create nuclear fragments, neutrons, and recoil damage.
+\end{itemize}
+
+\subsection{Neutron campaign logic}
+
+For neutrons, the useful separation is based on reaction class and recoil behavior. Slow neutrons, fast neutrons, and high-energy neutrons can produce different secondary spectra and recoil distributions. Since neutrons do not directly ionize, the important output is often the recoil and secondary charged-particle map rather than a smooth primary energy-loss track.
+
+\subsection{Charged-particle campaign logic}
+
+For charged particles, the useful separation is often based on LET, range, and nuclear-interaction probability. Electrons, protons, alpha particles, and heavy ions should not be collapsed into one generic charged-particle picture. Their track morphology and damage channels differ.
+
+\section{Module 1 outputs required by later modules}
+
+\subsection{Output to Module 3: defect-generation map}
+
+Module 3 needs initial defect concentrations or defect-generation rates. The most direct interface is
+\begin{equation}
+G_j(x,y,t),
+\end{equation}
+where $j$ labels defect species. For an initial pulse approximation, the generation can be integrated over the radiation event duration:
+\begin{equation}
+\Delta C_j(x,y)
+=
+\int_{t_0}^{t_1}G_j(x,y,t)\,dt.
+\end{equation}
+Then Module 3 starts from
+\begin{equation}
+C_j(x,y,t_0^+)
+=
+C_j(x,y,t_0^-)+\Delta C_j(x,y).
+\label{eq:initial_defect_update}
+\end{equation}
+
+\subsection{Output to Module 4: thermal source}
+
+Module 4 needs
+\begin{equation}
+\qth(x,y,t),
+\end{equation}
+which may be derived from $\qrad$ using Eq.~\eqref{eq:qth_from_qrad}. For reduced calculations, a common choice is a Gaussian hot spot:
+\begin{equation}
+\qth(x,y,t)
+=
+q_0
+\exp\left[-\frac{(x-x_0)^2+(y-y_0)^2}{2\sigma_r^2}\right]
+ f_t(t),
+\end{equation}
+where $(x_0,y_0)$ is the hot-spot center, $\sigma_r$ is the spatial width, and $f_t(t)$ is the temporal pulse shape. A Geant4-derived Module 1 map replaces this assumed Gaussian by a physics-scored deposition map.
+
+\subsection{Output to Module 5: carrier-generation source}
+
+Module 5 may need the ionization-generated electron-hole source $\Geh$ from Eq.~\eqref{eq:geh_from_qrad_eta}. For single-event studies, this source is crucial because transient carrier generation can create prompt current even before long-term defect evolution matters.
+
+\subsection{Output to Module 2: indirect charge source through defects}
+
+Module 2 does not directly consume $\qrad$ in the simplest architecture. Instead,
+\begin{equation}
+\qrad \longrightarrow G_j \longrightarrow C_j \longrightarrow \rho_{\mathrm{def}} \longrightarrow \phi,\Efield.
+\end{equation}
+Radiation changes electrostatics through charged defect populations, ionized traps, compensation, and altered carrier densities.
+
+\section{Reduced source models for early MATLAB development}
+
+Before full Geant4-to-MATLAB coupling is mature, it is useful to test later modules with analytic source maps that imitate Module 1 outputs.
+
+\subsection{Gaussian deposition map}
+
+A localized energy-deposition event can be represented by
+\begin{equation}
+\qrad(x,y,t)
+=
+q_0
+\exp\left[-\frac{(x-x_0)^2+(y-y_0)^2}{2\sigma_r^2}\right]
+\exp\left[-\frac{(t-t_0)^2}{2\sigma_t^2}\right].
+\end{equation}
+This tests whether later modules correctly respond to a localized source.
+
+\subsection{Track-like deposition map}
+
+A charged-particle track can be represented by a narrow source around a line. Let $d_\perp(x,y)$ be distance from the track centerline. Then
+\begin{equation}
+\qrad(x,y,t)
+=
+q_0\exp\left[-\frac{d_\perp^2(x,y)}{2\sigma_\perp^2}\right]f_{\parallel}(s)f_t(t),
+\end{equation}
+where $s$ is distance along the track, $\sigma_\perp$ is the lateral width, and $f_{\parallel}$ describes Bragg-like or range-dependent structure along the track.
+
+\subsection{Sparse recoil-event map}
+
+A neutron-like recoil map can be represented by a sum of localized events:
+\begin{equation}
+\qrad(x,y,t)
+=
+\sum_{m=1}^{N_R} q_m
+\exp\left[-\frac{(x-x_m)^2+(y-y_m)^2}{2\sigma_m^2}\right]f_m(t),
+\end{equation}
+where $m$ indexes recoil events. This tests the later modules under sparse stochastic damage rather than smooth deposition.
+
+\section{Boundary and geometry considerations for Geant4 scoring}
+
+The physical meaning of $\qrad$ depends on the simulation geometry and scoring boundaries. If the scored silicon volume is too small, energetic secondaries may escape and carry away energy that would have been deposited elsewhere in a real device. If the scored volume is too large, the map may include energy deposition outside the active device region.
+
+The relevant geometry choices are:
+\begin{itemize}
+\item active silicon region;
+\item oxide or passivation layers if included;
+\item metal contacts and nearby high-$Z$ materials if secondary production matters;
+\item scoring cell size;
+\item beam spot size and angular distribution;
+\item boundary conditions for particles leaving the world volume.
+\end{itemize}
+
+For coupling to Modules 2--6, the scoring mesh should be aligned with or conservatively mapped onto the MATLAB mesh. If the Geant4 mesh is finer than the MATLAB mesh, conservative averaging should preserve total deposited energy:
+\begin{equation}
+\sum_i \Delta V_i\,\dot{q}_{\mathrm{rad},i}
+=
+\sum_I \Delta V_I\,\dot{q}_{\mathrm{rad},I}^{\mathrm{fine}},
+\end{equation}
+where $i$ labels coarse MATLAB cells and $I$ labels fine Geant4 cells.
+
+\section{Spatial resolution and physical length scales}
+
+The cell size used for scoring should be chosen with the relevant physics length scales in mind. Important length scales include:
+\begin{itemize}
+\item track radius for dense ionization;
+\item electron range;
+\item recoil cascade size;
+\item device depletion width;
+\item defect diffusion length during the time window of interest;
+\item thermal carrier mean free path or effective nonlocal transport length;
+\item MATLAB mesh spacing used in Modules 2--6.
+\end{itemize}
+
+A source map that is too coarse can smear out localized damage and underpredict peak fields or peak temperatures. A source map that is too fine can introduce noisy cell-to-cell fluctuations unless enough Monte Carlo histories are used.
+
+A practical rule is to use source-map resolution fine enough to capture the intended physical localization, but not so fine that the Monte Carlo uncertainty dominates the deterministic continuum response.
+
+\section{Time structure of radiation forcing}
+
+For many radiation-effects calculations, the irradiation is treated as either a pulse or a steady source.
+
+\subsection{Pulse approximation}
+
+For a short event deposited near time $t_0$, one can write
+\begin{equation}
+\qrad(\rpos,t)
+=u_{\mathrm{dep}}(\rpos)\,\delta(t-t_0),
+\end{equation}
+where $u_{\mathrm{dep}}$ is deposited-energy density and $\delta$ is the Dirac delta distribution. In numerical form, this becomes an initial condition or a source applied during one small time step:
+\begin{equation}
+\qrad(\rpos,t)\approx \frac{u_{\mathrm{dep}}(\rpos)}{\Delta t_{\mathrm{pulse}}}
+\quad \text{for } t_0\le t<t_0+\Delta t_{\mathrm{pulse}}.
+\end{equation}
+
+\subsection{Steady irradiation approximation}
+
+For a long exposure with approximately constant fluence rate, one can use
+\begin{equation}
+\qrad(\rpos,t)\approx \qrad(\rpos).
+\end{equation}
+This is appropriate for dose-accumulation, long-time defect buildup, and steady heating studies.
+
+\subsection{Why the choice matters}
+
+The same total deposited energy can have different consequences depending on time structure. A short intense pulse can produce a high transient carrier density and localized temperature spike. A slow exposure can allow recombination, thermal diffusion, and annealing during the irradiation itself.
+
+Thus Module 1 should output both the spatial map and enough normalization information to reconstruct the intended time forcing.
+
+\section{Verification and sanity checks for Module 1}
+
+\subsection{Energy conservation check}
+
+For each event class, the first diagnostic is energy accounting:
+\begin{equation}
+E_{\mathrm{initial}}
+\approx
+E_{\mathrm{deposited}}+E_{\mathrm{escaped}}+E_{\mathrm{secondary,residual}}.
+\end{equation}
+The equality will not always be exact in a reduced output file because some information may not be scored, but large unexplained differences indicate a scoring or geometry problem.
+
+\subsection{Range and penetration check}
+
+The depth profile should be physically plausible for the particle and energy. Charged particles have finite ranges, photons often show interaction-length behavior, and neutrons may produce sparse collision patterns. A map that deposits all energy at the entrance boundary or uniformly everywhere should be treated suspiciously unless the source physics justifies it.
+
+\subsection{Mesh-conservation check}
+
+When mapping from Geant4 scoring to MATLAB, verify that total energy is preserved:
+\begin{equation}
+E_{\mathrm{total}}
+=
+\sum_i u_{\mathrm{dep},i}\Delta V_i.
+\end{equation}
+The total before and after interpolation should agree within the intended numerical tolerance.
+
+\subsection{Uncertainty check}
+
+Each source map should include enough histories that the important spatial features are not dominated by Monte Carlo noise. A useful relative uncertainty estimate is
+\begin{equation}
+\epsilon_i = \frac{\sigma_{\dot{q}_{\mathrm{rad},i}}}{|\dot{q}_{\mathrm{rad},i}|+q_{\mathrm{floor}}},
+\end{equation}
+where $q_{\mathrm{floor}}$ prevents division by very small source values. Regions that drive the later physics should have acceptable uncertainty.
+
+\section{Minimal Module 1 data products}
+
+For the project to remain clean, Module 1 should export a small set of well-defined data products rather than only raw Geant4 files. A useful minimal set is:
+\begin{enumerate}
+\item \textbf{Energy-deposition map:} $u_{\mathrm{dep}}(x,y)$ or $\qrad(x,y,t)$.
+\item \textbf{Ionization source map:} $G_{eh}(x,y,t)$ or the data needed to construct it.
+\item \textbf{Defect-generation map:} $G_j(x,y,t)$ or initial $\Delta C_j(x,y)$.
+\item \textbf{Interaction summary:} counts or fractions by physical process.
+\item \textbf{Secondary/recoil summary:} recoil energy spectra, secondary particle spectra, or reduced moments.
+\item \textbf{Normalization metadata:} number of histories, source area, fluence or fluence rate, primary particle, primary energy distribution, geometry, and scoring mesh.
+\item \textbf{Uncertainty estimates:} statistical uncertainty or variance maps for the most important scored quantities.
+\end{enumerate}
+
+\section{Recommended notation for the rest of the project}
+
+To avoid ambiguity, the project should use the following notation consistently:
+\begin{align}
+\qrad(\rpos,t) &= \text{total radiation-induced volumetric energy-deposition rate}, \\
+\qth(\rpos,t) &= \text{thermalized heat-source rate used by Module 4}, \\
+\Geh(\rpos,t) &= \text{electron-hole pair generation rate used by Module 5}, \\
+G_j(\rpos,t) &= \text{defect species generation rate used by Module 3}, \\
+C_j(\rpos,t) &= \text{defect species concentration evolved by Module 3}.
+\end{align}
+
+This resolves the ambiguity in the slide-outline chain. The symbol $\qrad$ is allowed, but it must be interpreted as an initial radiation energy-deposition source, not automatically as local heat.
+
+\section{How this module connects to the slide drawings}
+
+The Module 1 slide drawing should show:
+\begin{equation}
+\text{incident particle}
+\longrightarrow
+\text{scattering and secondary production}
+\longrightarrow
+\text{localized deposited-energy map in silicon}.
+\end{equation}
+For a generic charged-particle drawing, a straight or mildly deflected incoming track with discrete interaction sites is acceptable. For a photon drawing, the picture should emphasize discrete photon interaction points and secondary electron tracks. For a neutron drawing, the picture should emphasize sparse nuclear collisions and recoil nuclei. The label ``Initial Energy Deposition Map'' is physically better than ``radiation insult'' because it corresponds directly to Eq.~\eqref{eq:qrad_definition} and to the data product used by later modules.
+
+\section{Summary}
+
+Module 1 transforms radiation transport into continuum source maps. The central quantity is the radiation-induced volumetric energy-deposition rate,
+\begin{equation}
+\qrad(\rpos,t)=\frac{\partial \Edep}{\partial V\,\partial t}.
+\end{equation}
+This map is the parent source for later physics, but it should not be confused with heat alone. From it, or from more interaction-resolved Geant4 outputs, the project derives electron-hole generation $\Geh$, defect-generation sources $G_j$, thermalized heat sources $\qth$, and interaction summaries. The scientific value of Module 1 is that it preserves the spatial and mechanistic origin of the later degradation problem.
+
+\end{document}

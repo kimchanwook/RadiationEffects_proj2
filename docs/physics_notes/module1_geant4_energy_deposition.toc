@@ -1,0 +1,62 @@
+\contentsline {section}{Symbols and acronyms used in this document}{4}{Doc-Start}%
+\contentsline {section}{\numberline {1}Role of Module 1 in the full radiation-effects chain}{5}{section.1}%
+\contentsline {section}{\numberline {2}What Module 1 computes}{6}{section.2}%
+\contentsline {section}{\numberline {3}Defining the radiation energy-deposition source}{6}{section.3}%
+\contentsline {subsection}{\numberline {3.1}Continuum definition}{6}{subsection.3.1}%
+\contentsline {subsection}{\numberline {3.2}Relation to absorbed dose}{7}{subsection.3.2}%
+\contentsline {subsection}{\numberline {3.3}Why the radiation source is not automatically heat}{7}{subsection.3.3}%
+\contentsline {section}{\numberline {4}From discrete Monte Carlo steps to a binned source map}{8}{section.4}%
+\contentsline {subsection}{\numberline {4.1}Discrete step scoring}{8}{subsection.4.1}%
+\contentsline {subsection}{\numberline {4.2}Normalization to fluence rate}{9}{subsection.4.2}%
+\contentsline {subsection}{\numberline {4.3}Uncertainty of the scored map}{9}{subsection.4.3}%
+\contentsline {section}{\numberline {5}Radiation transport as an energy-balance problem}{10}{section.5}%
+\contentsline {section}{\numberline {6}Charged-particle energy loss and linear energy transfer}{10}{section.6}%
+\contentsline {subsection}{\numberline {6.1}Stopping power and LET}{11}{subsection.6.1}%
+\contentsline {subsection}{\numberline {6.2}Qualitative derivation of charged-particle stopping}{11}{subsection.6.2}%
+\contentsline {subsection}{\numberline {6.3}Why a charged-particle track can look straight or tortuous}{12}{subsection.6.3}%
+\contentsline {section}{\numberline {7}Photon interactions in silicon}{12}{section.7}%
+\contentsline {subsection}{\numberline {7.1}Photoelectric absorption}{12}{subsection.7.1}%
+\contentsline {subsection}{\numberline {7.2}Compton scattering}{13}{subsection.7.2}%
+\contentsline {subsection}{\numberline {7.3}Pair production}{13}{subsection.7.3}%
+\contentsline {subsection}{\numberline {7.4}Photonuclear reactions}{13}{subsection.7.4}%
+\contentsline {section}{\numberline {8}Neutron interactions in silicon}{14}{section.8}%
+\contentsline {subsection}{\numberline {8.1}Elastic recoil energy transfer}{14}{subsection.8.1}%
+\contentsline {subsection}{\numberline {8.2}Why neutron maps are sparse but important}{14}{subsection.8.2}%
+\contentsline {section}{\numberline {9}Displacement damage and defect source construction}{14}{section.9}%
+\contentsline {subsection}{\numberline {9.1}Vacancy-interstitial pair creation}{14}{subsection.9.1}%
+\contentsline {subsection}{\numberline {9.2}From recoil energy to a defect-generation rate}{15}{subsection.9.2}%
+\contentsline {subsection}{\numberline {9.3}NIEL-based reduced source}{15}{subsection.9.3}%
+\contentsline {section}{\numberline {10}Ionization source and electron-hole pair generation}{16}{section.10}%
+\contentsline {section}{\numberline {11}Thermal source passed to Module 4}{16}{section.11}%
+\contentsline {section}{\numberline {12}Mapping three-dimensional transport to a two-dimensional project model}{17}{section.12}%
+\contentsline {subsection}{\numberline {12.1}Full 3D source}{17}{subsection.12.1}%
+\contentsline {subsection}{\numberline {12.2}Depth averaging}{17}{subsection.12.2}%
+\contentsline {subsection}{\numberline {12.3}When 2D is physically acceptable}{18}{subsection.12.3}%
+\contentsline {section}{\numberline {13}Interaction-resolved campaign philosophy}{18}{section.13}%
+\contentsline {subsection}{\numberline {13.1}Photon campaign logic}{18}{subsection.13.1}%
+\contentsline {subsection}{\numberline {13.2}Neutron campaign logic}{19}{subsection.13.2}%
+\contentsline {subsection}{\numberline {13.3}Charged-particle campaign logic}{19}{subsection.13.3}%
+\contentsline {section}{\numberline {14}Module 1 outputs required by later modules}{19}{section.14}%
+\contentsline {subsection}{\numberline {14.1}Output to Module 3: defect-generation map}{19}{subsection.14.1}%
+\contentsline {subsection}{\numberline {14.2}Output to Module 4: thermal source}{19}{subsection.14.2}%
+\contentsline {subsection}{\numberline {14.3}Output to Module 5: carrier-generation source}{20}{subsection.14.3}%
+\contentsline {subsection}{\numberline {14.4}Output to Module 2: indirect charge source through defects}{20}{subsection.14.4}%
+\contentsline {section}{\numberline {15}Reduced source models for early MATLAB development}{20}{section.15}%
+\contentsline {subsection}{\numberline {15.1}Gaussian deposition map}{20}{subsection.15.1}%
+\contentsline {subsection}{\numberline {15.2}Track-like deposition map}{20}{subsection.15.2}%
+\contentsline {subsection}{\numberline {15.3}Sparse recoil-event map}{21}{subsection.15.3}%
+\contentsline {section}{\numberline {16}Boundary and geometry considerations for Geant4 scoring}{21}{section.16}%
+\contentsline {section}{\numberline {17}Spatial resolution and physical length scales}{22}{section.17}%
+\contentsline {section}{\numberline {18}Time structure of radiation forcing}{22}{section.18}%
+\contentsline {subsection}{\numberline {18.1}Pulse approximation}{22}{subsection.18.1}%
+\contentsline {subsection}{\numberline {18.2}Steady irradiation approximation}{23}{subsection.18.2}%
+\contentsline {subsection}{\numberline {18.3}Why the choice matters}{23}{subsection.18.3}%
+\contentsline {section}{\numberline {19}Verification and sanity checks for Module 1}{23}{section.19}%
+\contentsline {subsection}{\numberline {19.1}Energy conservation check}{23}{subsection.19.1}%
+\contentsline {subsection}{\numberline {19.2}Range and penetration check}{23}{subsection.19.2}%
+\contentsline {subsection}{\numberline {19.3}Mesh-conservation check}{24}{subsection.19.3}%
+\contentsline {subsection}{\numberline {19.4}Uncertainty check}{24}{subsection.19.4}%
+\contentsline {section}{\numberline {20}Minimal Module 1 data products}{24}{section.20}%
+\contentsline {section}{\numberline {21}Recommended notation for the rest of the project}{25}{section.21}%
+\contentsline {section}{\numberline {22}How this module connects to the slide drawings}{25}{section.22}%
+\contentsline {section}{\numberline {23}Summary}{25}{section.23}%
