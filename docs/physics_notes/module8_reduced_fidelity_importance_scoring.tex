@@ -1,0 +1,660 @@
+\documentclass[11pt]{article}
+\input{../shared/project_style.tex}
+\rhead{Module 8}
+\begin{document}
+
+\DocTitle{Module 8: Reduced-Fidelity Modeling and Importance-Based Physics Selection}{Reducing simulation cost while preserving the dominant device response}{Physics note for RadiationEffects\_proj2}
+
+\begin{overviewbox}
+\textbf{Purpose.} Module 8 formalizes how RadiationEffects\_proj2 will reduce the computational cost of the full radiation-effects simulation without removing the physics that actually controls the final device response. The full project chain starts with three-dimensional Monte Carlo radiation transport, maps that result into lower-dimensional continuum models, evolves defects, solves electrostatics and thermal transport, computes carrier drift-diffusion, and then predicts device-level degradation. That full chain is physically rich but expensive. This note develops a systematic reduction framework: reduce dimension when the eliminated coordinate is not essential, replace detailed fields by lumped scores when only aggregate response is needed, identify dominant physics pathways, estimate the impact of each module or submodel on the final quantity of interest, estimate the computational cost of each module or submodel, and rank physics options using an importance score defined as impact per computational cost.
+\end{overviewbox}
+
+\ProjectTOC
+
+\SymbolsAcronymsSection
+\begin{symtable}
+2D & Two-dimensional & Spatial model resolving two coordinates, usually the device cross-section coordinates \(x\) and \(y\). \\
+3D & Three-dimensional & Spatial model resolving \(x\), \(y\), and \(z\). \\
+0D & Lumped or zero-dimensional & Model that does not resolve space explicitly and instead tracks aggregate device-level quantities or scores. \\
+FEM & Finite element method & Continuum numerical method used in Modules 2--6 for electrostatics, defect evolution, thermal transport, carrier transport, and coupled multiphysics. \\
+MC & Monte Carlo & Stochastic particle-transport method used in Module 1 through Geant4. \\
+QoI & Quantity of interest & Final output quantity used to judge whether a reduced model is accurate enough. \\
+ROM & Reduced-order model & Reduced-fidelity or reduced-dimensionality model used to approximate a more expensive reference model. \\
+\(x,y,z\) & Cartesian coordinates & Spatial coordinates; in the current 2D project convention, \(x\) and \(y\) are resolved and \(z\) is the out-of-plane/depth direction. \\
+\(\Omega_{3D}\) & Three-dimensional domain & Full 3D physical region used for radiation transport or a full reference calculation. \\
+\(\Omega_{2D}\) & Two-dimensional domain & Reduced 2D cross-section domain used by the project multiphysics modules. \\
+\(\Omega_{1D}\) & One-dimensional domain & Further reduced domain resolving only one dominant coordinate. \\
+\(\partial\Omega\) & Domain boundary & Boundary of a spatial domain. \\
+\(L_z\) & Out-of-plane thickness & Length of the collapsed \(z\)-direction when mapping 3D data into a 2D \(x\)-\(y\) model. \\
+\(\rvec\) & Position vector & Spatial position. \\
+\(t\) & Time & Independent time coordinate. \\
+\(\dot{q}_{\mathrm{rad}}\) & Radiation energy-deposition rate & Volumetric rate at which radiation deposits energy in the material. \\
+\(\dot{q}_{\mathrm{rad}}^{xy}\) & Depth-averaged radiation source & \(z\)-averaged radiation energy-deposition rate mapped onto the 2D \(x\)-\(y\) model. \\
+\(C_j\) & Defect concentration & Concentration of defect species \(j\). \\
+\(T\) & Temperature & Lattice or equivalent thermal field. \\
+\(\phi\) & Electrostatic potential & Scalar potential used to compute the electric field. \\
+\(\bm{E}\) & Electric field & \(\bm{E}=-\nabla\phi\). \\
+\(n\) & Electron density & Mobile electron concentration. \\
+\(p\) & Hole density & Mobile hole concentration. \\
+\(\bm{J}_n\) & Electron current density & Conventional electron-current contribution. \\
+\(\bm{J}_p\) & Hole current density & Conventional hole-current contribution. \\
+\(\bm{u}\) & State vector & Vector collecting the simulated fields such as \(C_j\), \(T\), \(\phi\), \(n\), and \(p\). \\
+\(\bm{\theta}\) & Input parameter vector & Vector of physical, numerical, or model-choice parameters. \\
+\(\bm{y}\) & Output vector & Vector of final device-level outputs or quantities of interest. \\
+\(y_k\) & Output component & Component \(k\) of the output vector \(\bm{y}\). \\
+\(y_{\mathrm{device}}\) & Device response & Generic scalar or vector representing the final simulated device response. \\
+\(\mathcal{M}_{\mathrm{full}}\) & Full model & Highest-fidelity reference model available for a given comparison. \\
+\(\mathcal{M}_{r}\) & Reduced model & Candidate reduced model indexed by reduction level \(r\). \\
+\(\mathcal{P}_{3D\to2D}\) & 3D-to-2D projection & Operator that maps 3D fields to a 2D cross-section. \\
+\(\mathcal{P}_{2D\to1D}\) & 2D-to-1D projection & Operator that maps 2D fields to a 1D representation. \\
+\(\mathcal{P}_{2D\to0D}\) & 2D-to-lumped projection & Operator that maps 2D fields to scalar scores or aggregate metrics. \\
+\(\varepsilon_r\) & Reduced-model error & Relative output error of reduced model \(r\) compared with a reference model. \\
+\(\varepsilon_{\mathrm{tol}}\) & Error tolerance & Maximum acceptable reduced-model output error. \\
+\(\varepsilon_0\) & Regularization constant & Small positive number used to avoid division by zero in normalized metrics. \\
+\(W_y\) & Output weighting matrix & Matrix or diagonal scaling used to weight different output quantities. \\
+\(m\) & Module or model component index & Index labeling a module, submodel, physics term, or solver option. \\
+\(a\) & Subcomponent index & Index labeling a smaller part of a module, such as a defect species or coupling term. \\
+\(I_m\) & Impact score & Estimated effect of module or component \(m\) on the final output. \\
+\(\widetilde{I}_m\) & Normalized impact score & Dimensionless version of \(I_m\), usually scaled to lie between 0 and 1. \\
+\(C_m^{\mathrm{comp}}\) & Computational cost & Estimated compute time or computational expense of module or component \(m\). \\
+\(\widetilde{C}_m\) & Normalized computational cost & Dimensionless version of the computational cost. \\
+\(\Pi_m\) & Importance score & Impact-per-cost score used to prioritize physics components. \\
+\(\Delta C_m^{\mathrm{comp}}\) & Incremental cost & Extra compute cost required to include component \(m\) or upgrade its fidelity. \\
+\(\Delta I_m\) & Incremental impact & Extra output accuracy or physical impact gained by including component \(m\) or upgrading its fidelity. \\
+\(S_{k\ell}\) & Local sensitivity & Sensitivity of output \(y_k\) to parameter \(\theta_\ell\). \\
+\(\mathcal{S}_\ell\) & Global sensitivity index & Variance-based sensitivity of the output to uncertain input \(\theta_\ell\). \\
+\(\mathcal{J}\) & Scalar objective & Scalar function of the output used for sensitivity or optimization. \\
+\(\bm{R}\) & Residual vector & Discrete nonlinear equations defining the simulated state. \\
+\(\bm{\lambda}\) & Adjoint vector & Lagrange multiplier field used to compute sensitivities efficiently. \\
+\(N_{\mathrm{dof}}\) & Degrees of freedom & Number of unknowns in a discretized PDE solve. \\
+\(N_t\) & Number of time steps & Number of time increments in a transient simulation. \\
+\(N_{\mathrm{it}}\) & Number of nonlinear iterations & Number of Newton, Picard, or staggered coupling iterations. \\
+\(N_{\mathrm{hist}}\) & Number of particle histories & Number of simulated particle histories in a Monte Carlo calculation. \\
+\(N_{\mathrm{step}}\) & Number of transport steps & Number of particle steps or interactions in a Monte Carlo history. \\
+\(p_{\mathrm{solver}}\) & Solver scaling exponent & Empirical exponent describing how linear/nonlinear solve cost grows with degrees of freedom. \\
+\(D_{\mathrm{score}}\) & Damage score & Lumped metric representing defect-related degradation strength. \\
+\(F_{\mathrm{score}}\) & Field score & Lumped metric representing electric-field distortion or field-stress strength. \\
+\(T_{\mathrm{score}}\) & Thermal score & Lumped metric representing thermally relevant heating or thermal exposure. \\
+\(R_{\mathrm{score}}\) & Response score & Lumped metric representing aggregate device response. \\
+\(w(\rvec)\) & Spatial weighting function & Weight used to emphasize sensitive device regions. \\
+\(\chi_A\) & Region indicator & Function equal to 1 inside region \(A\) and 0 outside. \\
+\end{symtable}
+
+\section{Why a reduction module is needed}
+The full RadiationEffects\_proj2 workflow is intentionally multiphysics. Module 1 computes where incident radiation deposits energy. Module 2 computes electrostatic field distortion from charge and defects. Module 3 evolves vacancies, interstitials, traps, and other defect populations. Module 4 computes thermal spreading and nonlocal heat-carrier effects. Module 5 computes carrier drift-diffusion, recombination, and mobility degradation. Module 6 couples these maps self-consistently. The scientifically complete chain can be summarized as
+\begin{equation}
+    \dot{q}_{\mathrm{rad}}
+    \longrightarrow
+    C_j
+    \longrightarrow
+    \rho,\phi,T
+    \longrightarrow
+    n,p,\bm{J}_n,\bm{J}_p
+    \longrightarrow
+    y_{\mathrm{device}}.
+    \label{eq:full_project_chain}
+\end{equation}
+This chain is physically attractive because it keeps the causal structure visible. It is also computationally expensive because each arrow can represent a PDE solve, a Monte Carlo scoring operation, a nonlinear coupling iteration, or a time-dependent reaction network.
+
+Module 8 exists to answer a practical question:
+\begin{physicsbox}
+\textbf{Core question.} Which parts of the full physics chain are worth paying for computationally, and which parts can be averaged, simplified, bypassed, or represented by a lumped score without changing the final device-level conclusion?
+\end{physicsbox}
+
+The goal is not to make the model simple for its own sake. The goal is to make it \emph{selectively simple}: expensive detail is retained only when it has measurable influence on the final device response.
+
+\section{Full model, reduced models, and quantities of interest}
+\subsection{Full model as an operator}
+Let the full model be written abstractly as
+\begin{equation}
+    \bm{y}_{\mathrm{full}}
+    =
+    \mathcal{M}_{\mathrm{full}}(\bm{\theta}),
+    \label{eq:full_model_operator}
+\end{equation}
+where \(\bm{\theta}\) is an input vector and \(\bm{y}_{\mathrm{full}}\) is the vector of quantities of interest. In this project, \(\bm{\theta}\) may contain incident particle type, particle energy, fluence, bias condition, temperature, material parameters, defect kinetic coefficients, boundary conditions, or solver settings. The output vector may contain device-level metrics such as threshold-voltage shift, leakage current, collected charge, transient current pulse, mobility degradation, recombination rate, or a pass/fail device-degradation score.
+
+A reduced model is written as
+\begin{equation}
+    \bm{y}_{r}
+    =
+    \mathcal{M}_{r}(\bm{\theta}),
+    \label{eq:reduced_model_operator}
+\end{equation}
+where \(r\) indexes a reduction choice, such as a 2D model, 1D model, lumped model, simplified defect chemistry, Fourier thermal approximation, or quasi-static electrostatic approximation.
+
+\subsection{Reduced-model error should be measured in device outputs}
+A reduced model is acceptable only if it preserves the output quantities that matter. Therefore the error should be measured in the final output space, not only in the internal field space. Define
+\begin{equation}
+    \boxed{
+    \varepsilon_r
+    =
+    \frac{\norm{W_y\left(\bm{y}_{\mathrm{full}}-\bm{y}_r\right)}_2}
+    {\norm{W_y\bm{y}_{\mathrm{full}}}_2+\varepsilon_0}
+    .}
+    \label{eq:rom_error}
+\end{equation}
+Here \(W_y\) weights the outputs. For example, if leakage-current error is more important than a small temperature-field error, then leakage current should receive a larger weight in \(W_y\). The small positive constant \(\varepsilon_0\) prevents division by zero.
+
+The reduction decision is then
+\begin{equation}
+    \boxed{
+    \text{choose the cheapest model } \mathcal{M}_r
+    \text{ such that }
+    \varepsilon_r \leq \varepsilon_{\mathrm{tol}}.
+    }
+    \label{eq:cheapest_model_constraint}
+\end{equation}
+This equation is the cleanest statement of the reduction philosophy. The model should be no more detailed than required by the output tolerance.
+
+\section{Dimensional reduction: 3D to 2D to 1D to lumped scores}
+\subsection{3D Geant4 output to a 2D project model}
+Module 1 may naturally produce a three-dimensional energy-deposition field
+\begin{equation}
+    \dot{q}_{\mathrm{rad}}(x,y,z,t)
+    =
+    \frac{\partial E_{\mathrm{dep}}}{\partial V\,\partial t}.
+    \label{eq:qrad_3d_def}
+\end{equation}
+The current project convention is that the continuum modules resolve \(x\) and \(y\), while \(z\) is the out-of-plane/depth direction. The depth-averaged source is therefore
+\begin{equation}
+    \boxed{
+    \dot{q}_{\mathrm{rad}}^{xy}(x,y,t)
+    =
+    \mathcal{P}_{3D\to2D}\dot{q}_{\mathrm{rad}}
+    =
+    \frac{1}{L_z}
+    \int_{z_{\min}}^{z_{\max}}
+    \dot{q}_{\mathrm{rad}}(x,y,z,t)\,\dd z.
+    }
+    \label{eq:depth_average_qrad}
+\end{equation}
+This operation preserves the units of a volumetric source, \(\si{W.m^{-3}}\), because it is an average rather than an integral-only collapse.
+
+For a uniform 3D scoring mesh with \(N_z\) bins in the collapsed direction,
+\begin{equation}
+    \boxed{
+    \dot{q}_{\mathrm{rad},ij}^{xy}(t)
+    =
+    \frac{1}{N_z}
+    \sum_{k=1}^{N_z}
+    \dot{q}_{\mathrm{rad},ijk}(t).
+    }
+    \label{eq:uniform_depth_average}
+\end{equation}
+For a nonuniform mesh,
+\begin{equation}
+    \dot{q}_{\mathrm{rad},ij}^{xy}(t)
+    =
+    \frac{1}{L_z}
+    \sum_{k=1}^{N_z}
+    \dot{q}_{\mathrm{rad},ijk}(t)\Delta z_k,
+    \qquad
+    L_z=\sum_{k=1}^{N_z}\Delta z_k.
+    \label{eq:nonuniform_depth_average}
+\end{equation}
+
+\begin{notebox}
+\textbf{What this reduction preserves and what it removes.} Depth averaging preserves the mean cross-sectional volumetric forcing. It does not preserve the peak 3D hot spot if the energy deposition is strongly localized in \(z\). Therefore the 2D model should be interpreted as an averaged cross-section model, not as a peak local-damage model.
+\end{notebox}
+
+\subsection{2D to 1D reduction}
+A further reduction is possible if the physics varies mainly along one coordinate. Suppose the dominant coordinate is \(y\), and the \(x\)-direction can be averaged over a width \(L_x\). For any 2D field \(u(x,y,t)\), define
+\begin{equation}
+    \boxed{
+    \bar{u}^{y}(y,t)
+    =
+    \mathcal{P}_{2D\to1D}u
+    =
+    \frac{1}{L_x}
+    \int_{x_{\min}}^{x_{\max}}
+    u(x,y,t)\,\dd x.
+    }
+    \label{eq:2d_to_1d_average}
+\end{equation}
+The same projection can be applied to defect concentrations, temperature, potential, carrier densities, and source terms if lateral variations are not essential to the chosen output.
+
+This step is physically acceptable when the output is controlled by depth-dependent or layer-dependent behavior rather than lateral localization. It is questionable when the final response depends on local field crowding, edge effects, localized hot spots, narrow current filaments, or nonuniform defect clusters.
+
+\subsection{1D or 2D to lumped/scoring models}
+The most aggressive reduction maps a field to one or more scalar scores. A general lumped score has the form
+\begin{equation}
+    \boxed{
+    S_u(t)
+    =
+    \frac{\int_{\Omega_{2D}} w(\rvec)u(\rvec,t)\,\dd A}
+    {\int_{\Omega_{2D}} w(\rvec)\,\dd A+\varepsilon_0}.
+    }
+    \label{eq:generic_weighted_score}
+\end{equation}
+The weighting function \(w(\rvec)\) encodes device sensitivity. For example, defects near a junction, oxide interface, depletion region, or high-field region may matter more than defects deep in a neutral bulk region.
+
+Representative scores are
+\begin{align}
+    D_{\mathrm{score}}(t)
+    &=
+    \frac{\sum_j \int_{\Omega_{2D}} w_{D,j}(\rvec) C_j(\rvec,t)\,\dd A}
+    {\sum_j \int_{\Omega_{2D}} w_{D,j}(\rvec)\,\dd A+\varepsilon_0},
+    \label{eq:damage_score}\\[0.5em]
+    F_{\mathrm{score}}(t)
+    &=
+    \frac{\max_{\rvec\in\Omega_{2D}} \abs{\bm{E}(\rvec,t)}}
+    {E_{\mathrm{ref}}},
+    \label{eq:field_score}\\[0.5em]
+    T_{\mathrm{score}}(t)
+    &=
+    \frac{\max_{\rvec\in\Omega_{2D}} \left[T(\rvec,t)-T_0\right]}
+    {\Delta T_{\mathrm{ref}}},
+    \label{eq:thermal_score}\\[0.5em]
+    R_{\mathrm{score}}(t)
+    &=
+    g\!big(D_{\mathrm{score}},F_{\mathrm{score}},T_{\mathrm{score}}\big).
+    \label{eq:response_score}
+\end{align}
+Here \(E_{\mathrm{ref}}\), \(T_0\), and \(\Delta T_{\mathrm{ref}}\) are reference scales. The function \(g\) is a calibrated or physics-guided response map.
+
+\begin{physicsbox}
+\textbf{Interpretation.} A lumped model is not trying to reproduce every field. It is trying to preserve the few combinations of fields that the device actually responds to. The scoring model should therefore be judged by output prediction error, not by pointwise field error.
+\end{physicsbox}
+
+\section{Identifying impactful physics and bypassing non-essential physics}
+\subsection{The model as a directed physics graph}
+The full model can be viewed as a directed graph. Each node represents a field, process, or module, and each arrow represents a physical influence. A simplified graph is
+\begin{equation}
+    \dot{q}_{\mathrm{rad}}
+    \to
+    C_j
+    \to
+    \rho,\phi,\bm{E}
+    \to
+    n,p,\bm{J}_n,\bm{J}_p
+    \to
+    y_{\mathrm{device}}.
+    \label{eq:dominant_path_graph}
+\end{equation}
+Thermal transport introduces additional pathways:
+\begin{equation}
+    \dot{q}_{\mathrm{rad}}
+    \to
+    T
+    \to
+    D_j,k_{\mathrm{ann},j},\mu_n,\mu_p,R
+    \to
+    y_{\mathrm{device}}.
+    \label{eq:thermal_path_graph}
+\end{equation}
+The reduction task is to determine which arrows materially change \(y_{\mathrm{device}}\). An arrow may be physically real but numerically irrelevant for a particular operating condition, particle energy, bias, geometry, or output metric.
+
+\subsection{Bypass criteria}
+A physics component can be bypassed, simplified, or downgraded when at least one of the following conditions is satisfied and verified against the output tolerance:
+\begin{enumerate}[label=\arabic*.]
+    \item \textbf{Small output sensitivity.} Perturbing the component changes \(\bm{y}\) by less than the tolerance.
+    \item \textbf{Scale separation.} The component relaxes much faster or much slower than the time window of interest, allowing quasi-steady, frozen, or equilibrium treatment.
+    \item \textbf{Weak coupling.} The component affects an intermediate field but that intermediate field does not strongly affect the final device metric.
+    \item \textbf{Spatial irrelevance.} The component is localized in a region with small device sensitivity weight \(w(\rvec)\).
+    \item \textbf{Regime validity.} A cheaper limiting model is valid, such as Fourier heat conduction when the Knudsen number is small or quasi-static electrostatics when electromagnetic transients are irrelevant.
+    \item \textbf{Statistical insignificance.} The component is smaller than the uncertainty caused by Monte Carlo variance, material uncertainty, geometry uncertainty, or measurement noise.
+\end{enumerate}
+
+\begin{notebox}
+\textbf{Important caution.} A component should not be removed merely because it is visually small in an intermediate field. It should be removed only if its influence on the chosen output \(\bm{y}\) is small.
+\end{notebox}
+
+\section{Impact estimation}
+\subsection{Module ablation impact}
+The most direct impact test is module ablation. Run a reference model and a model in which module or component \(m\) is removed, frozen, or replaced by a cheaper approximation. Define
+\begin{equation}
+    \boxed{
+    I_m^{\mathrm{abl}}
+    =
+    \frac{\norm{W_y\left(\bm{y}_{\mathrm{ref}}-\bm{y}_{(-m)}\right)}_2}
+    {\norm{W_y\bm{y}_{\mathrm{ref}}}_2+\varepsilon_0}.
+    }
+    \label{eq:ablation_impact}
+\end{equation}
+Here \(\bm{y}_{\mathrm{ref}}\) is the reference output and \(\bm{y}_{(-m)}\) is the output with component \(m\) removed or simplified. This is often the clearest way to quantify whether a module matters.
+
+For example, if removing the thermal feedback changes leakage current by less than \(1\%\), then thermal feedback may be bypassed for that specific regime. If removing defect-dependent mobility changes the current by \(20\%\), then mobility degradation must be retained.
+
+\subsection{Incremental fidelity impact}
+Sometimes the question is not whether a module should be present, but whether it should be modeled at high fidelity. Let \(\mathcal{M}_{m,\mathrm{low}}\) be a cheaper representation and \(\mathcal{M}_{m,\mathrm{high}}\) a more detailed representation. The incremental impact of upgrading component \(m\) is
+\begin{equation}
+    \boxed{
+    \Delta I_m
+    =
+    \frac{\norm{W_y\left(\bm{y}_{m,\mathrm{high}}-\bm{y}_{m,\mathrm{low}}\right)}_2}
+    {\norm{W_y\bm{y}_{m,\mathrm{high}}}_2+\varepsilon_0}.
+    }
+    \label{eq:incremental_impact}
+\end{equation}
+This is useful for choices such as 2D versus 1D, ballistic-diffusive versus Fourier thermal transport, full defect reaction network versus one effective defect species, or coupled versus staggered multiphysics.
+
+\subsection{Local sensitivity}
+For continuous parameters, local sensitivity measures the response to a small parameter perturbation. A normalized sensitivity is
+\begin{equation}
+    \boxed{
+    S_{k\ell}
+    =
+    \frac{\partial \ln\left(\abs{y_k}+\varepsilon_0\right)}
+    {\partial \ln\left(\abs{\theta_\ell}+\varepsilon_0\right)}.
+    }
+    \label{eq:normalized_local_sensitivity}
+\end{equation}
+A finite-difference estimate is
+\begin{equation}
+    S_{k\ell}
+    \approx
+    \frac{\ln\!big(\abs{y_k(\theta_\ell+\Delta\theta_\ell)}+\varepsilon_0\big)
+          -\ln\!\big(\abs{y_k(\theta_\ell)}+\varepsilon_0\big)}
+    {\ln\!\big(\abs{\theta_\ell+\Delta\theta_\ell}+\varepsilon_0\big)
+          -\ln\!\big(\abs{\theta_\ell}+\varepsilon_0\big)}.
+    \label{eq:finite_difference_sensitivity}
+\end{equation}
+This method is simple and useful during early development, but it can miss nonlinear interactions between parameters.
+
+\subsection{Global sensitivity}
+When inputs are uncertain over a wide range, local sensitivity can be misleading. A variance-based global sensitivity index can be defined conceptually as
+\begin{equation}
+    \boxed{
+    \mathcal{S}_\ell
+    =
+    \frac{\mathrm{Var}_{\theta_\ell}\!big(\mathbb{E}[\mathcal{J}\mid \theta_\ell]\big)}
+    {\mathrm{Var}(\mathcal{J})}.
+    }
+    \label{eq:global_sensitivity}
+\end{equation}
+Here \(\mathcal{J}\) is a scalar objective derived from the output, such as leakage-current error, threshold shift, or a weighted degradation score. This index asks how much of the output variance is explained by varying parameter \(\theta_\ell\).
+
+\subsection{Adjoint sensitivity for expensive models}
+For a large FEM model, finite-differencing many parameters may be too expensive. Let the discretized coupled model satisfy
+\begin{equation}
+    \bm{R}(\bm{u},\bm{\theta})=\bm{0}.
+    \label{eq:residual_equation}
+\end{equation}
+Let \(\mathcal{J}(\bm{u},\bm{\theta})\) be a scalar objective. Differentiating Eq.~\eqref{eq:residual_equation} with respect to a parameter \(\theta_\ell\) gives
+\begin{equation}
+    \frac{\partial \bm{R}}{\partial \bm{u}}
+    \frac{\partial \bm{u}}{\partial \theta_\ell}
+    +
+    \frac{\partial \bm{R}}{\partial \theta_\ell}
+    =
+    \bm{0}.
+    \label{eq:direct_sensitivity_residual}
+\end{equation}
+The adjoint vector \(\bm{\lambda}\) is defined by
+\begin{equation}
+    \left(\frac{\partial \bm{R}}{\partial \bm{u}}\right)^T
+    \bm{\lambda}
+    =
+    \left(\frac{\partial \mathcal{J}}{\partial \bm{u}}\right)^T.
+    \label{eq:adjoint_equation}
+\end{equation}
+Then the total derivative of the objective is
+\begin{equation}
+    \boxed{
+    \frac{\dd \mathcal{J}}{\dd \theta_\ell}
+    =
+    \frac{\partial \mathcal{J}}{\partial \theta_\ell}
+    -
+    \bm{\lambda}^T
+    \frac{\partial \bm{R}}{\partial \theta_\ell}.
+    }
+    \label{eq:adjoint_gradient}
+\end{equation}
+The adjoint method is powerful because one adjoint solve can provide gradients with respect to many parameters for a single scalar objective.
+
+\section{Computational cost estimation}
+\subsection{Cost should be measured and modeled}
+The computational cost of a module is the wall time, CPU time, memory cost, or total compute budget required to run it. In practice, Module 8 should use both measured profiling data and scaling estimates. A simple calibrated model is
+\begin{equation}
+    \boxed{
+    C_m^{\mathrm{comp}}
+    \approx
+    a_m
+    N_t
+    N_{\mathrm{it}}
+    N_{\mathrm{dof},m}^{p_{\mathrm{solver}}}
+    +
+    b_m.
+    }
+    \label{eq:pde_cost_model}
+\end{equation}
+Here \(a_m\) and \(b_m\) are calibration constants estimated from actual runs, \(N_t\) is the number of time steps, \(N_{\mathrm{it}}\) is the number of nonlinear or coupling iterations, and \(N_{\mathrm{dof},m}\) is the number of degrees of freedom for module \(m\). The exponent \(p_{\mathrm{solver}}\) depends on the solver. A well-preconditioned iterative method may scale nearly linearly, while a direct solver may scale much worse.
+
+For Monte Carlo transport in Module 1, a more natural scaling estimate is
+\begin{equation}
+    \boxed{
+    C_1^{\mathrm{comp}}
+    \approx
+    a_1
+    N_{\mathrm{hist}}
+    \left\langle N_{\mathrm{step}}\right\rangle
+    +b_1.
+    }
+    \label{eq:mc_cost_model}
+\end{equation}
+Here \(N_{\mathrm{hist}}\) is the number of particle histories and \(\left\langle N_{\mathrm{step}}\right\rangle\) is the average number of transport steps per history.
+
+\subsection{Cost of coupling}
+The cost of coupled multiphysics is not merely the sum of isolated module costs. If Modules 2--5 are iterated inside Module 6, then a simple estimate is
+\begin{equation}
+    C_6^{\mathrm{comp}}
+    \approx
+    N_{\mathrm{couple}}
+    \left(
+    C_2^{\mathrm{comp}}
+    +C_3^{\mathrm{comp}}
+    +C_4^{\mathrm{comp}}
+    +C_5^{\mathrm{comp}}
+    \right),
+    \label{eq:coupled_cost_model}
+\end{equation}
+where \(N_{\mathrm{couple}}\) is the number of outer coupling iterations. If one module is much more expensive than the others, then reducing that module may dominate the total speedup.
+
+\subsection{Cost of dimensionality}
+For grid-like discretizations with comparable resolution \(N\) in each spatial direction, the number of degrees of freedom scales approximately as
+\begin{align}
+    N_{\mathrm{dof}}^{1D} &\sim N,\label{eq:dof_1d}\\
+    N_{\mathrm{dof}}^{2D} &\sim N^2,\label{eq:dof_2d}\\
+    N_{\mathrm{dof}}^{3D} &\sim N^3.\label{eq:dof_3d}
+\end{align}
+This is why dimensional reduction can produce large savings. If the solver cost grows faster than linearly with \(N_{\mathrm{dof}}\), the cost gap between 2D and 3D becomes even larger.
+
+\section{Importance score: impact divided by computational cost}
+\subsection{Basic definition}
+The central Module 8 metric is the importance score
+\begin{equation}
+    \boxed{
+    \Pi_m
+    =
+    \frac{\widetilde{I}_m}{\widetilde{C}_m+\varepsilon_0}.
+    }
+    \label{eq:importance_score}
+\end{equation}
+Here \(\widetilde{I}_m\) is a normalized impact score and \(\widetilde{C}_m\) is a normalized computational cost. One practical normalization is
+\begin{equation}
+    \widetilde{I}_m
+    =
+    \frac{I_m}{\max_j I_j+\varepsilon_0},
+    \qquad
+    \widetilde{C}_m
+    =
+    \frac{C_m^{\mathrm{comp}}}{\max_j C_j^{\mathrm{comp}}+\varepsilon_0}.
+    \label{eq:normalized_impact_cost}
+\end{equation}
+Large \(\Pi_m\) means that a component strongly affects the output per unit cost. Small \(\Pi_m\) means that a component is expensive relative to its output influence.
+
+\subsection{Incremental importance}
+For model-fidelity upgrades, the relevant score is incremental:
+\begin{equation}
+    \boxed{
+    \Pi_m^{\mathrm{inc}}
+    =
+    \frac{\Delta I_m}{\Delta C_m^{\mathrm{comp}}+\varepsilon_0}.
+    }
+    \label{eq:incremental_importance}
+\end{equation}
+This asks whether adding a more detailed physical model is worth the extra cost. For example, if ballistic-diffusive thermal transport changes the final current prediction only slightly compared with Fourier transport but costs much more, then its incremental importance is low for that regime. If it changes the prediction substantially in small devices or ultrafast transients, its incremental importance becomes high.
+
+\subsection{Decision categories}
+A useful practical categorization is
+\begin{center}
+\begin{tabularx}{0.95\textwidth}{>{\RaggedRight\arraybackslash}p{0.25\textwidth}>{\RaggedRight\arraybackslash}p{0.25\textwidth}>{\RaggedRight\arraybackslash}X}
+\toprule
+Category & Typical condition & Action \\
+\midrule
+High impact, low cost & Large \(\widetilde{I}_m\), small \(\widetilde{C}_m\) & Keep the physics. It is cheap and useful. \\
+High impact, high cost & Large \(\widetilde{I}_m\), large \(\widetilde{C}_m\) & Keep if required by tolerance; otherwise search for a surrogate or reduced representation. \\
+Low impact, low cost & Small \(\widetilde{I}_m\), small \(\widetilde{C}_m\) & Keep if it improves physical consistency and does not complicate the solver. \\
+Low impact, high cost & Small \(\widetilde{I}_m\), large \(\widetilde{C}_m\) & Bypass, freeze, tabulate, or replace by a lumped correction. \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\begin{notebox}
+\textbf{Mandatory constraints override the score.} A low importance score should not remove a term if removing it violates charge conservation, energy conservation, positivity, boundary conditions, or a known physical constraint. Importance scoring is a reduction guide, not a license to make an inconsistent model.
+\end{notebox}
+
+\section{Module-by-module reduction opportunities}
+\subsection{Module 1: Geant4 deposition maps}
+Module 1 cost is controlled mainly by the number of particle histories, transport steps, physics list complexity, and scoring resolution. Reduction options include depth averaging, coarser scoring bins, interaction-specific campaigns, variance reduction, and precomputed source libraries. The impact should be measured by how much the altered source map changes downstream defect, thermal, electrostatic, or carrier-transport outputs.
+
+A useful impact test is
+\begin{equation}
+    I_1
+    =
+    \frac{\norm{W_y\left[\bm{y}(\dot{q}_{\mathrm{rad}}^{\mathrm{fine}})-\bm{y}(\dot{q}_{\mathrm{rad}}^{\mathrm{coarse}})\right]}_2}
+    {\norm{W_y\bm{y}(\dot{q}_{\mathrm{rad}}^{\mathrm{fine}})}_2+\varepsilon_0}.
+    \label{eq:module1_source_resolution_impact}
+\end{equation}
+If this impact is small, the Geant4 map can be coarsened or replaced by a parametric deposition kernel.
+
+\subsection{Module 2: electrostatics}
+Module 2 is important when defect-induced charge modifies the electric field, depletion structure, or carrier drift. Possible reductions include quasi-static electrostatics, coarser electrostatic solve frequency, linearized Poisson updates, or using a precomputed Green-function response to defect charge.
+
+Electrostatics should not be bypassed if the final output depends strongly on field crowding, junction fields, drift current, or breakdown-like behavior.
+
+\subsection{Module 3: defect evolution}
+Module 3 can be expensive if many defect species are tracked with nonlinear reactions. Reduction options include effective defect species, quasi-steady reaction approximations, omission of low-impact species, reduced reaction networks, and tabulated kinetic coefficients.
+
+For defect species \(j\), an ablation impact can be defined as
+\begin{equation}
+    I_{C_j}
+    =
+    \frac{\norm{W_y\left(\bm{y}_{\mathrm{all\ species}}-\bm{y}_{(-C_j)}\right)}_2}
+    {\norm{W_y\bm{y}_{\mathrm{all\ species}}}_2+\varepsilon_0}.
+    \label{eq:defect_species_impact}
+\end{equation}
+Species with small \(I_{C_j}\) over the relevant operating regime are candidates for removal or aggregation.
+
+\subsection{Module 4: thermal transport}
+Module 4 can range from simple Fourier heat diffusion to a ballistic-diffusive nonlocal thermal model. The main reduction decision is whether the nonlocal thermal memory affects the final device metric. If the relevant length scale is much larger than the mean free path and the time scale is long compared with the carrier relaxation time, then a local Fourier model may be adequate. If the hot spot, device feature, or transient duration is comparable to microscopic transport scales, then the ballistic-diffusive correction may be important.
+
+The incremental impact of the ballistic-diffusive upgrade is
+\begin{equation}
+    \Delta I_4
+    =
+    \frac{\norm{W_y\left(\bm{y}_{\mathrm{BD}}-\bm{y}_{\mathrm{Fourier}}\right)}_2}
+    {\norm{W_y\bm{y}_{\mathrm{BD}}}_2+\varepsilon_0}.
+    \label{eq:thermal_bd_impact}
+\end{equation}
+This should be compared with the incremental cost of the ballistic-diffusive model.
+
+\subsection{Module 5: carrier drift-diffusion}
+Module 5 is important when the final response is an electrical metric. Reductions include steady-state carrier transport, one-carrier approximations, effective mobility degradation, lumped recombination lifetime, or direct mapping from defect score to current degradation.
+
+A lumped mobility model might replace detailed defect scattering with
+\begin{equation}
+    \mu_{\mathrm{eff}}(t)
+    =
+    \frac{\mu_0}{1+\alpha_D D_{\mathrm{score}}(t)},
+    \label{eq:lumped_mobility_model}
+\end{equation}
+where \(\mu_0\) is the undamaged mobility and \(\alpha_D\) is a fitted degradation coefficient. This is acceptable only if it reproduces the output current within tolerance.
+
+\subsection{Module 6: coupled multiphysics}
+Module 6 is expensive because it couples Modules 2--5. Reduction options include staggered coupling, operator splitting, reduced coupling frequency, one-way coupling, lagged coefficient updates, or solving only the dominant feedback loop.
+
+For example, if thermal feedback weakly affects electrostatics but strongly affects defect annealing, the model may keep
+\begin{equation}
+    T \to D_j,k_{\mathrm{ann},j}
+    \label{eq:thermal_to_defect_keep}
+\end{equation}
+while bypassing
+\begin{equation}
+    T \to \phi
+    \label{eq:thermal_to_potential_bypass}
+\end{equation}
+for a specific operating regime. Such decisions must be validated by output impact tests.
+
+\subsection{Module 7 and Module 8 distinction}
+Module 7 is used for scalable prediction, extrapolation, surrogate modeling, and system-level extension. Module 8 defines the physics-selection and reduction logic that decides what information should be passed into those scalable models. In this sense, Module 8 is the decision layer that determines which detailed simulations are worth running and which reduced representations are acceptable.
+
+\section{A practical Module 8 workflow}
+\subsection{Step 1: define outputs and tolerances}
+Choose the output vector \(\bm{y}\), weighting matrix \(W_y\), and tolerance \(\varepsilon_{\mathrm{tol}}\). Without this step, reduction is ill-defined because there is no objective way to decide whether the reduced model is accurate enough.
+
+\subsection{Step 2: run a small reference set}
+Run the most complete feasible model for a small set of representative cases. These cases should cover the regimes that the project cares about: particle type, particle energy, bias, temperature, geometry, and fluence.
+
+\subsection{Step 3: build reduced candidates}
+Construct candidate reductions such as 2D instead of 3D, 1D instead of 2D, lumped scores instead of fields, Fourier instead of ballistic-diffusive thermal transport, reduced defect species, or one-way instead of two-way coupling.
+
+\subsection{Step 4: estimate impact}
+Use ablation, incremental-fidelity comparisons, local sensitivity, global sensitivity, or adjoint sensitivity to compute \(I_m\), \(\Delta I_m\), or equivalent output-impact metrics.
+
+\subsection{Step 5: estimate cost}
+Profile each module and fit cost models such as Eqs.~\eqref{eq:pde_cost_model} and \eqref{eq:mc_cost_model}. Store both measured wall time and scaling estimates.
+
+\subsection{Step 6: compute importance score}
+Compute \(\Pi_m\) or \(\Pi_m^{\mathrm{inc}}\). Keep high-importance components and simplify low-importance expensive components.
+
+\subsection{Step 7: validate the reduced model}
+The reduced model must be checked on cases not used to build it. The final validation condition is
+\begin{equation}
+    \varepsilon_r^{\mathrm{test}}
+    =
+    \frac{\norm{W_y\left(\bm{y}_{\mathrm{ref}}^{\mathrm{test}}-\bm{y}_{r}^{\mathrm{test}}\right)}_2}
+    {\norm{W_y\bm{y}_{\mathrm{ref}}^{\mathrm{test}}}_2+\varepsilon_0}
+    \leq
+    \varepsilon_{\mathrm{tol}}.
+    \label{eq:test_error_condition}
+\end{equation}
+
+\section{What this module should output}
+Module 8 should eventually output a ranked physics-reduction table. A useful table structure is
+\begin{center}
+\begin{tabularx}{0.96\textwidth}{>{\RaggedRight\arraybackslash}p{0.17\textwidth}>{\RaggedRight\arraybackslash}p{0.20\textwidth}>{\RaggedRight\arraybackslash}p{0.18\textwidth}>{\RaggedRight\arraybackslash}p{0.18\textwidth}>{\RaggedRight\arraybackslash}X}
+\toprule
+Component & Candidate reduction & Impact & Cost & Decision \\
+\midrule
+Module 1 source map & Coarsen bins or use depth average & \(I_1\) & \(C_1^{\mathrm{comp}}\) & Keep, coarsen, or tabulate \\
+Module 3 species \(j\) & Aggregate into effective defect & \(I_{C_j}\) & \(C_{C_j}^{\mathrm{comp}}\) & Keep species or combine \\
+Module 4 thermal model & Fourier instead of ballistic-diffusive & \(\Delta I_4\) & \(\Delta C_4^{\mathrm{comp}}\) & Upgrade only if needed \\
+Module 6 coupling loop & Staggered instead of fully coupled & \(I_6\) & \(C_6^{\mathrm{comp}}\) & Reduce coupling frequency if safe \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+This table is the bridge between physics understanding and computational strategy. It makes the reduction decision auditable rather than subjective.
+
+\section{Summary}
+Module 8 provides the reduction logic for RadiationEffects\_proj2. It introduces four central ideas:
+\begin{enumerate}[label=\arabic*.]
+    \item \textbf{Dimensional reduction:} map 3D transport output into 2D fields, then optionally into 1D fields or lumped device scores.
+    \item \textbf{Dominant-path selection:} identify which physical pathways actually control the final device response.
+    \item \textbf{Impact estimation:} quantify how much each module, submodel, species, coupling term, or fidelity upgrade changes the output.
+    \item \textbf{Cost estimation and importance scoring:} estimate compute cost and prioritize components using impact per computational cost.
+\end{enumerate}
+
+The central ranking metric is
+\begin{equation}
+    \boxed{
+    \Pi_m
+    =
+    \frac{\widetilde{I}_m}{\widetilde{C}_m+\varepsilon_0}.
+    }
+\end{equation}
+High-importance physics should be retained or modeled carefully. Low-impact and high-cost physics should be averaged, tabulated, bypassed, or represented by a lumped score, provided conservation laws and output-error tolerances remain satisfied.
+
+\end{document}
