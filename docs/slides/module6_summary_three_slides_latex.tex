@@ -1,0 +1,235 @@
+\documentclass[aspectratio=169,9pt]{beamer}
+
+\usetheme{default}
+\usefonttheme{professionalfonts}
+\setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{footline}{\hfill\scriptsize\insertframenumber/3\hspace{2mm}\vspace{1mm}}
+
+\usepackage{amsmath,amssymb,bm,mathtools}
+\usepackage{xcolor}
+\usepackage[most]{tcolorbox}
+
+\definecolor{deepblue}{RGB}{0,70,150}
+\definecolor{softblue}{RGB}{232,242,255}
+\definecolor{softgreen}{RGB}{235,250,238}
+\definecolor{softorange}{RGB}{255,245,230}
+\definecolor{softpurple}{RGB}{245,238,255}
+\definecolor{darkred}{RGB}{160,35,25}
+\definecolor{darkgreen}{RGB}{20,120,60}
+\definecolor{darkpurple}{RGB}{95,45,150}
+
+\setbeamerfont{frametitle}{series=\bfseries,size=\Large}
+\setbeamercolor{frametitle}{fg=black}
+\setbeamertemplate{itemize item}{\color{deepblue}$\blacktriangleright$}
+\setlength{\abovedisplayskip}{2pt}
+\setlength{\belowdisplayskip}{2pt}
+\setlength{\jot}{1pt}
+
+\newtcolorbox{bluebox}[1][]{colback=softblue,colframe=deepblue,boxrule=0.75pt,arc=1.4mm,left=1.3mm,right=1.3mm,top=0.8mm,bottom=0.8mm,#1}
+\newtcolorbox{greenbox}[1][]{colback=softgreen,colframe=darkgreen,boxrule=0.75pt,arc=1.4mm,left=1.3mm,right=1.3mm,top=0.8mm,bottom=0.8mm,#1}
+\newtcolorbox{orangebox}[1][]{colback=softorange,colframe=darkred,boxrule=0.75pt,arc=1.4mm,left=1.3mm,right=1.3mm,top=0.8mm,bottom=0.8mm,#1}
+\newtcolorbox{purplebox}[1][]{colback=softpurple,colframe=darkpurple,boxrule=0.75pt,arc=1.4mm,left=1.3mm,right=1.3mm,top=0.8mm,bottom=0.8mm,#1}
+
+\newcommand{\Uvec}{\bm{U}}
+\newcommand{\Fvec}{\bm{F}}
+\newcommand{\Cvec}{\bm{C}}
+\newcommand{\Evec}{\bm{E}}
+\newcommand{\Jvec}{\bm{J}}
+\newcommand{\Jn}{\bm{J}_n}
+\newcommand{\Jp}{\bm{J}_p}
+\newcommand{\qrad}{\dot{q}_{\mathrm{rad}}}
+\newcommand{\qth}{\dot{q}_{\mathrm{th}}}
+\newcommand{\grad}{\nabla}
+\newcommand{\diverg}{\nabla\!\cdot}
+\newcommand{\epss}{\varepsilon_s}
+\newcommand{\rhom}{\rho_m}
+\newcommand{\cp}{c_p}
+
+\begin{document}
+
+% -----------------------------------------------------------------------------
+\begin{frame}{Module 6: one coupled state, four interacting maps}
+\footnotesize
+
+\begin{bluebox}
+\centering\small
+\textbf{Goal:} solve defect concentration, electrostatic potential, temperature, and carrier transport as one self-consistent device problem.
+\end{bluebox}
+
+\vspace{1.2mm}
+\begin{columns}[T,totalwidth=\textwidth]
+\begin{column}{0.46\textwidth}
+\textbf{Coupled state vector}
+\begin{equation*}
+\boxed{
+\Uvec(x,y,t)=
+\begin{bmatrix}
+C_1,\ldots,C_N,\phi,T,n,p
+\end{bmatrix}^{T}}
+\end{equation*}
+\small
+Here, \(C_j\) are defect concentrations, \(\phi\) is electrostatic potential, \(T\) is temperature, and \(n,p\) are carrier densities.
+
+\vspace{1.5mm}
+\begin{purplebox}
+\textbf{Core idea:} each map is both an output and an input. Defects, fields, heat, and carriers change the coefficients and source terms of one another.
+\end{purplebox}
+\end{column}
+
+\begin{column}{0.52\textwidth}
+\textbf{Physics blocks embedded in Module 6}
+\begin{bluebox}
+\scriptsize
+\begin{align*}
+\frac{\partial C_j}{\partial t}
+&=\diverg(D_j\grad C_j)-\diverg(\mu_j z_j q C_j\Evec)+R_j+S_j,\\
+\diverg(\epss\grad\phi)&=-\rho,\qquad \Evec=-\grad\phi,\\
+\rhom\cp\frac{\partial T}{\partial t}
+&=\diverg(k\grad T)+Q_{\mathrm{tot}},\\
+\frac{\partial n}{\partial t}
+&=\frac{1}{q}\diverg\Jn+G-R,\qquad
+\frac{\partial p}{\partial t}=-\frac{1}{q}\diverg\Jp+G-R.
+\end{align*}
+\end{bluebox}
+\small
+These are Modules 2--5 written on the same 2D domain with shared fields and consistent source terms.
+\end{column}
+\end{columns}
+
+\vspace{1.2mm}
+\begin{orangebox}
+\centering\scriptsize
+\textbf{Module 6 is the coupling layer:} it prevents stale fields, inconsistent signs, and one-way assumptions from contaminating the final device prediction.
+\end{orangebox}
+\end{frame}
+
+% -----------------------------------------------------------------------------
+\begin{frame}{Module 6: feedback loops and coupling terms}
+\footnotesize
+
+\begin{bluebox}
+\centering\small
+Radiation damage enters through source terms, but degradation emerges from feedback among space charge, heat, mobility, recombination, and current.
+\end{bluebox}
+
+\vspace{1.2mm}
+\begin{columns}[T,totalwidth=\textwidth]
+\begin{column}{0.48\textwidth}
+\textbf{Defects and carriers perturb electrostatics}
+\begin{bluebox}
+\scriptsize
+\[
+\rho=q\left[p-n+N_D^+-N_A^-+
+\sum_{j=1}^{N}z_jC_j\right]
+\]
+\[
+\diverg(\epss\grad\phi)=-\rho,
+\qquad \Evec=-\grad\phi
+\]
+\end{bluebox}
+\small
+Charged defects enter the same charge-density budget as dopants and mobile carriers, so a defect cloud bends \(\phi\) and \(\Evec\).
+
+\vspace{1mm}
+\textbf{Temperature changes kinetic coefficients}
+\begin{orangebox}
+\scriptsize
+\begin{align*}
+D_j(T)&=D_{j0}\exp\!\left(-\frac{E_{D,j}}{k_BT}\right),\\[-1mm]
+k_{\mathrm{ann},j}(T)&=k_{0,j}\exp\!\left(-\frac{E_{A,j}}{k_BT}\right).
+\end{align*}
+\end{orangebox}
+\end{column}
+
+\begin{column}{0.50\textwidth}
+\textbf{Defects modify transport and recombination}
+\begin{greenbox}
+\scriptsize
+\[
+\mu_n(T,\Cvec)=\frac{\mu_{n0}(T)}{1+\sum_j\alpha_{n,j}C_j},
+\qquad
+\mu_p(T,\Cvec)=\frac{\mu_{p0}(T)}{1+\sum_j\alpha_{p,j}C_j}
+\]
+\[
+N_t(x,y,t)=\sum_j\eta_j C_j(x,y,t)
+\]
+\[
+R_{\mathrm{SRH}}=
+\frac{np-n_i^2}{\tau_p(n+n_1)+\tau_n(p+p_1)}
+\]
+\end{greenbox}
+
+\vspace{0.5mm}
+\textbf{Carrier transport feeds heat}
+\begin{purplebox}
+\scriptsize
+\[
+Q_{\mathrm{tot}}=\qth+\Jvec\!\cdot\!\Evec+Q_{\mathrm{rec}}+Q_{\mathrm{def}}+Q_{\mathrm{ext}}
+\]
+\end{purplebox}
+\end{column}
+\end{columns}
+
+\vspace{1.1mm}
+\begin{greenbox}
+\centering\scriptsize
+\(\qrad \rightarrow C_j,T,n,p \rightarrow \rho,\phi,\Evec \rightarrow \Jn,\Jp,R,Q_{\mathrm{tot}} \rightarrow T,C_j,n,p\). This closed loop is the physical reason Module 6 exists.
+\end{greenbox}
+\end{frame}
+
+% -----------------------------------------------------------------------------
+\begin{frame}{Module 6: FEM residuals, staged coupling, and outputs}
+\scriptsize
+
+\begin{bluebox}
+\centering
+The computational problem is a coupled PDE/DAE-like residual system: time-dependent defect, thermal, and carrier equations constrained by instantaneous Poisson electrostatics.
+\end{bluebox}
+
+\vspace{1mm}
+\begin{columns}[T,totalwidth=\textwidth]
+\begin{column}{0.54\textwidth}
+\textbf{Monolithic residual form}
+\begin{equation*}
+\boxed{
+\Fvec\!\left(\Uvec,\frac{\partial\Uvec}{\partial t};\qrad,\mathrm{BCs},\mathrm{params}\right)=\bm{0}}
+\end{equation*}
+\begin{align*}
+F_{C_j}&=\partial_t C_j-\diverg(D_j\grad C_j)+\diverg(\mu_jz_jqC_j\Evec)-R_j-S_j,\\
+F_{\phi}&=\diverg(\epss\grad\phi)+\rho,\\
+F_T&=\rhom\cp\partial_tT-\diverg(k\grad T)-Q_{\mathrm{tot}},\\
+F_n&=\partial_t n-\frac{1}{q}\diverg\Jn-G+R,\\
+F_p&=\partial_t p+\frac{1}{q}\diverg\Jp-G+R.
+\end{align*}
+\begin{orangebox}
+\textbf{FEM role:} convert each residual to weak form; carry \(C_j,\phi,T,n,p\) on the same mesh or compatible interpolated meshes.
+\end{orangebox}
+\end{column}
+
+\begin{column}{0.44\textwidth}
+\textbf{First implementation: staggered fixed-point solve}
+\begin{enumerate}\itemsep0.4mm
+\item update \(C_j^{m+1}\) using \(T^m,\Evec^m,n^m,p^m\),
+\item update \(\phi^{m+1}\) from \(\rho(C_j,n,p)\),
+\item update \(T^{m+1}\) from \(Q_{\mathrm{tot}}\),
+\item update \(n^{m+1},p^{m+1}\) from \(\Evec,T,C_j\),
+\item iterate until field changes are small.
+\end{enumerate}
+\[
+\boxed{\frac{\|\Uvec^{(r+1)}-\Uvec^{(r)}\|}{\|\Uvec^{(r)}\|+\epsilon}<\mathrm{tol}}
+\]
+
+\vspace{0.5mm}
+\textbf{Device-level outputs}
+\[
+\boxed{I_{\mathrm{term}}=\int_{\Gamma_{\mathrm{contact}}}(\Jn+\Jp)\cdot\bm{n}\,d\Gamma}
+\]
+\[
+\boxed{y_{\mathrm{device}}=\mathcal{G}(I,V_{\mathrm{th}},Q_{\mathrm{coll}},I_{\mathrm{leak}},\ldots)}
+\]
+These observables feed Module 8 scoring and dominant-path reduction.
+\end{column}
+\end{columns}
+\end{frame}
+
+\end{document}

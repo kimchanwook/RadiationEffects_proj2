@@ -1,0 +1,138 @@
+\documentclass[aspectratio=169,10pt]{beamer}
+
+\usetheme{default}
+\usefonttheme{professionalfonts}
+\setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{footline}{\hfill\scriptsize\insertframenumber/\inserttotalframenumber\hspace{2mm}\vspace{1mm}}
+
+\usepackage{amsmath,amssymb,bm}
+\usepackage{mathtools}
+\usepackage{xcolor}
+\usepackage[most]{tcolorbox}
+
+\definecolor{deepblue}{RGB}{0,70,150}
+\definecolor{softblue}{RGB}{232,242,255}
+\definecolor{softgreen}{RGB}{235,250,238}
+\definecolor{softorange}{RGB}{255,245,230}
+\definecolor{darkred}{RGB}{160,35,25}
+\definecolor{darkgreen}{RGB}{20,120,60}
+
+\setbeamerfont{frametitle}{series=\bfseries,size=\Large}
+\setbeamercolor{frametitle}{fg=black}
+\setbeamertemplate{itemize item}{\color{deepblue}$\blacktriangleright$}
+\setlength{\abovedisplayskip}{3pt}
+\setlength{\belowdisplayskip}{3pt}
+
+\newtcolorbox{bluebox}[1][]{colback=softblue,colframe=deepblue,boxrule=0.8pt,arc=1.5mm,left=1.5mm,right=1.5mm,top=0.8mm,bottom=0.8mm,#1}
+\newtcolorbox{greenbox}[1][]{colback=softgreen,colframe=darkgreen,boxrule=0.8pt,arc=1.5mm,left=1.5mm,right=1.5mm,top=0.8mm,bottom=0.8mm,#1}
+\newtcolorbox{orangebox}[1][]{colback=softorange,colframe=darkred,boxrule=0.8pt,arc=1.5mm,left=1.5mm,right=1.5mm,top=0.8mm,bottom=0.8mm,#1}
+
+\begin{document}
+
+\begin{frame}{Module 1: Convert particle transport into source maps}
+\small
+\vspace{-2mm}
+\begin{bluebox}
+\centering\small
+\textbf{Goal:} convert microscopic Geant4 transport events into continuum source terms for the later 2D multiphysics modules.
+\end{bluebox}
+
+\vspace{1mm}
+\begin{columns}[T,totalwidth=\textwidth]
+\begin{column}{0.50\textwidth}
+\textbf{Continuum definition}
+\begin{equation*}
+\boxed{\dot{q}_{\mathrm{rad}}(\bm r,t)=\frac{\partial E_{\mathrm{dep}}}{\partial V\,\partial t}}
+\end{equation*}
+\small
+\begin{itemize}\setlength\itemsep{0.5mm}
+\item \(\dot{q}_{\mathrm{rad}}\): radiation-induced volumetric energy-deposition rate.
+\item Units: \(\mathrm{W/m^3}=\mathrm{J/(m^3s)}\).
+\item It is an \emph{initial forcing map}, not automatically all heat.
+\end{itemize}
+\end{column}
+
+\begin{column}{0.48\textwidth}
+\textbf{Scored mesh / histogram form}
+\begin{equation*}
+\boxed{\dot{q}_{\mathrm{rad},i}\approx
+\frac{1}{\Delta V_i\Delta t}\sum_{k\in i}E_{\mathrm{dep},k}}
+\end{equation*}
+\small
+\begin{itemize}\setlength\itemsep{0.5mm}
+\item \(i\): mesh cell or scoring bin.
+\item \(E_{\mathrm{dep},k}\): energy deposited by step/event \(k\).
+\item \(\Delta V_i\), \(\Delta t\): cell volume and scoring time window.
+\end{itemize}
+\end{column}
+\end{columns}
+
+\vspace{1mm}
+\begin{orangebox}
+\centering\small
+Downstream partition:
+\[
+\dot{q}_{\mathrm{rad}}(\bm r,t)\rightarrow
+\left\{\dot{q}_{\mathrm{th}}(\bm r,t),\;G_{eh}(\bm r,t),\;G_j(\bm r,t)\right\},
+\]
+where \(\dot{q}_{\mathrm{th}}\) is thermalized heating, \(G_{eh}\) is electron-hole generation, and \(G_j\) is defect generation.
+\end{orangebox}
+\end{frame}
+
+\begin{frame}{Module 1: Map 3D Geant4 scoring to the 2D project model}
+\small
+\vspace{-2mm}
+\begin{bluebox}
+\centering\small
+The project keeps in-plane device coordinates \((x,y)\) and collapses the out-of-plane/depth direction \(z\) by averaging.
+\end{bluebox}
+
+\vspace{1mm}
+\begin{columns}[T,totalwidth=\textwidth]
+\begin{column}{0.52\textwidth}
+\textbf{Depth-averaged 2D source}
+\begin{equation*}
+\boxed{
+\dot{q}_{\mathrm{rad}}^{xy}(x,y,t)
+=\frac{1}{L_z}\int_{z_{\min}}^{z_{\max}}
+\dot{q}_{\mathrm{rad}}(x,y,z,t)\,dz}
+\end{equation*}
+\small
+\begin{itemize}\setlength\itemsep{0.5mm}
+\item \(L_z=z_{\max}-z_{\min}\): collapsed depth.
+\item Units remain \(\mathrm{W/m^3}\), so the result can enter 2D PDEs as a volumetric source.
+\end{itemize}
+\end{column}
+
+\begin{column}{0.46\textwidth}
+\textbf{Binned 3D histogram reduction}
+\begin{equation*}
+\boxed{
+\dot{q}_{\mathrm{rad},ij}^{xy}(t)
+=\frac{1}{L_z}\sum_k\dot{q}_{\mathrm{rad},ijk}(t)\Delta z_k}
+\end{equation*}
+\small
+For uniform depth bins,
+\begin{equation*}
+\boxed{
+\dot{q}_{\mathrm{rad},ij}^{xy}(t)
+=\frac{1}{N_z}\sum_{k=1}^{N_z}\dot{q}_{\mathrm{rad},ijk}(t)}
+\end{equation*}
+\end{column}
+\end{columns}
+
+\vspace{1mm}
+\begin{greenbox}
+\small
+\textbf{Preserves:} average cross-sectional forcing seen by Modules 2--6.\quad
+\textbf{Loses:} out-of-plane localization, peak 3D hot spots, and event-to-event asymmetry in \(z\).
+\end{greenbox}
+
+\vspace{1mm}
+\begin{orangebox}
+\centering\small
+Downstream forcing: \(\dot{q}_{\mathrm{rad}}^{xy}\rightarrow\{G_j,\dot{q}_{\mathrm{th}},G_{eh}\}\rightarrow\{C_j,T,\phi,n,p,\bm J_n,\bm J_p,y_{\mathrm{device}}\}\).
+\end{orangebox}
+\end{frame}
+
+\end{document}

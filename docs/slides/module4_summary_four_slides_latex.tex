@@ -1,0 +1,282 @@
+\documentclass[aspectratio=169,9pt]{beamer}
+
+\usetheme{default}
+\usefonttheme{professionalfonts}
+\setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{footline}{\hfill\scriptsize\insertframenumber/\inserttotalframenumber\hspace{2mm}\vspace{1mm}}
+
+\usepackage{amsmath,amssymb,bm,mathtools}
+\usepackage{xcolor}
+\usepackage[most]{tcolorbox}
+
+\definecolor{deepblue}{RGB}{0,70,150}
+\definecolor{softblue}{RGB}{232,242,255}
+\definecolor{softgreen}{RGB}{235,250,238}
+\definecolor{softorange}{RGB}{255,245,230}
+\definecolor{softpurple}{RGB}{245,238,255}
+\definecolor{darkred}{RGB}{160,35,25}
+\definecolor{darkgreen}{RGB}{20,120,60}
+\definecolor{darkpurple}{RGB}{95,45,150}
+
+\setbeamerfont{frametitle}{series=\bfseries,size=\Large}
+\setbeamercolor{frametitle}{fg=black}
+\setbeamertemplate{itemize item}{\color{deepblue}$\blacktriangleright$}
+\setlength{\abovedisplayskip}{3pt}
+\setlength{\belowdisplayskip}{3pt}
+\setlength{\jot}{1pt}
+
+\newtcolorbox{bluebox}[1][]{colback=softblue,colframe=deepblue,boxrule=0.8pt,arc=1.5mm,left=1.5mm,right=1.5mm,top=0.8mm,bottom=0.8mm,#1}
+\newtcolorbox{greenbox}[1][]{colback=softgreen,colframe=darkgreen,boxrule=0.8pt,arc=1.5mm,left=1.5mm,right=1.5mm,top=0.8mm,bottom=0.8mm,#1}
+\newtcolorbox{orangebox}[1][]{colback=softorange,colframe=darkred,boxrule=0.8pt,arc=1.5mm,left=1.5mm,right=1.5mm,top=0.8mm,bottom=0.8mm,#1}
+\newtcolorbox{purplebox}[1][]{colback=softpurple,colframe=darkpurple,boxrule=0.8pt,arc=1.5mm,left=1.5mm,right=1.5mm,top=0.8mm,bottom=0.8mm,#1}
+
+\newcommand{\rvec}{\bm{r}}
+\newcommand{\vvec}{\bm{v}}
+\newcommand{\qvec}{\bm{q}}
+\newcommand{\qrad}{\dot{q}_{\mathrm{rad}}}
+\newcommand{\qth}{\dot{q}_{\mathrm{th}}}
+\newcommand{\mfp}{\lambda}
+\newcommand{\Kn}{\mathrm{Kn}}
+\newcommand{\dd}{\,\mathrm{d}}
+
+\begin{document}
+
+\begin{frame}{Module 4: Thermal response after radiation energy deposition}
+\footnotesize
+\vspace{-4mm}
+\begin{bluebox}
+\centering\small
+\textbf{Goal:} convert the thermalized part of radiation energy deposition into a transient temperature/energy map while retaining finite carrier flight and nonlocal boundary memory.
+\end{bluebox}
+
+\vspace{1mm}
+\begin{columns}[T,totalwidth=\textwidth]
+\begin{column}{0.50\textwidth}
+\textbf{Macroscopic energy balance}
+\begin{equation*}
+\boxed{\frac{\partial u}{\partial t}+\nabla\cdot\qvec=\qth}
+\end{equation*}
+\begin{equation*}
+\boxed{u\simeq C T},\qquad
+\boxed{C\frac{\partial T}{\partial t}+\nabla\cdot\qvec=\qth}
+\end{equation*}
+\small
+Here \(C\) is volumetric heat capacity and \(\qth\) is the energy that has actually thermalized into heat carriers.
+
+\vspace{1mm}
+\begin{equation*}
+\boxed{\qth(x,y,t)=\eta_{\mathrm{th}}\,\qrad^{2D}(x,y,t)+Q_{\mathrm{device}}}
+\end{equation*}
+\small
+\(\eta_{\mathrm{th}}\) is the thermalization fraction; \(Q_{\mathrm{device}}\) may include Joule heating or recombination heating.
+\end{column}
+
+\begin{column}{0.48\textwidth}
+\textbf{Why not use Fourier everywhere?}
+\begin{equation*}
+\boxed{\qvec=-k\nabla T}
+\qquad\Rightarrow\qquad
+\boxed{C\frac{\partial T}{\partial t}=\nabla\cdot(k\nabla T)+\qth}
+\end{equation*}
+\small
+Fourier conduction assumes local equilibrium and many carrier collisions over the length scale of interest.
+
+\vspace{1mm}
+\begin{equation*}
+\boxed{\Kn=\frac{\mfp}{L}}
+\end{equation*}
+\begin{itemize}\setlength\itemsep{0.25mm}
+\item \(\Kn\ll 1\): diffusive, Fourier limit.
+\item \(\Kn\sim 0.1-1\): quasi-ballistic, finite-flight and boundary memory matter.
+\item \(\Kn\gtrsim 1\): ballistic carriers cross device-scale distances before scattering.
+\end{itemize}
+\end{column}
+\end{columns}
+
+\vspace{1mm}
+\begin{orangebox}
+\centering\scriptsize
+\textbf{Module handoff:} Module 1 provides \(\qrad^{2D}\); Module 4 predicts \(T(x,y,t)\) and thermal gradients that feed defect kinetics, mobility, recombination, and Module 6 coupling.
+\end{orangebox}
+\end{frame}
+
+\begin{frame}{Module 4: Microscopic carrier picture and BTE starting point}
+\footnotesize
+\vspace{-4mm}
+\begin{bluebox}
+\centering\small
+Heat is carried by microscopic excitations.  In silicon, phonons dominate lattice heat transport; energetic electrons/holes may also carry energy before thermalization.
+\end{bluebox}
+
+\vspace{1mm}
+\begin{columns}[T,totalwidth=\textwidth]
+\begin{column}{0.50\textwidth}
+\textbf{Boltzmann transport equation}
+\begin{equation*}
+\boxed{\frac{\partial f}{\partial t}+\vvec\cdot\nabla_{\rvec}f
+=\left(\frac{\partial f}{\partial t}\right)_{\mathrm{coll}}+S_f}
+\end{equation*}
+\small
+In the relaxation-time approximation,
+\begin{equation*}
+\boxed{\left(\frac{\partial f}{\partial t}\right)_{\mathrm{coll}}
+=-\frac{f-f_0}{\tau}}
+\end{equation*}
+where \(f\) is the carrier distribution, \(f_0\) is local equilibrium, and \(\tau\) is the scattering time.
+
+\vspace{1mm}
+\begin{equation*}
+\boxed{\mfp=v\tau}
+\end{equation*}
+\small
+The mean free path \(\mfp\) sets the distance over which the carrier retains memory of its origin.
+\end{column}
+
+\begin{column}{0.48\textwidth}
+\textbf{Ballistic--diffusive split}
+\begin{equation*}
+\boxed{f=f_b+f_m}
+\end{equation*}
+\begin{itemize}\setlength\itemsep{0.25mm}
+\item \(f_b\): boundary-originating or unscattered ballistic component.
+\item \(f_m\): medium/scattered component that relaxes toward local equilibrium.
+\end{itemize}
+
+\vspace{1mm}
+For a carrier traveling along ray coordinate \(s\), the ballistic part has the schematic characteristic solution
+\begin{equation*}
+\boxed{f_b(s,t)\sim f_b(s_0,t-\Delta t)\,
+\exp\!\left[-\frac{s-s_0}{\mfp}\right]}
+\end{equation*}
+\small
+This expresses two physical effects: finite travel time \(\Delta t\) and attenuation by scattering over distance \(s-s_0\).
+\end{column}
+\end{columns}
+
+\vspace{1mm}
+\begin{purplebox}
+\centering\scriptsize
+\textbf{Physical interpretation:} temperature is not purely local immediately after radiation deposition.  Some carriers remember where they were emitted and where they scattered before joining the diffusive thermal bath.
+\end{purplebox}
+\end{frame}
+
+\begin{frame}{Module 4: Reduced ballistic--diffusive thermal equations}
+\footnotesize
+\vspace{-4mm}
+\begin{bluebox}
+\centering\small
+The reduced model keeps the computational structure of a heat equation but adds nonlocal forcing from ballistic carriers.
+\end{bluebox}
+
+\vspace{1mm}
+\begin{columns}[T,totalwidth=\textwidth]
+\begin{column}{0.50\textwidth}
+\textbf{Energy and flux decomposition}
+\begin{equation*}
+\boxed{u=u_b+u_m},\qquad
+\boxed{\qvec=\qvec_b+\qvec_m}
+\end{equation*}
+\small
+\(u_b,\qvec_b\) represent ballistic carrier energy and flux.  \(u_m,\qvec_m\) represent the scattered medium part.
+
+\vspace{1mm}
+The total energy balance becomes
+\begin{equation*}
+\boxed{\frac{\partial (u_b+u_m)}{\partial t}
++\nabla\cdot(\qvec_b+\qvec_m)=\qth}
+\end{equation*}
+\small
+The medium/scattered part is closed diffusively:
+\begin{equation*}
+\boxed{\qvec_m=-k\nabla T_m},\qquad
+\boxed{u_m=C T_m}
+\end{equation*}
+\end{column}
+
+\begin{column}{0.48\textwidth}
+\textbf{Effective PDE solved on the 2D domain}
+\begin{equation*}
+\boxed{C\frac{\partial T_m}{\partial t}
+=\nabla\cdot(k\nabla T_m)
+-\nabla\cdot\qvec_b
++\qth
+-\frac{\partial u_b}{\partial t}}
+\end{equation*}
+\small
+The extra terms are the ballistic correction:
+\begin{itemize}\setlength\itemsep{0.25mm}
+\item \(-\nabla\cdot\qvec_b\): nonlocal carrier energy entering/leaving a point.
+\item \(-\partial u_b/\partial t\): energy stored temporarily in ballistic carriers.
+\item \(\qth\): local thermalized energy input from radiation/device physics.
+\end{itemize}
+
+\vspace{1mm}
+A measured equivalent temperature may be approximated by
+\begin{equation*}
+\boxed{T_{\mathrm{eq}}\simeq \frac{u_b+u_m}{C}}
+\end{equation*}
+\end{column}
+\end{columns}
+
+\vspace{1mm}
+\begin{greenbox}
+\centering\scriptsize
+\textbf{Limit check:} if \(u_b\to0\) and \(\qvec_b\to0\), Module 4 reduces to the ordinary 2D heat equation.
+\end{greenbox}
+\end{frame}
+
+\begin{frame}{Module 4: FEM form, coupling, and project outputs}
+\footnotesize
+\vspace{-4mm}
+\begin{bluebox}
+\centering\small
+For the project implementation, Module 4 is a 2D thermal solve driven by radiation deposition and corrected by ballistic/nonlocal energy transport.
+\end{bluebox}
+
+\vspace{1mm}
+\begin{columns}[T,totalwidth=\textwidth]
+\begin{column}{0.50\textwidth}
+\textbf{Weak form for the medium temperature}
+\begin{equation*}
+\boxed{
+\begin{aligned}
+&\int_\Omega C\frac{\partial T_m}{\partial t}w\,\dd\Omega
++\int_\Omega k\nabla T_m\cdot\nabla w\,\dd\Omega \\
+&\qquad =\int_\Omega S_{\mathrm{eff}}w\,\dd\Omega
++\int_{\Gamma_q}\bar q\,w\,\dd\Gamma
+\end{aligned}}
+\end{equation*}
+\begin{equation*}
+\boxed{S_{\mathrm{eff}}=\qth-\nabla\cdot\qvec_b-\frac{\partial u_b}{\partial t}}
+\end{equation*}
+\small
+\(w\) is a test function, \(\Omega\) is the 2D device domain, and \(\Gamma_q\) is a heat-flux boundary.
+\end{column}
+
+\begin{column}{0.48\textwidth}
+\textbf{Couplings to the rest of RadiationEffects\_proj2}
+\begin{align*}
+\text{Module 1:}\quad & \qrad^{2D}\rightarrow \qth,\\[-0.5mm]
+\text{Module 3:}\quad & T\rightarrow D_j(T),\; k_{\mathrm{ann},j}(T),\\[-0.5mm]
+\text{Module 5:}\quad & T\rightarrow \mu_n(T),\mu_p(T),R_{\mathrm{SRH}}(T),\\[-0.5mm]
+\text{Module 6:}\quad & T,\phi,C_j,n,p \;\text{solved self-consistently.}
+\end{align*}
+\small
+
+\textbf{Outputs}
+\begin{equation*}
+\boxed{T(x,y,t)},\qquad
+\boxed{\nabla T(x,y,t)},\qquad
+\boxed{S_{\mathrm{eff}}(x,y,t)}
+\end{equation*}
+\end{column}
+\end{columns}
+
+\vspace{1mm}
+\begin{orangebox}
+\centering\scriptsize
+\textbf{Core message:} Module 4 replaces a purely local heat-smearing picture with a thermal model that can retain finite carrier flight, scattering, and boundary memory while remaining compatible with FEM-based multiphysics integration.
+\end{orangebox}
+\end{frame}
+
+\end{document}

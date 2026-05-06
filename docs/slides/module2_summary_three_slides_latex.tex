@@ -1,0 +1,202 @@
+\documentclass[aspectratio=169,9pt]{beamer}
+
+\usetheme{default}
+\usefonttheme{professionalfonts}
+\setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{footline}{\hfill\scriptsize\insertframenumber/\inserttotalframenumber\hspace{2mm}\vspace{1mm}}
+
+\usepackage{amsmath,amssymb,bm,mathtools}
+\usepackage{xcolor}
+\usepackage[most]{tcolorbox}
+
+\definecolor{deepblue}{RGB}{0,70,150}
+\definecolor{softblue}{RGB}{232,242,255}
+\definecolor{softgreen}{RGB}{235,250,238}
+\definecolor{softorange}{RGB}{255,245,230}
+\definecolor{softpurple}{RGB}{245,238,255}
+\definecolor{darkred}{RGB}{160,35,25}
+\definecolor{darkgreen}{RGB}{20,120,60}
+\definecolor{darkpurple}{RGB}{95,45,150}
+
+\setbeamerfont{frametitle}{series=\bfseries,size=\Large}
+\setbeamercolor{frametitle}{fg=black}
+\setbeamertemplate{itemize item}{\color{deepblue}$\blacktriangleright$}
+\setlength{\abovedisplayskip}{3pt}
+\setlength{\belowdisplayskip}{3pt}
+\setlength{\jot}{1pt}
+
+\newtcolorbox{bluebox}[1][]{colback=softblue,colframe=deepblue,boxrule=0.8pt,arc=1.5mm,left=1.5mm,right=1.5mm,top=0.8mm,bottom=0.8mm,#1}
+\newtcolorbox{greenbox}[1][]{colback=softgreen,colframe=darkgreen,boxrule=0.8pt,arc=1.5mm,left=1.5mm,right=1.5mm,top=0.8mm,bottom=0.8mm,#1}
+\newtcolorbox{orangebox}[1][]{colback=softorange,colframe=darkred,boxrule=0.8pt,arc=1.5mm,left=1.5mm,right=1.5mm,top=0.8mm,bottom=0.8mm,#1}
+\newtcolorbox{purplebox}[1][]{colback=softpurple,colframe=darkpurple,boxrule=0.8pt,arc=1.5mm,left=1.5mm,right=1.5mm,top=0.8mm,bottom=0.8mm,#1}
+
+\newcommand{\Evec}{\bm{E}}
+\newcommand{\Dvec}{\bm{D}}
+\newcommand{\nvec}{\bm{n}}
+\newcommand{\xvec}{\bm{x}}
+\newcommand{\epsSi}{\varepsilon_{\mathrm{Si}}}
+\newcommand{\rhoDef}{\rho_{\mathrm{def}}}
+\newcommand{\OmegaD}{\Omega}
+
+\begin{document}
+
+\begin{frame}{Module 2: Electrostatic map from radiation-induced charge}
+\footnotesize
+\vspace{-4mm}
+\begin{bluebox}
+\centering\small
+\textbf{Goal:} convert dopants, mobile carriers, and charged radiation-induced defects into \(\phi(x,y,t)\) and \(\Evec(x,y,t)\).
+\end{bluebox}
+
+\vspace{1mm}
+\begin{columns}[T,totalwidth=\textwidth]
+\begin{column}{0.49\textwidth}
+\textbf{Electrostatic core}
+\begin{align*}
+\boxed{\nabla\cdot\Dvec=\rho},\qquad
+\boxed{\Dvec=\varepsilon\Evec},\qquad
+\boxed{\Evec=-\nabla\phi}
+\end{align*}
+\begin{equation*}
+\boxed{\nabla\cdot\left(\varepsilon\nabla\phi\right)=-\rho}
+\end{equation*}
+\small
+This is the Poisson equation solved by Module 2.  Radiation does not directly appear as an electric field source; it appears through the charge density \(\rho\).
+\end{column}
+
+\begin{column}{0.49\textwidth}
+\textbf{Space charge in irradiated silicon}
+\begin{equation*}
+\boxed{\rho=q\left(p-n+N_D^+-N_A^-\right)+\rhoDef}
+\end{equation*}
+\begin{equation*}
+\boxed{\rhoDef=q\sum_{j=1}^{M} z_j C_j}
+\end{equation*}
+\small
+\begin{itemize}\setlength\itemsep{0.2mm}
+\item \(p,n\): mobile hole and electron densities.
+\item \(N_D^+,N_A^-\): ionized donors and acceptors.
+\item \(C_j,z_j\): concentration and charge number of defect species \(j\).
+\end{itemize}
+\end{column}
+\end{columns}
+
+\vspace{1mm}
+\begin{orangebox}
+\centering\scriptsize
+\textbf{Module handoff:} \(C_j(x,y,t)\) from Module 3 changes \(\rho(x,y,t)\), which bends \(\phi\) and \(\Evec\), which then steers carrier transport in Module 5.
+\end{orangebox}
+\end{frame}
+
+\begin{frame}{Module 2: Defect charge perturbs depletion and junction fields}
+\footnotesize
+\vspace{-4mm}
+\begin{bluebox}
+\centering\small
+A charged defect map behaves like an additional space-charge distribution inside the device, shifting depletion structure and local junction fields.
+\end{bluebox}
+
+\vspace{1mm}
+\begin{columns}[T,totalwidth=\textwidth]
+\begin{column}{0.50\textwidth}
+\textbf{Baseline plus radiation perturbation}
+\begin{align*}
+\phi &= \phi_0+\delta\phi,\qquad \rho=\rho_0+\delta\rho,\\[-0.5mm]
+\delta\rho &= q\left(\delta p-\delta n+\sum_j z_j\delta C_j\right).
+\end{align*}
+For constant \(\varepsilon=\epsSi\), the perturbation obeys
+\begin{equation*}
+\boxed{\nabla^2\delta\phi=-\frac{\delta\rho}{\epsSi}}
+\end{equation*}
+\begin{equation*}
+\boxed{\delta\Evec=-\nabla\delta\phi}
+\end{equation*}
+\small
+Positive defect charge pulls field lines inward; negative defect charge reverses the local bending direction.
+\end{column}
+
+\begin{column}{0.48\textwidth}
+\textbf{2D project equation}
+\begin{equation*}
+\boxed{
+\frac{\partial^2\phi}{\partial x^2}
++\frac{\partial^2\phi}{\partial y^2}
+=-\frac{q}{\epsSi}
+\left[p-n+N_D^+-N_A^-+\sum_j z_j C_j\right]}
+\end{equation*}
+\small
+\begin{itemize}\setlength\itemsep{0.2mm}
+\item Charged traps alter the local electrostatic landscape.
+\item The depletion boundary shifts because the local net space charge changes.
+\item Neutral defects do not enter \(\rho\) directly, but still affect Module 5 through mobility loss and recombination.
+\end{itemize}
+\end{column}
+\end{columns}
+
+\vspace{1mm}
+\begin{purplebox}
+\scriptsize
+\textbf{Physical interpretation:} Module 2 is the bridge from material damage to field distortion: defect charge modifies the internal electric field even before solving carrier transport.
+\end{purplebox}
+\end{frame}
+
+\begin{frame}{Module 2: FEM weak form, boundary conditions, and outputs}
+\footnotesize
+\vspace{-4mm}
+\begin{bluebox}
+\centering\small
+The numerical task is a 2D FEM Poisson solve with material regions, contacts, oxide interfaces, and defect-dependent charge density.
+\end{bluebox}
+
+\vspace{1mm}
+\begin{columns}[T,totalwidth=\textwidth]
+\begin{column}{0.50\textwidth}
+\textbf{Weak form for finite elements}
+\begin{equation*}
+\boxed{
+\int_{\OmegaD}\varepsilon\,\nabla\phi\cdot\nabla v\,d\Omega
+=
+\int_{\OmegaD}\rho\,v\,d\Omega
++\int_{\Gamma_N}\sigma_s v\,d\Gamma}
+\end{equation*}
+\small
+for all test functions \(v\). Here \(\Gamma_N\) is a Neumann boundary and \(\sigma_s\) is a prescribed surface charge density.
+
+\vspace{1mm}
+\textbf{Typical boundary conditions}
+\begin{align*}
+\phi &= V_A \quad &&\text{on contact A},\\
+\phi &= V_B \quad &&\text{on contact B},\\
+-\nvec\cdot\varepsilon\nabla\phi &= \sigma_s \quad &&\text{on charged interfaces}.
+\end{align*}
+\end{column}
+
+\begin{column}{0.48\textwidth}
+\textbf{Outputs used by the rest of the project}
+\begin{equation*}
+\boxed{\phi(x,y,t)},\qquad
+\boxed{\Evec(x,y,t)=-\nabla\phi(x,y,t)}
+\end{equation*}
+\small
+\begin{itemize}\setlength\itemsep{0.3mm}
+\item \textbf{Module 3:} defect charge state and migration can depend on electrostatic potential.
+\item \textbf{Module 5:} carrier drift currents use \(\Evec\):
+\end{itemize}
+\begin{align*}
+\bm{J}_n&=q\mu_n n\Evec+qD_n\nabla n,\\[-0.5mm]
+\bm{J}_p&=q\mu_p p\Evec-qD_p\nabla p.
+\end{align*}
+\begin{itemize}\setlength\itemsep{0.3mm}
+\item \textbf{Module 6:} iterates \(C_j,T,n,p,\phi\) until maps are self-consistent.
+\end{itemize}
+\end{column}
+\end{columns}
+
+\vspace{1mm}
+\begin{greenbox}
+\centering\scriptsize
+\textbf{Validation check:} changing the sign or magnitude of \(z_jC_j\) should produce the corresponding local bending of \(\phi\), \(\Evec\), depletion width, and carrier current paths.
+\end{greenbox}
+\end{frame}
+
+\end{document}

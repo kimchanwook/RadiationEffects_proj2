@@ -1,0 +1,249 @@
+\documentclass[aspectratio=169,8pt]{beamer}
+
+\usetheme{default}
+\usefonttheme{professionalfonts}
+\setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{footline}{\hfill\scriptsize\insertframenumber/\inserttotalframenumber\hspace{2mm}\vspace{1mm}}
+
+\usepackage{amsmath,amssymb,bm}
+\usepackage{mathtools}
+\usepackage{xcolor}
+\usepackage[most]{tcolorbox}
+
+\definecolor{deepblue}{RGB}{0,70,150}
+\definecolor{softblue}{RGB}{232,242,255}
+\definecolor{softgreen}{RGB}{235,250,238}
+\definecolor{softorange}{RGB}{255,245,230}
+\definecolor{softpurple}{RGB}{245,238,255}
+\definecolor{darkred}{RGB}{160,35,25}
+\definecolor{darkgreen}{RGB}{20,120,60}
+\definecolor{darkpurple}{RGB}{95,45,150}
+
+\setbeamerfont{frametitle}{series=\bfseries,size=\large}
+\setbeamercolor{frametitle}{fg=black}
+\setbeamertemplate{itemize item}{\color{deepblue}$\blacktriangleright$}
+\setlength{\abovedisplayskip}{3pt}
+\setlength{\belowdisplayskip}{3pt}
+
+\newtcolorbox{bluebox}[1][]{colback=softblue,colframe=deepblue,boxrule=0.8pt,arc=1.5mm,left=1.5mm,right=1.5mm,top=0.8mm,bottom=0.8mm,#1}
+\newtcolorbox{greenbox}[1][]{colback=softgreen,colframe=darkgreen,boxrule=0.8pt,arc=1.5mm,left=1.5mm,right=1.5mm,top=0.8mm,bottom=0.8mm,#1}
+\newtcolorbox{orangebox}[1][]{colback=softorange,colframe=darkred,boxrule=0.8pt,arc=1.5mm,left=1.5mm,right=1.5mm,top=0.8mm,bottom=0.8mm,#1}
+\newtcolorbox{purplebox}[1][]{colback=softpurple,colframe=darkpurple,boxrule=0.8pt,arc=1.5mm,left=1.5mm,right=1.5mm,top=0.8mm,bottom=0.8mm,#1}
+
+\newcommand{\Cj}{C_j}
+\newcommand{\Jj}{\bm{J}_j}
+\newcommand{\xvec}{\bm{x}}
+\newcommand{\nvec}{\bm{n}}
+\newcommand{\kB}{k_{\mathrm B}}
+\newcommand{\OmegaD}{\Omega}
+
+\begin{document}
+
+\begin{frame}{Module 3: Defect evolution after radiation deposition}
+\scriptsize
+\vspace{-1mm}
+\begin{bluebox}
+\centering\small
+\textbf{Goal:} convert the Module 1 radiation damage map into time-dependent defect concentrations that later perturb space charge, temperature, recombination, and mobility.
+\end{bluebox}
+
+\vspace{1mm}
+\begin{columns}[T,totalwidth=\textwidth]
+\begin{column}{0.49\textwidth}
+\textbf{Defect conservation law}
+\begin{equation*}
+\boxed{\frac{\partial C_j}{\partial t}+\nabla\cdot\Jj=S_j+R_j}
+\end{equation*}
+\scriptsize
+\begin{itemize}\setlength\itemsep{0.2mm}
+\item $C_j(x,y,t)$: concentration of defect species $j$.
+\item $\Jj$: flux of species $j$ through the silicon lattice.
+\item $S_j$: generation source from radiation-induced damage.
+\item $R_j$: net reaction term: recombination, clustering, dissociation, annealing.
+\end{itemize}
+
+\vspace{1mm}
+\textbf{Diffusive migration}
+\begin{equation*}
+\boxed{\Jj=-D_j\nabla C_j}
+\end{equation*}
+\scriptsize
+Flux points from high defect concentration to low defect concentration.
+\end{column}
+
+\begin{column}{0.49\textwidth}
+\textbf{Core diffusion-reaction equation}
+\begin{equation*}
+\boxed{\frac{\partial C_j}{\partial t}
+=\nabla\cdot\left(D_j\nabla C_j\right)+S_j+R_j}
+\end{equation*}
+
+\textbf{2D project form}
+\begin{equation*}
+\boxed{
+\frac{\partial C_j}{\partial t}
+=\frac{\partial}{\partial x}\!\left(D_j\frac{\partial C_j}{\partial x}\right)
++\frac{\partial}{\partial y}\!\left(D_j\frac{\partial C_j}{\partial y}\right)
++S_j+R_j}
+\end{equation*}
+\scriptsize
+\begin{itemize}\setlength\itemsep{0.2mm}
+\item Divergence form is needed when $D_j=D_j(x,y,T,C_1,\ldots)$ varies spatially.
+\item For constant $D_j$ and no source after irradiation:
+\end{itemize}
+\begin{equation*}
+\frac{\partial C_j}{\partial t}=D_j\nabla^2 C_j+R_j.
+\end{equation*}
+\end{column}
+\end{columns}
+
+\vspace{0.5mm}
+\begin{orangebox}
+\centering\scriptsize
+\textbf{Module handoff:} Module 3 outputs $C_j(x,y,t)$, the evolving defect map used by electrostatics, thermal transport, and carrier transport.
+\end{orangebox}
+\end{frame}
+
+\begin{frame}{Module 3: Recombination, annealing, and temperature-dependent kinetics}
+\scriptsize
+\vspace{-1mm}
+\begin{bluebox}
+\centering\small
+The reaction term $R_j$ is where lattice damage becomes material evolution: defects can annihilate, transform, cluster, or anneal.
+\end{bluebox}
+
+\vspace{1mm}
+\begin{columns}[T,totalwidth=\textwidth]
+\begin{column}{0.49\textwidth}
+\textbf{Reduced single-species annealing}
+\begin{equation*}
+\boxed{R=-k_{\mathrm{ann}}C}
+\end{equation*}
+\begin{equation*}
+\boxed{\frac{\partial C}{\partial t}=\nabla\cdot(D\nabla C)-k_{\mathrm{ann}}C}
+\end{equation*}
+\scriptsize
+If diffusion is absent:
+\begin{equation*}
+\boxed{C(t)=C(0)e^{-k_{\mathrm{ann}}t}},\qquad
+\boxed{\tau_{\mathrm{ann}}=k_{\mathrm{ann}}^{-1}}.
+\end{equation*}
+
+\vspace{1mm}
+\textbf{Vacancy-interstitial recombination}
+\begin{equation*}
+V+I\longrightarrow \varnothing
+\end{equation*}
+\begin{equation*}
+\boxed{R_V=-k_{VI}C_VC_I,\qquad R_I=-k_{VI}C_VC_I}
+\end{equation*}
+\end{column}
+
+\begin{column}{0.49\textwidth}
+\textbf{Arrhenius migration and annealing rates}
+\begin{equation*}
+\boxed{D_j(T)=D_{0,j}\exp\!\left[-\frac{E_{D,j}}{\kB T}\right]}
+\end{equation*}
+\begin{equation*}
+\boxed{k_{\mathrm{ann},j}(T)=k_{0,j}\exp\!\left[-\frac{E_{\mathrm{ann},j}}{\kB T}\right]}
+\end{equation*}
+\scriptsize
+\begin{itemize}\setlength\itemsep{0.2mm}
+\item $E_{D,j}$: migration barrier for defect species $j$.
+\item $E_{\mathrm{ann},j}$: barrier for removal/transformation channel.
+\item Higher $T$ from Module 4 can sharply accelerate both diffusion and annealing.
+\end{itemize}
+
+\vspace{1mm}
+\textbf{Transport timescale}
+\begin{equation*}
+\boxed{\tau_{D,j}\sim \frac{L^2}{D_j(T)}}
+\end{equation*}
+\small
+The relevant competition is not a universal order; it is set by $D_j(T)$, $k_{\mathrm{ann},j}(T)$, concentrations, and geometry.
+\end{column}
+\end{columns}
+
+\vspace{0.5mm}
+\begin{purplebox}
+\centering\scriptsize
+\textbf{Key physics:} the same radiation damage map can either persist, spread, recombine, or anneal depending on temperature, defect species, and reaction pathways.
+\end{purplebox}
+\end{frame}
+
+\begin{frame}{Module 3: FEM form, verification limits, and coupling role}
+\scriptsize
+\vspace{-1mm}
+\begin{bluebox}
+\centering\small
+For implementation, Module 3 is a 2D transient diffusion-reaction FEM problem with source maps from Module 1 and temperature-dependent coefficients from Module 4.
+\end{bluebox}
+
+\vspace{1mm}
+\begin{columns}[T,totalwidth=\textwidth]
+\begin{column}{0.50\textwidth}
+\textbf{Weak form for a defect species}
+\begin{equation*}
+\boxed{
+\int_{\OmegaD} v\frac{\partial C_j}{\partial t}\,d\Omega
++\int_{\OmegaD} D_j\nabla v\cdot\nabla C_j\,d\Omega
+=\int_{\OmegaD} v(S_j+R_j)\,d\Omega
+}
+\end{equation*}
+\scriptsize
+for all test functions $v$. A common default boundary condition is zero defect flux:
+\begin{equation*}
+\boxed{\nvec\cdot\Jj=0\quad\Longleftrightarrow\quad \nvec\cdot D_j\nabla C_j=0.}
+\end{equation*}
+
+\textbf{Initial condition from Module 1}
+\begin{equation*}
+\boxed{C_j(x,y,0)=C_{j,0}(x,y)\quad \text{or}\quad S_j=S_j(x,y,t).}
+\end{equation*}
+\end{column}
+
+\begin{column}{0.48\textwidth}
+\textbf{Verification cases}
+\begin{greenbox}
+\scriptsize
+\textbf{Pure annealing:}
+\begin{equation*}
+D=0,\quad \frac{\partial C}{\partial t}=-k_{\mathrm{ann}}C
+\quad\Rightarrow\quad C=C_0e^{-k_{\mathrm{ann}}t}.
+\end{equation*}
+\end{greenbox}
+\vspace{0.7mm}
+\begin{greenbox}
+\scriptsize
+\textbf{Pure diffusion:}
+\begin{equation*}
+R=0,\quad \frac{d}{dt}\int_{\OmegaD}C\,d\Omega=0
+\quad \text{for zero-flux boundaries.}
+\end{equation*}
+\end{greenbox}
+\vspace{0.7mm}
+\begin{orangebox}
+\scriptsize
+\textbf{Coupled-module meaning:} $C_j$ modifies
+\begin{equation*}
+\rho_{\mathrm{def}}=q\sum_j z_jC_j,
+\qquad
+\mu_n,\mu_p,
+\qquad
+R_{\mathrm{SRH}},
+\qquad
+\dot q_{\mathrm{th}}.
+\end{equation*}
+Thus defect evolution changes electric fields, current flow, recombination, and heating.
+\end{orangebox}
+\end{column}
+\end{columns}
+
+\vspace{0.5mm}
+\begin{purplebox}
+\centering\scriptsize
+\textbf{Summary:} Module 3 is the kinetic bridge between ``where radiation deposits energy'' and ``where the device remains electrically and thermally damaged.''
+\end{purplebox}
+\end{frame}
+
+\end{document}

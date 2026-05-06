@@ -1,0 +1,235 @@
+\documentclass[aspectratio=169,9pt]{beamer}
+
+\usetheme{default}
+\usefonttheme{professionalfonts}
+\setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{footline}{\hfill\scriptsize\insertframenumber/3\hspace{2mm}\vspace{1mm}}
+
+\usepackage{amsmath,amssymb,bm,mathtools}
+\usepackage{xcolor}
+\usepackage[most]{tcolorbox}
+
+\definecolor{deepblue}{RGB}{0,70,150}
+\definecolor{softblue}{RGB}{232,242,255}
+\definecolor{softgreen}{RGB}{235,250,238}
+\definecolor{softorange}{RGB}{255,245,230}
+\definecolor{softpurple}{RGB}{245,238,255}
+\definecolor{darkred}{RGB}{160,35,25}
+\definecolor{darkgreen}{RGB}{20,120,60}
+\definecolor{darkpurple}{RGB}{95,45,150}
+
+\setbeamerfont{frametitle}{series=\bfseries,size=\Large}
+\setbeamercolor{frametitle}{fg=black}
+\setbeamertemplate{itemize item}{\color{deepblue}$\blacktriangleright$}
+\setlength{\abovedisplayskip}{3pt}
+\setlength{\belowdisplayskip}{3pt}
+\setlength{\jot}{1pt}
+
+\newtcolorbox{bluebox}[1][]{colback=softblue,colframe=deepblue,boxrule=0.8pt,arc=1.5mm,left=1.5mm,right=1.5mm,top=0.8mm,bottom=0.8mm,#1}
+\newtcolorbox{greenbox}[1][]{colback=softgreen,colframe=darkgreen,boxrule=0.8pt,arc=1.5mm,left=1.5mm,right=1.5mm,top=0.8mm,bottom=0.8mm,#1}
+\newtcolorbox{orangebox}[1][]{colback=softorange,colframe=darkred,boxrule=0.8pt,arc=1.5mm,left=1.5mm,right=1.5mm,top=0.8mm,bottom=0.8mm,#1}
+\newtcolorbox{purplebox}[1][]{colback=softpurple,colframe=darkpurple,boxrule=0.8pt,arc=1.5mm,left=1.5mm,right=1.5mm,top=0.8mm,bottom=0.8mm,#1}
+
+\newcommand{\Evec}{\bm{E}}
+\newcommand{\Jvec}{\bm{J}}
+\newcommand{\Jn}{\bm{J}_n}
+\newcommand{\Jp}{\bm{J}_p}
+\newcommand{\qrad}{\dot{q}_{\mathrm{rad}}}
+\newcommand{\qth}{\dot{q}_{\mathrm{th}}}
+\newcommand{\dd}{\,\mathrm{d}}
+\newcommand{\Rsrh}{R_{\mathrm{SRH}}}
+
+\begin{document}
+
+\begin{frame}{Module 5: Carrier conservation and drift--diffusion transport}
+\footnotesize
+\vspace{-4mm}
+\begin{bluebox}
+\centering\small
+\textbf{Goal:} convert electrostatic fields, defect maps, and temperature maps into mobile-carrier densities, current densities, and measurable electrical degradation.
+\end{bluebox}
+
+\vspace{1mm}
+\begin{columns}[T,totalwidth=\textwidth]
+\begin{column}{0.50\textwidth}
+\textbf{Carrier conservation}
+\begin{equation*}
+\boxed{\frac{\partial n}{\partial t}=\frac{1}{q}\nabla\cdot\Jn+G_n-R_n}
+\end{equation*}
+\begin{equation*}
+\boxed{\frac{\partial p}{\partial t}=-\frac{1}{q}\nabla\cdot\Jp+G_p-R_p}
+\end{equation*}
+\small
+Here \(n\) and \(p\) are electron and hole densities, \(q\) is the elementary charge, \(G\) is generation, and \(R\) is recombination.
+
+\vspace{1mm}
+The electric field is supplied by Module 2:
+\begin{equation*}
+\boxed{\Evec=-\nabla \phi}
+\end{equation*}
+\end{column}
+
+\begin{column}{0.48\textwidth}
+\textbf{Drift--diffusion current densities}
+\begin{equation*}
+\boxed{\Jn=q\mu_n n\Evec+qD_n\nabla n}
+\end{equation*}
+\begin{equation*}
+\boxed{\Jp=q\mu_p p\Evec-qD_p\nabla p}
+\end{equation*}
+\small
+Electrons drift opposite \(\Evec\), but electron \emph{conventional current} points along \(\Evec\). Holes drift and carry conventional current along \(\Evec\).
+
+\vspace{1mm}
+Near nondegenerate equilibrium,
+\begin{equation*}
+\boxed{D_n=\frac{k_B T}{q}\mu_n},\qquad
+\boxed{D_p=\frac{k_B T}{q}\mu_p}
+\end{equation*}
+\small
+where \(D_n,D_p\) are diffusivities and \(\mu_n,\mu_p\) are mobilities.
+\end{column}
+\end{columns}
+
+\vspace{1mm}
+\begin{orangebox}
+\centering\scriptsize
+\textbf{Main physics:} field gradients steer carriers; concentration gradients spread carriers; defects reduce mobility and remove carriers through trap-assisted recombination.
+\end{orangebox}
+\end{frame}
+
+\begin{frame}{Module 5: Defects as mobility modifiers and recombination centers}
+\footnotesize
+\vspace{-4mm}
+\begin{bluebox}
+\centering\small
+Radiation-induced defects enter Module 5 in two distinct ways: they scatter mobile carriers and they introduce trap states that enable electron-hole recombination.
+\end{bluebox}
+
+\vspace{1mm}
+\begin{columns}[T,totalwidth=\textwidth]
+\begin{column}{0.50\textwidth}
+\textbf{Defect-limited mobility}
+\begin{equation*}
+\boxed{\mu_n(T,\{C_j\})=
+\frac{\mu_{n0}(T)}{1+\sum_j \alpha_{n,j}C_j}}
+\end{equation*}
+\begin{equation*}
+\boxed{\mu_p(T,\{C_j\})=
+\frac{\mu_{p0}(T)}{1+\sum_j \alpha_{p,j}C_j}}
+\end{equation*}
+\small
+\(C_j\) is the concentration of defect species \(j\) from Module 3.  The parameters \(\alpha_{n,j}\) and \(\alpha_{p,j}\) summarize how strongly that defect scatters electrons and holes.
+
+\vspace{1mm}
+\begin{equation*}
+\boxed{\mu_{n0}(T)=\mu_{n,\mathrm{ref}}\left(\frac{T}{T_{\mathrm{ref}}}\right)^{-\gamma_n}}
+\end{equation*}
+\small
+and similarly for holes.  This keeps the reduced model monotonic: more scattering defects \(\Rightarrow\) lower mobility.
+\end{column}
+
+\begin{column}{0.48\textwidth}
+\textbf{Shockley--Read--Hall recombination}
+\begin{equation*}
+\boxed{\Rsrh=\frac{np-n_i^2}
+{\tau_p(n+n_1)+\tau_n(p+p_1)}}
+\end{equation*}
+\begin{equation*}
+\boxed{\tau_n=\frac{1}{\sigma_n v_{\mathrm{th}}N_t}},\qquad
+\boxed{\tau_p=\frac{1}{\sigma_p v_{\mathrm{th}}N_t}}
+\end{equation*}
+\small
+\(N_t\) is the active trap density, \(\sigma_n,\sigma_p\) are capture cross sections, and \(v_{\mathrm{th}}\) is thermal velocity.
+
+\vspace{1mm}
+For multiple radiation-induced trap species,
+\begin{equation*}
+\boxed{R_{\mathrm{def}}(x,y,t)=\sum_j
+R_{\mathrm{SRH},j}\!ig(n,p,T,C_j\big)}
+\end{equation*}
+\small
+Each electrically active defect species can contribute a recombination pathway.
+\end{column}
+\end{columns}
+
+\vspace{1mm}
+\begin{purplebox}
+\centering\scriptsize
+\textbf{Interpretation:} the same defect map can lower current by reducing \(\mu_n,\mu_p\), increasing \(R_{\mathrm{def}}\), and changing space charge through Module 2.
+\end{purplebox}
+\end{frame}
+
+
+\begin{frame}{Module 5: Coupled reduced PDE and device response}
+\scriptsize
+\vspace{-3mm}
+\begin{bluebox}
+\centering
+\textbf{Practical role:} solve carrier transport using fields from Modules 1--4, then reduce the solution to current, leakage, and device-response metrics.
+\end{bluebox}
+
+\vspace{0.8mm}
+\begin{columns}[T,totalwidth=\textwidth]
+\begin{column}{0.52\textwidth}
+\textbf{Coupled 2D carrier equations}
+\begin{equation*}
+\boxed{
+\frac{\partial n}{\partial t}
+=\frac{1}{q}\nabla\cdot\left(q\mu_n n\Evec+qD_n\nabla n\right)+G_n-R_{\mathrm{def}}
+}
+\end{equation*}
+\begin{equation*}
+\boxed{
+\frac{\partial p}{\partial t}
+=-\frac{1}{q}\nabla\cdot\left(q\mu_p p\Evec-qD_p\nabla p\right)+G_p-R_{\mathrm{def}}
+}
+\end{equation*}
+
+\vspace{0.4mm}
+\textbf{Coefficient dependence}
+\begin{equation*}
+\boxed{\mu_{n,p}=\mu_{n,p}(T,C_1,C_2,\ldots)},
+\qquad
+\boxed{R_{\mathrm{def}}=R_{\mathrm{def}}(n,p,T,C_j)}
+\end{equation*}
+\smallskip
+\begin{orangebox}
+\textbf{Interpretation:} defects change the PDE coefficients and the sink terms; temperature changes mobility, diffusivity, and trap kinetics.
+\end{orangebox}
+\end{column}
+
+\begin{column}{0.46\textwidth}
+\textbf{Module handoffs and outputs}
+\begin{equation*}
+\boxed{G_{n,p}^{\mathrm{rad}}\simeq
+\eta_{eh}\frac{\qrad^{2D}}{\varepsilon_{eh}}}
+\end{equation*}
+\small
+Radiation energy deposition can generate electron-hole pairs through the fraction \(\eta_{eh}\).
+
+\vspace{0.5mm}
+\begin{equation*}
+\boxed{\rho=q\left(p-n+N_D^+-N_A^-+\sum_j z_j C_j\right)}
+\end{equation*}
+\begin{equation*}
+\boxed{\nabla\cdot(\epsilon\nabla\phi)=-\rho},
+\qquad
+\boxed{\Evec=-\nabla\phi}
+\end{equation*}
+
+\vspace{0.5mm}
+\begin{equation*}
+\boxed{I_c(t)=\int_{\Gamma_c}(\Jn+\Jp)\cdot\hat{\bm{n}}\,\dd s}
+\end{equation*}
+\end{column}
+\end{columns}
+
+\vspace{0.8mm}
+\begin{greenbox}
+\centering\scriptsize
+\textbf{Module 5 output:} \(n,p,\Jn,\Jp\), recombination loss, contact currents, leakage/current shifts, and carrier maps for Module 6.
+\end{greenbox}
+\end{frame}
+
+\end{document}
