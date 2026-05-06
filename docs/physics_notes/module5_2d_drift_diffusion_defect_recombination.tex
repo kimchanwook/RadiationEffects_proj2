@@ -1,0 +1,541 @@
+\documentclass[11pt]{article}
+\input{../shared/project_style.tex}
+\newcommand{\Evec}{\bm{E}}
+\newcommand{\Jvec}{\bm{J}}
+\newcommand{\Gammavec}{\bm{\Gamma}}
+\newcommand{\vvec}{\bm{v}}
+\newcommand{\gradxy}{\nabla_{xy}}
+\newcommand{\divxy}{\nabla_{xy}\cdot}
+\newcommand{\rhodef}{\rho_{\mathrm{def}}}
+\newcommand{\Rsrh}{R_{\mathrm{SRH}}}
+\newcommand{\Teff}{T}
+\newcommand{\Ec}{E_{\mathrm{c}}}
+\newcommand{\Ev}{E_{\mathrm{v}}}
+\newcommand{\Ei}{E_{\mathrm{i}}}
+\newcommand{\Et}{E_{\mathrm{t}}}
+\newcommand{\vt}{v_{\mathrm{th}}}
+\rhead{Module 5 Physics Note}
+
+\begin{document}
+
+\DocTitle{Module 5: Two-Dimensional Drift-Diffusion Carrier Transport with Defect-Assisted Recombination}{Derivation-Focused Physics Note for \texttt{RadiationEffects\_proj2}}{Carrier-transport bridge from electrostatic, thermal, and defect fields to measurable device response}
+
+\begin{overviewbox}
+\textbf{Purpose of this note.} Module 5 converts the fields produced by the earlier modules into electrical response. Module 2 supplies the electrostatic potential and electric field, Module 3 supplies radiation-induced defect populations, and Module 4 supplies the temperature field. This note derives the two-dimensional electron-hole drift-diffusion equations from carrier conservation, explains the correct sign conventions for electron and hole drift, derives the current-density forms used in semiconductor device models, and shows how radiation-induced defects enter as mobility modifiers and Shockley-Read-Hall recombination centers. The result is the reduced carrier-transport model that will later feed Module 6, where electrostatics, defects, heat, and carriers are solved self-consistently.
+\end{overviewbox}
+
+\ProjectTOC
+
+\SymbolsAcronymsSection
+\begin{symtable}
+2D & Two-dimensional & The reduced project model resolves the device cross section in coordinates \(x\) and \(y\). \\
+DD & Drift-diffusion & Continuum carrier-transport model using drift from electric fields and diffusion from concentration gradients. \\
+SRH & Shockley-Read-Hall & Trap-assisted recombination mechanism mediated by defect levels in the semiconductor band gap. \\
+PDE & Partial differential equation & Equation involving derivatives in space and/or time. \\
+\(x,y\) & In-plane coordinates & Spatial coordinates in the two-dimensional device cross section. \\
+\(z\) & Out-of-plane coordinate & Direction averaged out in the reduced two-dimensional project model. \\
+\(t\) & Time & Independent time coordinate. \\
+\(q\) & Elementary charge magnitude & Positive scalar charge magnitude; an electron has charge \(-q\), a hole has charge \(+q\). \\
+\(\phi\) & Electrostatic potential & Scalar potential obtained from Module 2. \\
+\(\Evec\) & Electric field & \(\Evec=-\gradxy\phi\) in the electrostatic approximation. \\
+\(n\) & Electron concentration & Number of mobile conduction-band electrons per unit volume. \\
+\(p\) & Hole concentration & Number of mobile valence-band holes per unit volume. \\
+\(\Gammavec_n\) & Electron particle flux & Number of electrons crossing unit area per unit time. \\
+\(\Gammavec_p\) & Hole particle flux & Number of holes crossing unit area per unit time. \\
+\(\Jvec_n\) & Electron current density & Conventional current density associated with electron transport. \\
+\(\Jvec_p\) & Hole current density & Conventional current density associated with hole transport. \\
+\(\Jvec\) & Total current density & \(\Jvec=\Jvec_n+\Jvec_p\). \\
+\(\vvec_n\) & Electron drift velocity & Average particle velocity of electrons. \\
+\(\vvec_p\) & Hole drift velocity & Average particle velocity of holes. \\
+\(\mu_n\) & Electron mobility & Proportionality between electron drift speed and electric-field magnitude. \\
+\(\mu_p\) & Hole mobility & Proportionality between hole drift speed and electric-field magnitude. \\
+\(D_n\) & Electron diffusivity & Diffusion coefficient for mobile electrons. \\
+\(D_p\) & Hole diffusivity & Diffusion coefficient for mobile holes. \\
+\(G\) & Electron-hole pair generation rate & Volumetric rate at which mobile electron-hole pairs are produced. \\
+\(G_{\mathrm{rad}}\) & Radiation-induced carrier generation & Electron-hole pair generation rate produced by the mobile-carrier branch of radiation energy deposition. \\
+\(G_{\mathrm{th}}\) & Thermal generation & Electron-hole pair generation rate from thermal processes. \\
+\(G_{\mathrm{inj}}\) & Injection generation & Effective volumetric generation from external injection when modeled as a source. \\
+\(R\) & Recombination rate & Volumetric rate at which mobile electrons and holes are removed. \\
+\(R_{\mathrm{rad}}\) & Radiative recombination rate & Band-to-band recombination rate that emits a photon. \\
+\(R_{\mathrm{Auger}}\) & Auger recombination rate & Three-carrier recombination channel that transfers energy to a carrier. \\
+\(\Rsrh\) & SRH recombination rate & Defect-assisted recombination rate through trap states. \\
+\(R_{\mathrm{def}}\) & Defect-assisted recombination & Sum of SRH recombination contributions from electrically active radiation-induced defects. \\
+\(C_j\) & Defect concentration & Concentration of radiation-induced defect species \(j\) from Module 3. \\
+\(N_t\) & Trap density & Density of electrically active recombination centers. \\
+\(\Et\) & Trap energy level & Energy of a defect state inside the band gap. \\
+\(\Ec\) & Conduction-band edge & Electron band-edge energy. \\
+\(\Ev\) & Valence-band edge & Hole band-edge energy. \\
+\(\Ei\) & Intrinsic energy level & Energy level used as the intrinsic Fermi-level reference. \\
+\(n_i\) & Intrinsic carrier concentration & Equilibrium electron and hole concentration in intrinsic silicon. \\
+\(n_1\) & SRH electron reference density & \(n_1=n_i\exp[(\Et-\Ei)/(\kB T)]\). \\
+\(p_1\) & SRH hole reference density & \(p_1=n_i\exp[(\Ei-\Et)/(\kB T)]\). \\
+\(\sigma_n\) & Electron capture cross section & Effective capture area for an electron at a trap. \\
+\(\sigma_p\) & Hole capture cross section & Effective capture area for a hole at a trap. \\
+\(\vt,n\), \(\vt,p\) & Thermal velocity & Characteristic thermal speed of electrons or holes. \\
+\(\tau_n\) & Electron capture lifetime & \(\tau_n=(\sigma_n \vt,n N_t)^{-1}\). \\
+\(\tau_p\) & Hole capture lifetime & \(\tau_p=(\sigma_p \vt,p N_t)^{-1}\). \\
+\(\tau_{m,n}\) & Electron momentum-relaxation time & Average time over which electron momentum remains correlated before scattering. \\
+\(\tau_{m,p}\) & Hole momentum-relaxation time & Average time over which hole momentum remains correlated before scattering. \\
+\(m_n^*\) & Electron effective mass & Effective inertial mass entering the electron mobility. \\
+\(m_p^*\) & Hole effective mass & Effective inertial mass entering the hole mobility. \\
+\(N_D^+\) & Ionized donor concentration & Positive fixed donor concentration entering Poisson's equation. \\
+\(N_A^-\) & Ionized acceptor concentration & Negative fixed acceptor concentration entering Poisson's equation. \\
+\(z_j\) & Defect charge number & Effective average charge state of defect species \(j\). \\
+\(\rho\) & Space-charge density & Charge density entering the Module 2 Poisson equation. \\
+\(T\) & Temperature & Local temperature supplied by Module 4. \\
+\(T_{\mathrm{ref}}\) & Reference temperature & Temperature used to normalize reduced mobility laws. \\
+\(\mu_{n0}\), \(\mu_{p0}\) & Baseline mobilities & Temperature-dependent mobilities before radiation-induced defect degradation is applied. \\
+\(\alpha_{n,j}\), \(\alpha_{p,j}\) & Mobility-degradation coefficients & Effective strengths by which defect species \(j\) reduce electron and hole mobility. \\
+\(\gamma_n\), \(\gamma_p\) & Mobility temperature exponents & Power-law exponents in the reduced baseline mobility model. \\
+\(\kB\) & Boltzmann constant & Converts temperature into thermal energy. \\
+\(V_T\) & Thermal voltage & \(V_T=\kB T/q\). \\
+\(S_n,S_p\) & Surface recombination velocities & Boundary loss speeds for electrons and holes. \\
+\(\dot{q}_{\mathrm{rad}}\) & Radiation energy-deposition rate & Volumetric energy-deposition source inherited from Module 1. \\
+\(E_{\mathrm{dep}}\) & Deposited radiation energy & Energy deposited by radiation interactions in a material volume. \\
+\(V\) & Volume & Material volume used in the definition of \(\dot{q}_{\mathrm{rad}}\). \\
+\(\varepsilon_{\mathrm{eh}}\) & Pair-creation energy & Mean deposited energy required to create one mobile electron-hole pair. \\
+\(\eta_{\mathrm{eh}}\) & Carrier-generation efficiency & Fraction of deposited radiation energy assigned to mobile electron-hole pair creation. \\
+\(\eta_j\) & Electrically active fraction & Fraction of defect species \(j\) that acts as active trap population. \\
+\(\Omega\) & Device domain & Two-dimensional material region being simulated. \\
+\(\partial\Omega\) & Boundary & Boundary of the device domain. \\
+\(\nvec\) & Unit normal & Outward unit normal on \(\partial\Omega\). \\
+\end{symtable}
+
+\section{What Module 5 is solving}
+
+The earlier modules describe how radiation changes the material. Module 5 asks how those material changes modify electrical transport. The main unknowns are the mobile electron concentration \(n(x,y,t)\) and mobile hole concentration \(p(x,y,t)\). The fields that drive or modify their motion are imported from other modules:
+\begin{align}
+\phi(x,y,t),\; \Evec(x,y,t) &= \text{electrostatic potential and field from Module 2}, \\
+C_j(x,y,t) &= \text{defect populations from Module 3}, \\
+T(x,y,t) &= \text{temperature field from Module 4}.
+\end{align}
+
+The output of Module 5 is not only \(n\) and \(p\), but also the current densities,
+\begin{equation}
+\Jvec_n(x,y,t),\qquad \Jvec_p(x,y,t),\qquad \Jvec=\Jvec_n+\Jvec_p,
+\end{equation}
+and device-level observables such as leakage current, conductance change, recombination loss, or a current-voltage curve. The reduced causal chain for this module is therefore
+\begin{equation}
+\boxed{\phi,\Evec,T,C_j \;\longrightarrow\; \mu_n,\mu_p,R \;\longrightarrow\; n,p,\Jvec_n,\Jvec_p \;\longrightarrow\; y_{\mathrm{device}}.}
+\end{equation}
+
+\begin{physicsbox}
+\textbf{Core intuition.} Electrons and holes do not simply move from high concentration to low concentration. They also drift in the electric field. Defects then change transport in two major ways: they scatter carriers, which reduces mobility, and they create trap levels, which let electrons and holes recombine through intermediate states inside the band gap.
+\end{physicsbox}
+
+\section{Sign conventions: electric field, carrier motion, and current}
+
+A common source of confusion is the difference between particle motion and conventional current. The electric field is defined by the force on a positive test charge. In electrostatics,
+\begin{equation}
+\Evec=-\gradxy \phi.
+\end{equation}
+A hole behaves as a mobile positive carrier. Therefore its average drift velocity is along the electric field:
+\begin{equation}
+\vvec_p=+\mu_p \Evec.
+\end{equation}
+An electron has charge \(-q\). Its force is opposite the electric field, so its particle drift velocity is opposite the electric field:
+\begin{equation}
+\vvec_n=-\mu_n \Evec.
+\end{equation}
+This is the rule that should govern all Module 5 physics drawings.
+
+However, conventional current is defined as positive-charge flow. The hole current density is therefore in the same direction as hole particle motion:
+\begin{equation}
+\Jvec_p=q p\vvec_p.
+\end{equation}
+The electron current density is opposite the electron particle flux because electrons are negatively charged:
+\begin{equation}
+\Jvec_n=-q n\vvec_n.
+\end{equation}
+Substituting \(\vvec_n=-\mu_n\Evec\) gives
+\begin{equation}
+\Jvec_n=q\mu_n n\Evec.
+\end{equation}
+So electrons move opposite \(\Evec\), but their conventional current contribution points along \(\Evec\). This is why diagrams must distinguish electron drift direction from electron current direction.
+
+\begin{notebox}
+\textbf{Example.} If the right contact is positive and the left contact is negative, then \(\Evec\) points from right to left. Holes drift right-to-left. Electrons drift left-to-right. The conventional electron current contribution still points right-to-left.
+\end{notebox}
+
+\section{Carrier conservation from particle balance}
+
+\subsection{Electron particle balance}
+
+Let \(\Gammavec_n\) be the electron particle flux, measured as number of electrons crossing unit area per unit time. Conservation of electron number states that the local rate of change equals generation minus recombination minus net particle outflow:
+\begin{equation}
+\frac{\partial n}{\partial t}+\divxy \Gammavec_n=G-R.
+\end{equation}
+Because the conventional electron current density is
+\begin{equation}
+\Jvec_n=-q\Gammavec_n,
+\end{equation}
+we have
+\begin{equation}
+\Gammavec_n=-\frac{\Jvec_n}{q}.
+\end{equation}
+Substituting into the particle balance gives
+\begin{equation}
+\frac{\partial n}{\partial t}-\frac{1}{q}\divxy \Jvec_n=G-R,
+\end{equation}
+or
+\begin{equation}
+\boxed{\frac{\partial n}{\partial t}=\frac{1}{q}\divxy \Jvec_n+G-R.}
+\end{equation}
+
+\subsection{Hole particle balance}
+
+For holes, the conventional current density is
+\begin{equation}
+\Jvec_p=q\Gammavec_p.
+\end{equation}
+The hole particle balance is
+\begin{equation}
+\frac{\partial p}{\partial t}+\divxy \Gammavec_p=G-R.
+\end{equation}
+Since \(\Gammavec_p=\Jvec_p/q\),
+\begin{equation}
+\frac{\partial p}{\partial t}+\frac{1}{q}\divxy \Jvec_p=G-R,
+\end{equation}
+which gives
+\begin{equation}
+\boxed{\frac{\partial p}{\partial t}=-\frac{1}{q}\divxy \Jvec_p+G-R.}
+\end{equation}
+
+These two equations are the continuity equations used by Module 5. Their signs are different because the conventional current for electrons is opposite the electron particle flux.
+
+\section{Deriving the drift-diffusion current densities}
+
+\subsection{Drift contribution}
+
+The drift part of the electron particle flux is
+\begin{equation}
+\Gammavec_{n,\mathrm{drift}}=n\vvec_n=-\mu_n n\Evec.
+\end{equation}
+Therefore the conventional electron drift current is
+\begin{equation}
+\Jvec_{n,\mathrm{drift}}=-q\Gammavec_{n,\mathrm{drift}}=q\mu_n n\Evec.
+\end{equation}
+For holes,
+\begin{equation}
+\Gammavec_{p,\mathrm{drift}}=p\vvec_p=\mu_p p\Evec,
+\end{equation}
+and
+\begin{equation}
+\Jvec_{p,\mathrm{drift}}=q\Gammavec_{p,\mathrm{drift}}=q\mu_p p\Evec.
+\end{equation}
+Both conventional drift-current components point along \(\Evec\), even though the electron particle motion is opposite \(\Evec\).
+
+\subsection{Diffusion contribution}
+
+Diffusion is driven by concentration gradients. The electron particle diffusion flux is given by Fick's law:
+\begin{equation}
+\Gammavec_{n,\mathrm{diff}}=-D_n\gradxy n.
+\end{equation}
+The conventional electron diffusion current is therefore
+\begin{equation}
+\Jvec_{n,\mathrm{diff}}=-q\Gammavec_{n,\mathrm{diff}}=qD_n\gradxy n.
+\end{equation}
+For holes,
+\begin{equation}
+\Gammavec_{p,\mathrm{diff}}=-D_p\gradxy p,
+\end{equation}
+so
+\begin{equation}
+\Jvec_{p,\mathrm{diff}}=q\Gammavec_{p,\mathrm{diff}}=-qD_p\gradxy p.
+\end{equation}
+
+\subsection{Final drift-diffusion form}
+
+Adding drift and diffusion gives the standard drift-diffusion current densities:
+\begin{align}
+\boxed{\Jvec_n=q\mu_n n\Evec+qD_n\gradxy n,} \\
+\boxed{\Jvec_p=q\mu_p p\Evec-qD_p\gradxy p.}
+\end{align}
+Using \(\Evec=-\gradxy\phi\), the same equations may be written in potential form:
+\begin{align}
+\boxed{\Jvec_n=-q\mu_n n\gradxy\phi+qD_n\gradxy n,} \\
+\boxed{\Jvec_p=-q\mu_p p\gradxy\phi-qD_p\gradxy p.}
+\end{align}
+
+\subsection{Einstein relation}
+
+Near thermal equilibrium and under nondegenerate carrier statistics, the diffusivity and mobility are related by the Einstein relation:
+\begin{equation}
+\boxed{D_n=\mu_n V_T,\qquad D_p=\mu_p V_T,\qquad V_T=\frac{\kB T}{q}.}
+\end{equation}
+This is useful because Module 4 provides \(T(x,y,t)\). If the temperature field changes, then the thermal voltage and diffusivities change even if the mobilities are otherwise held fixed.
+
+\begin{notebox}
+\textbf{Modeling choice.} The first Module 5 implementation can use the Einstein relation as a reduced closure. Later versions can replace it with mobility and diffusivity models that include high-field effects, degeneracy, anisotropy, or band-structure corrections.
+\end{notebox}
+
+\section{Full two-dimensional Module 5 PDE system}
+
+Combining the continuity equations with the drift-diffusion currents gives
+\begin{align}
+\frac{\partial n}{\partial t}
+&=\frac{1}{q}\divxy\left(q\mu_n n\Evec+qD_n\gradxy n\right)+G-R, \\
+\frac{\partial p}{\partial t}
+&=-\frac{1}{q}\divxy\left(q\mu_p p\Evec-qD_p\gradxy p\right)+G-R.
+\end{align}
+After canceling \(q\),
+\begin{align}
+\boxed{\frac{\partial n}{\partial t}
+=\divxy\left(\mu_n n\Evec+D_n\gradxy n\right)+G-R,} \\
+\boxed{\frac{\partial p}{\partial t}
+=-\divxy\left(\mu_p p\Evec-D_p\gradxy p\right)+G-R.}
+\end{align}
+These equations are the transport backbone of Module 5. They are solved on the same \((x,y)\) cross section used by Modules 2--4.
+
+If a steady-state current-voltage response is desired, the time derivatives are set to zero:
+\begin{align}
+0&=\frac{1}{q}\divxy \Jvec_n+G-R, \\
+0&=-\frac{1}{q}\divxy \Jvec_p+G-R.
+\end{align}
+If transient recovery or pulsed radiation response is desired, the time derivatives are retained.
+
+\section{How Module 2 electrostatics couples into Module 5}
+
+Module 2 solves Poisson's equation,
+\begin{equation}
+\gradxy\cdot\left(\varepsilon \gradxy\phi\right)=-\rho,
+\end{equation}
+with semiconductor space-charge density
+\begin{equation}
+\rho=q\left(p-n+N_D^+-N_A^-+\sum_j z_j C_j\right).
+\end{equation}
+The electric field is then
+\begin{equation}
+\Evec=-\gradxy\phi.
+\end{equation}
+In a one-way-coupled first implementation, Module 2 can supply a fixed electric field to Module 5. In a self-consistent Module 6 implementation, Module 5 updates \(n\) and \(p\), those carrier densities change \(\rho\), and Module 2 must be solved again. The coupled loop is
+\begin{equation}
+(n,p,C_j)\rightarrow \rho \rightarrow \phi \rightarrow \Evec \rightarrow (\Jvec_n,\Jvec_p)\rightarrow (n,p).
+\end{equation}
+
+\section{Defects as mobility modifiers}
+
+\subsection{Microscopic origin: momentum relaxation}
+
+Mobility measures how easily a carrier acquires average drift velocity under an electric field. In a simple relaxation-time picture, the mobility is
+\begin{equation}
+\boxed{\mu_n=\frac{q\tau_{m,n}}{m_n^*},\qquad \mu_p=\frac{q\tau_{m,p}}{m_p^*}.}
+\end{equation}
+The momentum-relaxation time \(\tau_m\) is shortened by scattering. Radiation-induced defects provide additional scattering centers, so they reduce \(\tau_m\), and therefore reduce \(\mu\).
+
+A useful reduced expression is Matthiessen's rule:
+\begin{align}
+\frac{1}{\tau_{m,n}}&=\frac{1}{\tau_{m,n}^{\mathrm{lat}}(T)}+\frac{1}{\tau_{m,n}^{\mathrm{dop}}}+\sum_j \frac{1}{\tau_{m,n}^{(j)}}, \\
+\frac{1}{\tau_{m,p}}&=\frac{1}{\tau_{m,p}^{\mathrm{lat}}(T)}+\frac{1}{\tau_{m,p}^{\mathrm{dop}}}+\sum_j \frac{1}{\tau_{m,p}^{(j)}}.
+\end{align}
+Here the first term represents lattice or phonon scattering, the second represents ionized impurity and dopant scattering, and the sum represents defect scattering due to radiation-induced species.
+
+If defect scattering is approximated by a capture or scattering cross section, then
+\begin{equation}
+\frac{1}{\tau_{m,n}^{(j)}}\sim \sigma_{m,n}^{(j)} \vt,n C_j,
+\qquad
+\frac{1}{\tau_{m,p}^{(j)}}\sim \sigma_{m,p}^{(j)} \vt,p C_j.
+\end{equation}
+Thus increasing defect concentration \(C_j\) increases the scattering rate and lowers mobility.
+
+\subsection{Reduced mobility closure for this project}
+
+For a first MATLAB implementation, a clean reduced form is
+\begin{align}
+\boxed{\mu_n(x,y,t)=\frac{\mu_{n0}(T)}{1+\sum_j \alpha_{n,j} C_j(x,y,t)},} \\
+\boxed{\mu_p(x,y,t)=\frac{\mu_{p0}(T)}{1+\sum_j \alpha_{p,j} C_j(x,y,t)}.}
+\end{align}
+The parameters \(\alpha_{n,j}\) and \(\alpha_{p,j}\) are effective mobility-degradation strengths. They have units of volume if \(C_j\) is a number density. This reduced form preserves the physical trend that mobility decreases monotonically as defect concentration increases.
+
+The temperature dependence may be represented by a power law around a reference temperature:
+\begin{equation}
+\mu_{n0}(T)=\mu_{n,\mathrm{ref}}\left(\frac{T}{T_{\mathrm{ref}}}\right)^{-\gamma_n},
+\qquad
+\mu_{p0}(T)=\mu_{p,\mathrm{ref}}\left(\frac{T}{T_{\mathrm{ref}}}\right)^{-\gamma_p}.
+\end{equation}
+This is not a universal silicon law; it is a reduced closure for the project. More detailed mobility models can be inserted later.
+
+\section{Defects as recombination centers}
+
+\subsection{Why trap-assisted recombination matters}
+
+In an ideal direct band-to-band picture, an electron in the conduction band recombines with a hole in the valence band directly. In silicon and in radiation-damaged device regions, a very important pathway is indirect recombination through defect levels. A trap level inside the band gap can capture one carrier first and then capture the opposite carrier. After both capture events, one electron-hole pair has been removed from transport.
+
+This matters for device degradation because recombination reduces the mobile carrier populations and can therefore reduce collected current, increase leakage paths, alter switching behavior, and change noise or transient response.
+
+\subsection{SRH recombination rate}
+
+For a single trap level with density \(N_t\), electron capture cross section \(\sigma_n\), hole capture cross section \(\sigma_p\), and trap energy \(\Et\), the Shockley-Read-Hall recombination rate is
+\begin{equation}
+\boxed{
+\Rsrh=\frac{np-n_i^2}{\tau_p(n+n_1)+\tau_n(p+p_1)}.
+}
+\end{equation}
+The auxiliary quantities are
+\begin{align}
+\tau_n&=\frac{1}{\sigma_n \vt,n N_t}, \\
+\tau_p&=\frac{1}{\sigma_p \vt,p N_t}, \\
+n_1&=n_i\exp\left(\frac{\Et-\Ei}{\kB T}\right), \\
+p_1&=n_i\exp\left(\frac{\Ei-\Et}{\kB T}\right).
+\end{align}
+The numerator \(np-n_i^2\) determines whether the trap acts as a net recombination center or a net generation center. If \(np>n_i^2\), recombination dominates. If \(np<n_i^2\), generation dominates.
+
+\subsection{Radiation-induced defects as trap populations}
+
+If Module 3 evolves defect species \(C_j(x,y,t)\), then each electrically active species can contribute an SRH term. A reduced multi-species recombination model is
+\begin{equation}
+\boxed{R_{\mathrm{def}}(x,y,t)=\sum_j R_{\mathrm{SRH},j}(n,p,T,C_j).}
+\end{equation}
+For species \(j\), one may set
+\begin{equation}
+N_{t,j}=\eta_j C_j,
+\end{equation}
+where \(\eta_j\) is the fraction of that defect population that is electrically active as a trap. Then
+\begin{align}
+\tau_{n,j}&=\frac{1}{\sigma_{n,j}\vt,n N_{t,j}}, \\
+\tau_{p,j}&=\frac{1}{\sigma_{p,j}\vt,p N_{t,j}}.
+\end{align}
+Thus the same radiation-induced defect field can simultaneously modify electrostatics, mobility, and recombination.
+
+\begin{physicsbox}
+\textbf{Important distinction.} A defect does not need to be charged to be a recombination center. Charge state controls electrostatic perturbation. Capture cross section and trap energy control recombination strength. In a reduced model these effects may be correlated, but they are physically distinct.
+\end{physicsbox}
+
+\section{Total generation and recombination terms}
+
+The net source term in the continuity equations is usually written as \(G-R\). For this project,
+\begin{equation}
+G=G_{\mathrm{rad}}+G_{\mathrm{th}}+G_{\mathrm{inj}},
+\end{equation}
+where \(G_{\mathrm{rad}}\) is radiation-induced pair generation, \(G_{\mathrm{th}}\) is thermal generation, and \(G_{\mathrm{inj}}\) represents carrier injection from contacts or external excitation if modeled as a volumetric source.
+
+The recombination term may include several contributions:
+\begin{equation}
+\boxed{R=R_{\mathrm{rad}}+R_{\mathrm{Auger}}+R_{\mathrm{def}}.}
+\end{equation}
+For the first Module 5 implementation, \(R_{\mathrm{def}}\) is the most important radiation-effects term because it directly connects to the defect map produced by Module 3.
+
+A common reduced model is to keep only defect-assisted recombination:
+\begin{equation}
+R\approx R_{\mathrm{def}}=\sum_j R_{\mathrm{SRH},j}.
+\end{equation}
+This makes Module 5 focus on the damage-induced degradation mechanism rather than on all possible semiconductor recombination channels.
+
+\section{How Module 1 can supply carrier generation}
+
+Module 1 defines the radiation-induced volumetric energy-deposition rate,
+\begin{equation}
+\dot{q}_{\mathrm{rad}}(x,y,t)=\frac{\partial E_{\mathrm{dep}}}{\partial V\,\partial t},
+\end{equation}
+after the three-dimensional Geant4 result has been reduced to the project two-dimensional plane. If a fraction of this deposited energy creates electron-hole pairs, a reduced pair-generation source is
+\begin{equation}
+\boxed{G_{\mathrm{rad}}(x,y,t)=\eta_{\mathrm{eh}}\frac{\dot{q}_{\mathrm{rad}}(x,y,t)}{\varepsilon_{\mathrm{eh}}}.}
+\end{equation}
+Here \(\varepsilon_{\mathrm{eh}}\) is the mean energy required to create one mobile electron-hole pair in silicon and \(\eta_{\mathrm{eh}}\) is an efficiency factor accounting for the fact that not all deposited energy becomes mobile carriers.
+
+This source should be used carefully. Module 1 energy deposition may also go into phonons, electronic excitation, displacement damage, or secondary-particle production. Therefore \(G_{\mathrm{rad}}\) should be treated as a modeled branch of the total energy deposition, not as an automatic equality.
+
+\section{Boundary conditions for the carrier equations}
+
+\subsection{Ohmic contacts}
+
+At an ideal Ohmic contact, carrier concentrations may be pinned to equilibrium or bias-dependent values:
+\begin{equation}
+ n=n_{\mathrm{contact}},\qquad p=p_{\mathrm{contact}} \quad \text{on an Ohmic contact}.
+\end{equation}
+The contact potential is handled by Module 2 through Dirichlet conditions on \(\phi\).
+
+\subsection{Insulating boundaries}
+
+At an insulating boundary, no carrier current flows through the boundary:
+\begin{equation}
+\nvec\cdot \Jvec_n=0,
+\qquad
+\nvec\cdot \Jvec_p=0.
+\end{equation}
+This is appropriate for an oxide or symmetry boundary when surface recombination is neglected.
+
+\subsection{Surface recombination}
+
+If the boundary contains interface traps, surface recombination can be approximated by Robin-type conditions:
+\begin{align}
+\nvec\cdot \Jvec_n &= q S_n (n-n_{\mathrm{eq}}), \\
+-\nvec\cdot \Jvec_p &= q S_p (p-p_{\mathrm{eq}}).
+\end{align}
+Here \(S_n\) and \(S_p\) are surface recombination velocities. This boundary model is useful when radiation creates interface states at the oxide-silicon boundary.
+
+\section{Reduced first implementation for RadiationEffects\_proj2}
+
+The first implementation does not need to solve every coupling at once. A stable staged path is:
+
+\begin{enumerate}[label=\textbf{Step \arabic*.}, leftmargin=2.2em]
+\item Import \(\phi(x,y)\), \(\Evec(x,y)\), \(T(x,y)\), and \(C_j(x,y)\) from Modules 2--4.
+\item Compute defect-modified mobilities \(\mu_n(C_j,T)\) and \(\mu_p(C_j,T)\).
+\item Compute defect-assisted recombination \(R_{\mathrm{def}}(n,p,T,C_j)\).
+\item Solve the electron and hole continuity equations for \(n(x,y,t)\) and \(p(x,y,t)\), or solve the steady-state form.
+\item Compute \(\Jvec_n\), \(\Jvec_p\), and the total current \(\Jvec\).
+\item Extract device-level metrics, such as terminal current or current loss relative to an undamaged reference case.
+\end{enumerate}
+
+For a first reduced model, one may use a single effective defect field \(C(x,y,t)\) and write
+\begin{align}
+\mu_n&=\frac{\mu_{n0}(T)}{1+\alpha_n C}, \\
+\mu_p&=\frac{\mu_{p0}(T)}{1+\alpha_p C}, \\
+R&=\frac{np-n_i^2}{\tau_p(C,T)(n+n_1)+\tau_n(C,T)(p+p_1)},
+\end{align}
+with
+\begin{equation}
+\tau_n(C,T)=\frac{1}{\sigma_n \vt,n(T) \eta C},
+\qquad
+\tau_p(C,T)=\frac{1}{\sigma_p \vt,p(T) \eta C}.
+\end{equation}
+This is the minimal physics bridge from defect evolution to carrier-transport degradation.
+
+\section{Coupling back into Module 6}
+
+Module 5 closes an important loop. Carriers are not just passive outputs. They change space charge, recombination heating, and sometimes defect charge state. In Module 6, the coupling becomes
+\begin{equation}
+\boxed{
+\begin{array}{c}
+C_j \rightarrow \rho_{\mathrm{def}},\; \mu_n,\mu_p,\; R_{\mathrm{def}} \\
+\phi \rightarrow \Evec \rightarrow \Jvec_n,\Jvec_p \\
+T \rightarrow \mu_n,\mu_p,D_n,D_p,R_{\mathrm{def}} \\
+n,p \rightarrow \rho \rightarrow \phi
+\end{array}}
+\end{equation}
+The self-consistent multiphysics problem is therefore not a simple chain. It is a feedback loop among defects, electrostatics, thermal transport, and carrier transport.
+
+\section{Physical interpretation for the Module 5 slide}
+
+A clean Module 5 drawing should show three ideas and avoid overcomplicating the picture.
+
+\begin{enumerate}[label=\textbf{\arabic*.}, leftmargin=2.0em]
+\item \textbf{Bent electric field.} The field lines are curved because space charge, geometry, and defects perturb the potential.
+\item \textbf{Carrier drift.} Holes drift along \(\Evec\). Electrons drift opposite \(\Evec\). If the right electrode is positive and the left electrode is negative, then \(\Evec\) points right-to-left, holes drift right-to-left, and electrons drift left-to-right.
+\item \textbf{Defect effects.} Some defects scatter carriers and reduce mobility. Other defects act as recombination centers, capturing an electron and a hole and removing both from mobile transport.
+\end{enumerate}
+
+The visual message should be
+\begin{equation}
+\boxed{\text{bent field steers carriers} \; + \; \text{defects scatter and recombine carriers} \; \Rightarrow \; \text{changed device current}.}
+\end{equation}
+
+\section{Summary of the Module 5 equations}
+
+The complete reduced Module 5 system is
+\begin{align}
+\Evec&=-\gradxy\phi, \\
+\Jvec_n&=q\mu_n n\Evec+qD_n\gradxy n, \\
+\Jvec_p&=q\mu_p p\Evec-qD_p\gradxy p, \\
+\frac{\partial n}{\partial t}&=\frac{1}{q}\divxy\Jvec_n+G-R, \\
+\frac{\partial p}{\partial t}&=-\frac{1}{q}\divxy\Jvec_p+G-R, \\
+D_n&=\mu_n\frac{\kB T}{q},\qquad D_p=\mu_p\frac{\kB T}{q}, \\
+\mu_n&=\mu_n(T,C_j),\qquad \mu_p=\mu_p(T,C_j), \\
+R&\approx \sum_j R_{\mathrm{SRH},j}(n,p,T,C_j).
+\end{align}
+
+\begin{physicsbox}
+\textbf{Main result.} Module 5 is where material damage becomes electrical degradation. The same defect map that modifies electrostatics in Module 2 and evolves in Module 3 also lowers mobility and increases trap-assisted recombination in Module 5. This changes carrier densities, current paths, leakage, and ultimately measurable device response.
+\end{physicsbox}
+
+\end{document}

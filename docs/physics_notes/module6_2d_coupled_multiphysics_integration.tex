@@ -1,0 +1,942 @@
+\documentclass[11pt]{article}
+\input{../shared/project_style.tex}
+\newcommand{\Evec}{\bm{E}}
+\newcommand{\Jvec}{\bm{J}}
+\newcommand{\qthvec}{\bm{q}_{\mathrm{th}}}
+\newcommand{\Cvec}{\bm{C}}
+\newcommand{\Uvec}{\bm{U}}
+\newcommand{\Rvec}{\bm{R}}
+\newcommand{\Fvec}{\bm{F}}
+\newcommand{\Gammavec}{\bm{\Gamma}}
+\newcommand{\vvec}{\bm{v}}
+\newcommand{\gradxy}{\nabla_{xy}}
+\newcommand{\divxy}{\nabla_{xy}\cdot}
+\newcommand{\OmegaD}{\Omega}
+\newcommand{\dt}{\Delta t}
+\newcommand{\epss}{\varepsilon_{\mathrm{s}}}
+\newcommand{\rhoc}{\rho_{\mathrm{c}}}
+\newcommand{\rhom}{\rho_{\mathrm{m}}}
+\newcommand{\cpsym}{c_{p}}
+\newcommand{\Rsrh}{R_{\mathrm{SRH}}}
+\newcommand{\Da}{\mathrm{Da}}
+\newcommand{\Pe}{\mathrm{Pe}}
+\newcommand{\Bi}{\mathrm{Bi}}
+\newcommand{\Kn}{\mathrm{Kn}}
+\rhead{Module 6 Physics Note}
+
+\begin{document}
+
+\DocTitle{Module 6: Coupled Two-Dimensional Multiphysics Integration}{Derivation-Focused Physics Note for \texttt{RadiationEffects\_proj2}}{Self-consistent coupling of defect evolution, electrostatics, thermal transport, and carrier transport}
+
+\begin{overviewbox}
+\textbf{Purpose of this note.} Module 6 is the integration layer of \texttt{RadiationEffects\_proj2}. Modules 1--5 each describe one part of the radiation-to-device-degradation chain. Module 6 connects them into one coupled device model. The central idea is that the defect map, temperature map, electrostatic potential map, and carrier map are not independent post-processing products. They feed back on one another through space charge, mobility, recombination, heat generation, defect kinetics, and field-driven transport. This note defines the coupled state variables, writes the governing equations in a common two-dimensional notation, derives the main feedback loops, and gives a practical staggered solver strategy for the first MATLAB implementation.
+\end{overviewbox}
+
+\ProjectTOC
+
+\SymbolsAcronymsSection
+\begin{symtable}
+2D & Two-dimensional & Reduced project model resolving the in-plane device cross section in coordinates \(x\) and \(y\). \\
+3D & Three-dimensional & Full transport or device geometry with coordinates \(x\), \(y\), and \(z\). \\
+BTE & Boltzmann transport equation & Kinetic equation used in Module 4 to motivate ballistic-diffusive heat-carrier transport. \\
+DD & Drift-diffusion & Continuum carrier transport model used in Module 5. \\
+FEM & Finite element method & Spatial discretization method intended for the coupled two-dimensional project model. \\
+PDE & Partial differential equation & Equation involving derivatives with respect to space and/or time. \\
+DAE & Differential-algebraic equation & Coupled system containing both time-evolution equations and constraint equations such as Poisson's equation. \\
+SRH & Shockley-Read-Hall & Defect-assisted recombination mechanism mediated by trap levels inside the band gap. \\
+SEU & Single-event upset & Device-level error mode caused by radiation-induced charge deposition and collection. \\
+TID & Total ionizing dose & Cumulative ionizing-radiation damage metric. \\
+DDD & Displacement damage dose & Damage metric associated with non-ionizing energy loss and lattice displacement. \\
+\(x,y\) & In-plane coordinates & Spatial coordinates of the two-dimensional device cross section. \\
+\(z\) & Out-of-plane coordinate & Direction averaged out when mapping the three-dimensional Module 1 deposition field into the reduced two-dimensional model. \\
+\(t\) & Time & Independent time coordinate. \\
+\(\OmegaD\) & Device domain & Two-dimensional material region occupied by the simulated device cross section. \\
+\(\partial\OmegaD\) & Device boundary & Boundary of the two-dimensional simulation domain. \\
+\(\nvec\) & Unit normal & Outward unit normal vector on \(\partial\OmegaD\). \\
+\(\Uvec\) & Coupled state vector & Collection of unknown fields, for example \(\Uvec=[C_1,\ldots,C_N,\phi,T,n,p]^T\). \\
+\(\Cvec\) & Defect-state vector & Vector of defect concentrations \(\Cvec=[C_1,\ldots,C_N]^T\). \\
+\(C_j\) & Defect concentration & Concentration of defect species \(j\), inherited from Module 3. \\
+\(N\) & Number of defect species & Number of defect populations retained in the reduced model. \\
+\(z_j\) & Defect charge number & Effective integer or averaged charge state of defect species \(j\). \\
+\(q\) & Elementary charge magnitude & Positive scalar charge magnitude; electron charge is \(-q\), hole charge is \(+q\). \\
+\(\rho\) & Space-charge density & Charge density entering Poisson's equation. \\
+\(\rho_{\mathrm{dop}}\) & Dopant charge density & Fixed ionized-dopant contribution to space charge. \\
+\(\rho_{\mathrm{car}}\) & Carrier charge density & Mobile-carrier contribution \(q(p-n)\). \\
+\(\rho_{\mathrm{def}}\) & Defect charge density & Charged-defect contribution \(q\sum_j z_j C_j\). \\
+\(N_D^+\) & Ionized donor concentration & Positive fixed donor concentration. \\
+\(N_A^-\) & Ionized acceptor concentration & Negative fixed acceptor concentration. \\
+\(\phi\) & Electrostatic potential & Scalar potential solved in Module 2 and reused in Modules 5 and 6. \\
+\(\Evec\) & Electric field & Electrostatic field \(\Evec=-\gradxy\phi\). \\
+\(\epss\) & Silicon permittivity & Electrical permittivity of silicon or the local material. \\
+\(T\) & Temperature & Lattice or effective thermal field supplied by Module 4. \\
+\(T_0\) & Reference temperature & Ambient or initial reference temperature. \\
+\(\rhom\) & Mass density & Material mass density. \\
+\(\cp\) & Specific heat & Heat capacity per unit mass at constant pressure. \\
+\(k\) & Thermal conductivity & Diffusive thermal conductivity or effective thermal conductivity. \\
+\(\qthvec\) & Heat flux & Thermal energy flux vector. \\
+\(\dot{q}_{\mathrm{rad}}\) & Radiation energy-deposition rate & Volumetric radiation energy source from Module 1. \\
+\(\dot{q}_{\mathrm{th}}\) & Thermalized radiation heat source & Portion of \(\dot{q}_{\mathrm{rad}}\) that appears as heat. \\
+\(Q_{\mathrm{J}}\) & Joule-heating source & Heat source from electrical power dissipation, often \(Q_{\mathrm{J}}=\Jvec\cdot\Evec\). \\
+\(Q_{\mathrm{rec}}\) & Recombination heat source & Heat released through electron-hole recombination. \\
+\(Q_{\mathrm{def}}\) & Defect-reaction heat source & Heat associated with defect reactions, annealing, or clustering. \\
+\(n\) & Electron concentration & Mobile conduction-band electron density. \\
+\(p\) & Hole concentration & Mobile valence-band hole density. \\
+\(\Jvec_n\) & Electron current density & Conventional current density associated with electron transport. \\
+\(\Jvec_p\) & Hole current density & Conventional current density associated with hole transport. \\
+\(\Jvec\) & Total current density & \(\Jvec=\Jvec_n+\Jvec_p\). \\
+\(\mu_n\) & Electron mobility & Electron mobility entering drift-diffusion current. \\
+\(\mu_p\) & Hole mobility & Hole mobility entering drift-diffusion current. \\
+\(D_n\) & Electron diffusivity & Electron diffusion coefficient. \\
+\(D_p\) & Hole diffusivity & Hole diffusion coefficient. \\
+\(D_j\) & Defect diffusivity & Diffusion coefficient of defect species \(j\). \\
+\(\mu_j\) & Defect mobility & Field-driven mobility of charged defect species \(j\). \\
+\(S_j\) & Defect source & Source term for defect species \(j\), including radiation-induced generation. \\
+\(R_j\) & Defect reaction term & Net production or loss of defect species \(j\) through reactions, annealing, recombination, or clustering. \\
+\(G\) & Carrier generation rate & Volumetric generation rate of electron-hole pairs. \\
+\(R\) & Carrier recombination rate & Volumetric removal rate of electron-hole pairs. \\
+\(R_{\mathrm{SRH}}\) & SRH recombination rate & Defect-assisted recombination rate through trap states. \\
+\(N_t\) & Trap density & Concentration of electrically active trap states. \\
+\(\eta_{\mathrm{eh}}\) & Carrier-generation efficiency & Fraction of deposited radiation energy assigned to mobile electron-hole pair creation. \\
+\(\varepsilon_{\mathrm{eh}}\) & Pair-creation energy & Mean energy required to create one mobile electron-hole pair. \\
+\(\Fvec\) & Coupled residual vector & Residual form of the monolithic coupled multiphysics system. \\
+\(\Rvec\) & Discrete residual vector & Residual after spatial and temporal discretization. \\
+\(\dt\) & Time step & Discrete time increment. \\
+\(m\) & Time-step index & Superscript index for discrete time level \(t^m\). \\
+\(\ell\) & Coupling-iteration index & Superscript index for inner Picard or fixed-point iteration. \\
+\(\omega\) & Under-relaxation factor & Scalar between 0 and 1 used to stabilize staggered coupling iterations. \\
+\(\epsilon_{\mathrm{coup}}\) & Coupling tolerance & Stopping tolerance for the coupled fixed-point iteration. \\
+\(L\) & Characteristic length & Representative device or gradient length scale. \\
+\(\tau\) & Characteristic time & Representative time scale for a physical process. \\
+\(\Da\) & Damkohler number & Ratio of transport time scale to reaction time scale. \\
+\(\Pe\) & Peclet number & Ratio of drift or advective transport to diffusive transport. \\
+\(\Bi\) & Biot number & Ratio of boundary heat-transfer resistance to internal conduction resistance. \\
+\(\Kn\) & Knudsen number & Ratio of heat-carrier mean free path to device length scale. \\
+\(\Lambda\) & Mean free path & Average ballistic transport length between scattering events. \\
+\(y_{\mathrm{device}}\) & Device response & Reduced measurable output such as leakage current, threshold shift, collected charge, or upset probability. \\
+\(I\) & Terminal current & Current through a device contact. \\
+\(V\) & Terminal voltage & Applied or measured voltage at a device terminal. \\
+\end{symtable}
+
+\section{Role of Module 6 in the project}
+
+Modules 1--5 can be run as separate physics blocks. That is useful for understanding each process. It is not enough for a device model, because the fields generated by one module modify the equations solved by the others. Module 6 is therefore the self-consistent integration layer. The reduced project state can be written as
+\begin{equation}
+\boxed{
+\Uvec(x,y,t)=
+\begin{bmatrix}
+C_1(x,y,t) \\
+\vdots \\
+C_N(x,y,t) \\
+\phi(x,y,t) \\
+T(x,y,t) \\
+n(x,y,t) \\
+p(x,y,t)
+\end{bmatrix}.}
+\label{eq:state_vector}
+\end{equation}
+Here \(C_j\) are defect concentrations, \(\phi\) is electrostatic potential, \(T\) is temperature, and \(n,p\) are mobile electron and hole concentrations. The corresponding physical maps are
+\begin{equation}
+\boxed{
+\text{defect map } \Cvec,
+\quad
+\text{potential map } \phi,
+\quad
+\text{temperature map } T,
+\quad
+\text{carrier map } (n,p).}
+\end{equation}
+
+The central message of Module 6 is that each map changes the others:
+\begin{align}
+\Cvec &\longrightarrow \rho_{\mathrm{def}} \longrightarrow \phi,\Evec, \\
+\Cvec &\longrightarrow \mu_n,\mu_p,R_{\mathrm{SRH}} \longrightarrow n,p,\Jvec, \\
+T &\longrightarrow D_j,R_j,\mu_n,\mu_p,R_{\mathrm{SRH}}, \\
+\phi,\Evec &\longrightarrow \text{carrier drift and charged-defect drift}, \\
+n,p &\longrightarrow \rho_{\mathrm{car}} \longrightarrow \phi,\Evec, \\
+\Jvec, R, R_j &\longrightarrow \text{heat generation} \longrightarrow T.
+\end{align}
+
+\begin{physicsbox}
+\textbf{Core intuition.} Module 6 is not a new isolated physical mechanism. It is the statement that radiation damage, heat, electric field, and charge transport form a feedback system. A defect map changes space charge and recombination. Space charge changes the electric field. The electric field changes carrier motion and sometimes defect motion. Carrier motion and recombination generate heat. Heat changes defect kinetics and carrier mobility. The device response emerges from the fixed point of these interactions.
+\end{physicsbox}
+
+\section{The four coupled maps over the same device cross section}
+
+The phrase ``coupled maps'' means that the same material point \((x,y)\) carries multiple fields. At a location near a radiation-damaged region, one may simultaneously have a high defect density \(C_j\), altered space charge \(\rho\), a distorted potential \(\phi\), elevated temperature \(T\), reduced mobility \(\mu_n,\mu_p\), and increased recombination \(R\). These are not separate pictures of separate devices; they are different projections of the same physical state.
+
+\subsection{Defect map}
+
+The defect map is the set of species concentrations
+\begin{equation}
+\Cvec(x,y,t)=\left[C_1(x,y,t),C_2(x,y,t),\ldots,C_N(x,y,t)\right]^T.
+\end{equation}
+Examples include vacancies, interstitials, vacancy-oxygen complexes, divacancies, charged traps, or effective reduced defect populations. The Module 3 equations evolve \(C_j\) through diffusion, drift, reactions, annealing, and sources produced by radiation deposition.
+
+\subsection{Potential map}
+
+The potential map is
+\begin{equation}
+\phi(x,y,t), \qquad \Evec(x,y,t)=-\gradxy\phi(x,y,t).
+\end{equation}
+It comes from the charge density produced by ionized dopants, mobile carriers, and charged defects. In Module 6, \(\phi\) is not merely a fixed bias field; it responds to radiation-induced changes in \(\Cvec\), \(n\), and \(p\).
+
+\subsection{Temperature map}
+
+The temperature map is
+\begin{equation}
+T(x,y,t).
+\end{equation}
+It is driven by the thermalized fraction of radiation energy deposition, electrical power dissipation, recombination, and defect reactions. It feeds back into almost every coefficient: defect diffusivity, annealing rates, carrier mobility, intrinsic concentration, and recombination lifetimes.
+
+\subsection{Carrier map}
+
+The carrier map is
+\begin{equation}
+(n(x,y,t),p(x,y,t)).
+\end{equation}
+It determines the mobile charge density, current density, recombination rate, and part of the heat generation. Module 5 computes these fields using drift-diffusion equations in the electrostatic, thermal, and defect environment supplied by the other modules.
+
+\section{Coupled governing equations}
+
+This section writes the four map equations in a common notation. These equations are more general than the first implementation will need. The first implementation can turn off selected feedbacks while preserving the same architecture.
+
+\subsection{Defect evolution equation}
+
+For defect species \(j\), a general two-dimensional conservation form is
+\begin{equation}
+\frac{\partial C_j}{\partial t}
+=
+-\divxy \Gammavec_j + R_j(\Cvec,T,\Evec,n,p)+S_j(\dot{q}_{\mathrm{rad}},T),
+\label{eq:defect_balance_general}
+\end{equation}
+where \(\Gammavec_j\) is the defect particle flux, \(R_j\) is the net reaction term, and \(S_j\) is the radiation-induced source term. A useful reduced flux model is
+\begin{equation}
+\Gammavec_j
+=
+-D_j(T,\Evec,\Cvec)\gradxy C_j
++
+\mu_j z_j q C_j \Evec.
+\label{eq:defect_flux}
+\end{equation}
+The first term is diffusion down concentration gradients. The second term is drift of charged defects under the electric field. The sign is controlled by the charge number \(z_j\). A positively charged defect drifts along \(\Evec\), while a negatively charged defect drifts opposite \(\Evec\).
+
+Substituting Eq.~\eqref{eq:defect_flux} into Eq.~\eqref{eq:defect_balance_general} gives
+\begin{equation}
+\boxed{
+\frac{\partial C_j}{\partial t}
+=
+\divxy\left(D_j\gradxy C_j\right)
+-
+\divxy\left(\mu_j z_j q C_j\Evec\right)
++
+R_j+S_j.}
+\label{eq:defect_pde}
+\end{equation}
+This is the Module 3 equation embedded inside the Module 6 feedback loop.
+
+\subsection{Electrostatic potential equation}
+
+The electrostatic equation is Poisson's equation,
+\begin{equation}
+\boxed{
+\divxy\left(\epss\gradxy\phi\right)=-\rho, 
+\qquad
+\Evec=-\gradxy\phi.}
+\label{eq:poisson}
+\end{equation}
+The total space-charge density is decomposed as
+\begin{equation}
+\rho = \rho_{\mathrm{dop}}+\rho_{\mathrm{car}}+\rho_{\mathrm{def}}.
+\end{equation}
+For the silicon regions of the reduced model,
+\begin{align}
+\rho_{\mathrm{dop}} &= q\left(N_D^+-N_A^-\right), \\
+\rho_{\mathrm{car}} &= q\left(p-n\right), \\
+\rho_{\mathrm{def}} &= q\sum_{j=1}^{N} z_j C_j.
+\end{align}
+Therefore
+\begin{equation}
+\boxed{
+\rho
+=
+q\left[p-n+N_D^+-N_A^-+\sum_{j=1}^{N} z_j C_j\right].}
+\label{eq:rho_total}
+\end{equation}
+Equation~\eqref{eq:rho_total} is one of the most important coupling equations in the project. It states that radiation-induced charged defects enter electrostatics in the same charge-density budget as dopants and mobile carriers.
+
+\subsection{Thermal equation}
+
+A diffusive thermal balance can be written as
+\begin{equation}
+\boxed{
+\rhom\cpsym\frac{\partial T}{\partial t}
+=
+-\divxy\qthvec + Q_{\mathrm{tot}},
+\qquad
+\qthvec=-k\gradxy T.}
+\label{eq:thermal_general}
+\end{equation}
+In the simplest Fourier form this becomes
+\begin{equation}
+\boxed{
+\rhom\cpsym\frac{\partial T}{\partial t}
+=
+\divxy\left(k\gradxy T\right)+Q_{\mathrm{tot}}.}
+\label{eq:thermal_fourier}
+\end{equation}
+Module 4 uses a more detailed ballistic-diffusive thermal model, but the coupling role is the same: Module 6 requires a temperature field and a thermal-energy balance.
+
+The total heat source can be decomposed as
+\begin{equation}
+\boxed{
+Q_{\mathrm{tot}}
+=
+\dot{q}_{\mathrm{th}}
++Q_{\mathrm{J}}
++Q_{\mathrm{rec}}
++Q_{\mathrm{def}}
++Q_{\mathrm{ext}}.}
+\label{eq:thermal_sources}
+\end{equation}
+Here \(\dot{q}_{\mathrm{th}}\) is the thermalized part of radiation energy deposition, \(Q_{\mathrm{J}}\) is Joule heating, \(Q_{\mathrm{rec}}\) is recombination heat, \(Q_{\mathrm{def}}\) is heat from defect reactions or annealing, and \(Q_{\mathrm{ext}}\) is any externally imposed thermal source.
+
+A common reduced form for Joule heating is
+\begin{equation}
+\boxed{
+Q_{\mathrm{J}} = \Jvec\cdot\Evec = (\Jvec_n+\Jvec_p)\cdot\Evec.}
+\label{eq:joule}
+\end{equation}
+This term couples carrier transport directly back into the temperature map.
+
+\subsection{Carrier transport equations}
+
+Module 5 supplies the electron and hole continuity equations:
+\begin{align}
+\boxed{
+\frac{\partial n}{\partial t}
+=
+\frac{1}{q}\divxy \Jvec_n+G-R,}
+\label{eq:n_continuity}\\
+\boxed{
+\frac{\partial p}{\partial t}
+=
+-
+\frac{1}{q}\divxy \Jvec_p+G-R.}
+\label{eq:p_continuity}
+\end{align}
+The drift-diffusion current densities are
+\begin{align}
+\Jvec_n &= q\mu_n n\Evec + qD_n\gradxy n, \label{eq:jn}\\
+\Jvec_p &= q\mu_p p\Evec - qD_p\gradxy p. \label{eq:jp}
+\end{align}
+The signs in Eqs.~\eqref{eq:jn}--\eqref{eq:jp} are conventional-current signs. Electron particles drift opposite the electric field, but electron conventional current points along the electric field.
+
+Radiation can generate mobile electron-hole pairs through
+\begin{equation}
+\boxed{
+G_{\mathrm{rad}}(x,y,t)
+=
+\frac{\eta_{\mathrm{eh}}\dot{q}_{\mathrm{rad}}(x,y,t)}{\varepsilon_{\mathrm{eh}}}.}
+\label{eq:carrier_generation_from_qrad}
+\end{equation}
+The total generation rate may include other terms,
+\begin{equation}
+G=G_{\mathrm{rad}}+G_{\mathrm{th}}+G_{\mathrm{inj}},
+\end{equation}
+where \(G_{\mathrm{th}}\) is thermal generation and \(G_{\mathrm{inj}}\) is effective carrier injection.
+
+Defect-assisted recombination can be represented by an SRH term. For one effective trap population, a standard expression is
+\begin{equation}
+\boxed{
+R_{\mathrm{SRH}}
+=
+\frac{np-n_i^2}
+{\tau_p(n+n_1)+\tau_n(p+p_1)}.}
+\label{eq:srh}
+\end{equation}
+In Module 6, the trap density is linked to the defect map, for example
+\begin{equation}
+N_t(x,y,t)=\sum_{j=1}^{N}\eta_j C_j(x,y,t),
+\label{eq:trap_density_from_defects}
+\end{equation}
+so the recombination lifetimes depend on radiation-induced defects:
+\begin{equation}
+\tau_n=\frac{1}{\sigma_n v_{\mathrm{th},n}N_t},
+\qquad
+\tau_p=\frac{1}{\sigma_p v_{\mathrm{th},p}N_t}.
+\label{eq:trap_lifetimes}
+\end{equation}
+
+\section{Where the feedback loops come from}
+
+\subsection{Defects perturb electrostatics}
+
+The direct coupling from defects to electrostatics follows from Eq.~\eqref{eq:rho_total}. If defect species \(j\) has charge number \(z_j\), it contributes
+\begin{equation}
+\rho_{\mathrm{def},j}=q z_j C_j.
+\end{equation}
+The change in charge density caused by a defect perturbation \(\delta C_j\) is
+\begin{equation}
+\delta \rho = q z_j \delta C_j.
+\end{equation}
+Poisson's equation then gives the potential perturbation
+\begin{equation}
+\divxy\left(\epss\gradxy\delta\phi\right)=-qz_j\delta C_j.
+\end{equation}
+Thus a localized charged-defect cloud bends the electrostatic field. If the charged defect lies in or near a depletion region, the effect can alter junction fields, leakage, and charge-collection paths.
+
+\subsection{Electrostatics steers carriers and charged defects}
+
+The electric field enters carrier transport through the drift terms in Eqs.~\eqref{eq:jn}--\eqref{eq:jp}. It can also enter charged-defect transport through Eq.~\eqref{eq:defect_flux}. Therefore the same potential map can steer both fast electronic transport and slower defect redistribution. This is why a damaged device cannot always be modeled by solving defect evolution first and electrostatics only once afterward. If the defect charge strongly alters \(\Evec\), then \(\Evec\) can in turn change later defect drift or carrier collection.
+
+\subsection{Defects modify mobility}
+
+Defects scatter carriers and shorten the momentum-relaxation time. A reduced mobility model can be written as
+\begin{align}
+\mu_n(T,\Cvec) &= \frac{\mu_{n0}(T)}{1+\sum_j \alpha_{n,j}C_j}, \\
+\mu_p(T,\Cvec) &= \frac{\mu_{p0}(T)}{1+\sum_j \alpha_{p,j}C_j}.
+\end{align}
+This is not the only possible model, but it captures the intended physics: increasing defect concentration lowers the effective mobility, and therefore lowers drift current for a given field and carrier density.
+
+\subsection{Defects modify recombination}
+
+Defects also produce trap levels. Using Eqs.~\eqref{eq:trap_density_from_defects}--\eqref{eq:trap_lifetimes}, an increase in \(C_j\) raises \(N_t\), lowers \(\tau_n\) and \(\tau_p\), and usually increases SRH recombination. In the carrier equations, this removes mobile electrons and holes:
+\begin{equation}
+G-R \quad \text{decreases as} \quad R_{\mathrm{SRH}} \text{ increases}.
+\end{equation}
+That reduced carrier population then feeds back into space charge through \(q(p-n)\) and into current through \(\Jvec_n+\Jvec_p\).
+
+\subsection{Temperature modifies almost every coefficient}
+
+Temperature enters defect kinetics through Arrhenius-type diffusivities and rates. A typical defect diffusivity is
+\begin{equation}
+D_j(T)=D_{j0}\exp\left(-\frac{E_{D,j}}{\kB T}\right),
+\end{equation}
+and a typical annealing coefficient is
+\begin{equation}
+k_{\mathrm{ann},j}(T)=k_{\mathrm{ann},j0}\exp\left(-\frac{E_{A,j}}{\kB T}\right).
+\end{equation}
+Temperature also changes carrier mobility and intrinsic carrier concentration. A common reduced mobility scaling is
+\begin{equation}
+\mu_{n0}(T)=\mu_{n,\mathrm{ref}}\left(\frac{T}{T_{\mathrm{ref}}}\right)^{-\gamma_n},
+\qquad
+\mu_{p0}(T)=\mu_{p,\mathrm{ref}}\left(\frac{T}{T_{\mathrm{ref}}}\right)^{-\gamma_p}.
+\end{equation}
+Thus a local hot spot can simultaneously increase defect mobility, change annealing rates, change carrier mobility, increase thermal generation, and alter recombination kinetics.
+
+\subsection{Carriers and currents generate heat}
+
+Carrier transport feeds the thermal equation through Joule heating. Starting from the electrical power density, the local work done by the field on charge carriers is
+\begin{equation}
+Q_{\mathrm{J}}=\Jvec\cdot\Evec.
+\end{equation}
+In a region with high field and high current density, this can increase \(T\), which then changes \(\mu_n\), \(\mu_p\), \(D_j\), and reaction rates. This is the electrical-to-thermal feedback loop.
+
+Recombination can also release energy. A reduced model can write
+\begin{equation}
+Q_{\mathrm{rec}}\approx E_{\mathrm{rec}}R,
+\end{equation}
+where \(E_{\mathrm{rec}}\) is an effective energy released as heat per recombination event. The exact partition between photons, phonons, and electronic excitation depends on the material and recombination channel. For the first implementation, \(Q_{\mathrm{rec}}\) can be omitted or treated as a secondary correction unless recombination heating is important.
+
+\section{Monolithic coupled system}
+
+A compact way to write Module 6 is as a coupled residual equation
+\begin{equation}
+\boxed{
+\Fvec\left(\Uvec,\frac{\partial\Uvec}{\partial t};\dot{q}_{\mathrm{rad}},\mathrm{BCs},\mathrm{parameters}\right)=\bm{0}.}
+\label{eq:monolithic_residual}
+\end{equation}
+Expanded by physics block, the monolithic system contains
+\begin{align}
+F_{C_j} &\equiv
+\frac{\partial C_j}{\partial t}
+-
+\divxy\left(D_j\gradxy C_j\right)
++
+\divxy\left(\mu_j z_j q C_j\Evec\right)
+-R_j-S_j=0,
+\label{eq:res_C}\\
+F_{\phi} &\equiv
+\divxy\left(\epss\gradxy\phi\right)+\rho=0,
+\label{eq:res_phi}\\
+F_T &\equiv
+\rhom\cpsym\frac{\partial T}{\partial t}
+-
+\divxy\left(k\gradxy T\right)
+-Q_{\mathrm{tot}}=0,
+\label{eq:res_T}\\
+F_n &\equiv
+\frac{\partial n}{\partial t}
+-
+\frac{1}{q}\divxy\Jvec_n
+-G+R=0,
+\label{eq:res_n}\\
+F_p &\equiv
+\frac{\partial p}{\partial t}
++
+\frac{1}{q}\divxy\Jvec_p
+-G+R=0.
+\label{eq:res_p}
+\end{align}
+Equations~\eqref{eq:res_C}--\eqref{eq:res_p} are strongly coupled because coefficients and source terms inside each residual depend on the full state \(\Uvec\). For example,
+\begin{align}
+D_j &= D_j(T,\Evec,\Cvec), \\
+\mu_n &= \mu_n(T,\Cvec), \\
+R &= R(n,p,T,\Cvec), \\
+\rho &= \rho(n,p,\Cvec), \\
+Q_{\mathrm{tot}} &= Q_{\mathrm{tot}}(\dot{q}_{\mathrm{rad}},\Jvec,\Evec,R,R_j).
+\end{align}
+
+\begin{notebox}
+\textbf{Why this is a DAE-like system.} The defect, thermal, and carrier equations are time-evolution equations. Poisson's equation is an instantaneous constraint on \(\phi\) for the current charge distribution. Therefore the coupled model behaves like a PDE/DAE system: some variables evolve dynamically, while \(\phi\) is constrained by the present state.
+\end{notebox}
+
+\section{Weak forms for a two-dimensional FEM implementation}
+
+This section states the weak forms that connect naturally to finite element implementation. The goal is not to implement all of them immediately, but to make the mathematical structure explicit.
+
+\subsection{Poisson weak form}
+
+Start from
+\begin{equation}
+\divxy(\epss\gradxy\phi)=-\rho.
+\end{equation}
+Multiply by a test function \(v\) and integrate over \(\OmegaD\):
+\begin{equation}
+\int_{\OmegaD} v\,\divxy(\epss\gradxy\phi)\,d\Omega
+=
+-
+\int_{\OmegaD}v\rho\,d\Omega.
+\end{equation}
+Integrating the left side by parts gives
+\begin{equation}
+-
+\int_{\OmegaD}\epss\gradxy v\cdot\gradxy\phi\,d\Omega
++
+\int_{\partial\OmegaD}v\epss\gradxy\phi\cdot\nvec\,d\Gamma
+=
+-
+\int_{\OmegaD}v\rho\,d\Omega.
+\end{equation}
+Rearranging,
+\begin{equation}
+\boxed{
+\int_{\OmegaD}\epss\gradxy v\cdot\gradxy\phi\,d\Omega
+=
+\int_{\OmegaD}v\rho\,d\Omega
++
+\int_{\partial\OmegaD}v\epss\gradxy\phi\cdot\nvec\,d\Gamma.}
+\label{eq:weak_poisson}
+\end{equation}
+Dirichlet contacts set \(\phi\) directly. Neumann or insulating boundaries set the normal displacement field.
+
+\subsection{Thermal weak form}
+
+For the Fourier form,
+\begin{equation}
+\rhom\cpsym\frac{\partial T}{\partial t}=\divxy(k\gradxy T)+Q_{\mathrm{tot}}.
+\end{equation}
+Using test function \(w\), the weak form is
+\begin{equation}
+\boxed{
+\int_{\OmegaD}w\rhom\cpsym\frac{\partial T}{\partial t}\,d\Omega
++
+\int_{\OmegaD}k\gradxy w\cdot\gradxy T\,d\Omega
+=
+\int_{\OmegaD}wQ_{\mathrm{tot}}\,d\Omega
++
+\int_{\partial\OmegaD}wk\gradxy T\cdot\nvec\,d\Gamma.}
+\label{eq:weak_thermal}
+\end{equation}
+For the Module 4 ballistic-diffusive model, this weak form is replaced or augmented by the reduced ballistic-diffusive variables. The coupling logic remains the same: Module 6 requires a temperature update consistent with the total heat source.
+
+\subsection{Defect weak form}
+
+Starting from
+\begin{equation}
+\frac{\partial C_j}{\partial t}+\divxy\Gammavec_j=R_j+S_j,
+\end{equation}
+multiply by a test function \(s\) and integrate:
+\begin{equation}
+\int_{\OmegaD}s\frac{\partial C_j}{\partial t}\,d\Omega
++
+\int_{\OmegaD}s\divxy\Gammavec_j\,d\Omega
+=
+\int_{\OmegaD}s(R_j+S_j)\,d\Omega.
+\end{equation}
+After integration by parts,
+\begin{equation}
+\boxed{
+\int_{\OmegaD}s\frac{\partial C_j}{\partial t}\,d\Omega
+-
+\int_{\OmegaD}\gradxy s\cdot\Gammavec_j\,d\Omega
++
+\int_{\partial\OmegaD}s\Gammavec_j\cdot\nvec\,d\Gamma
+=
+\int_{\OmegaD}s(R_j+S_j)\,d\Omega.}
+\label{eq:weak_defect}
+\end{equation}
+This form is useful because sinks, reflective boundaries, and interface loss terms can all be expressed as boundary fluxes.
+
+\subsection{Carrier weak forms}
+
+For electrons,
+\begin{equation}
+\frac{\partial n}{\partial t}-\frac{1}{q}\divxy\Jvec_n=G-R.
+\end{equation}
+Multiplying by a test function \(a\), integrating, and applying integration by parts gives
+\begin{equation}
+\boxed{
+\int_{\OmegaD}a\frac{\partial n}{\partial t}\,d\Omega
++
+\frac{1}{q}\int_{\OmegaD}\gradxy a\cdot\Jvec_n\,d\Omega
+-
+\frac{1}{q}\int_{\partial\OmegaD}a\Jvec_n\cdot\nvec\,d\Gamma
+=
+\int_{\OmegaD}a(G-R)\,d\Omega.}
+\label{eq:weak_electron}
+\end{equation}
+For holes,
+\begin{equation}
+\frac{\partial p}{\partial t}+\frac{1}{q}\divxy\Jvec_p=G-R,
+\end{equation}
+so
+\begin{equation}
+\boxed{
+\int_{\OmegaD}b\frac{\partial p}{\partial t}\,d\Omega
+-
+\frac{1}{q}\int_{\OmegaD}\gradxy b\cdot\Jvec_p\,d\Omega
++
+\frac{1}{q}\int_{\partial\OmegaD}b\Jvec_p\cdot\nvec\,d\Gamma
+=
+\int_{\OmegaD}b(G-R)\,d\Omega.}
+\label{eq:weak_hole}
+\end{equation}
+The opposite signs follow from the sign difference between electron conventional current and hole conventional current in the continuity equations.
+
+\section{Staggered coupling strategy for the first implementation}
+
+A fully monolithic Newton solve for all fields at once is mathematically clean but not the best first implementation. A more practical first path is a staggered fixed-point iteration. At time level \(t^{m+1}\), initialize
+\begin{equation}
+\Uvec^{m+1,0}=\Uvec^m.
+\end{equation}
+Then repeat the following steps for coupling iteration \(\ell=0,1,2,\ldots\):
+
+\begin{enumerate}[leftmargin=2em]
+\item \textbf{Defect update.} Solve Module 3 for \(\Cvec^{m+1,\ell+1}\) using the current estimates \(T^{m+1,\ell}\), \(\Evec^{m+1,\ell}\), and radiation source \(\dot{q}_{\mathrm{rad}}\).
+\item \textbf{Electrostatic update.} Compute \(\rho^{m+1,\ell+1}\) from \(\Cvec^{m+1,\ell+1}\), \(n^{m+1,\ell}\), and \(p^{m+1,\ell}\). Solve Poisson's equation for \(\phi^{m+1,\ell+1}\), then set \(\Evec^{m+1,\ell+1}=-\gradxy\phi^{m+1,\ell+1}\).
+\item \textbf{Carrier update.} Solve Module 5 for \(n^{m+1,\ell+1}\) and \(p^{m+1,\ell+1}\) using \(\Evec^{m+1,\ell+1}\), \(T^{m+1,\ell}\), and \(\Cvec^{m+1,\ell+1}\). Compute \(\Jvec_n^{m+1,\ell+1}\), \(\Jvec_p^{m+1,\ell+1}\), and \(R^{m+1,\ell+1}\).
+\item \textbf{Thermal update.} Compute \(Q_{\mathrm{tot}}^{m+1,\ell+1}\) from \(\dot{q}_{\mathrm{th}}\), \(\Jvec\cdot\Evec\), recombination, and any defect-reaction heat. Solve Module 4 for \(T^{m+1,\ell+1}\).
+\item \textbf{Relaxation and convergence check.} Optionally apply under-relaxation, then stop when all fields change by less than the coupling tolerance.
+\end{enumerate}
+
+Under-relaxation replaces a raw update \(U_{\mathrm{raw}}^{\ell+1}\) by
+\begin{equation}
+\boxed{
+U^{\ell+1}=(1-\omega)U^{\ell}+\omega U_{\mathrm{raw}}^{\ell+1},
+\qquad 0<\omega\le 1.}
+\label{eq:relaxation}
+\end{equation}
+A simple convergence metric is
+\begin{equation}
+\boxed{
+\epsilon_{\mathrm{coup}}
+=
+\max_{u\in\{C_1,\ldots,C_N,\phi,T,n,p\}}
+\frac{\norm{u^{\ell+1}-u^{\ell}}_2}{\norm{u^{\ell+1}}_2+u_{\mathrm{floor}}}.}
+\label{eq:coupling_metric}
+\end{equation}
+Here \(u_{\mathrm{floor}}\) prevents division by zero when a field is initially very small.
+
+\begin{physicsbox}
+\textbf{Interpretation of the staggered algorithm.} The algorithm is a search for a self-consistent set of maps. The defect map used in electrostatics must match the defect map produced by kinetics. The electric field used in carrier transport must match the field produced by charge density. The temperature used in reaction rates must match the temperature produced by heat sources. If those maps stop changing under repeated cycling, the coupled system has reached a fixed point for that time step.
+\end{physicsbox}
+
+\section{Boundary and initial conditions}
+
+\subsection{Defect boundary conditions}
+
+Defect boundaries can represent reflection, sinks, or interfaces. A no-flux boundary is
+\begin{equation}
+\Gammavec_j\cdot\nvec=0.
+\end{equation}
+A perfect sink sets the concentration at the interface,
+\begin{equation}
+C_j=C_{j,\mathrm{sink}},
+\end{equation}
+with \(C_{j,\mathrm{sink}}=0\) for an ideal absorber. A finite surface-reaction sink can be written as
+\begin{equation}
+\Gammavec_j\cdot\nvec=s_j(C_j-C_{j,\mathrm{eq}}),
+\end{equation}
+where \(s_j\) is an interface sink velocity.
+
+\subsection{Electrostatic boundary conditions}
+
+Contacts impose Dirichlet potential conditions,
+\begin{equation}
+\phi=V_a \quad \text{on contact } a.
+\end{equation}
+Insulating boundaries usually impose a normal electric-displacement condition,
+\begin{equation}
+\epss\gradxy\phi\cdot\nvec=0,
+\end{equation}
+unless surface charge is included.
+
+\subsection{Thermal boundary conditions}
+
+A fixed-temperature boundary is
+\begin{equation}
+T=T_b.
+\end{equation}
+A convective boundary is
+\begin{equation}
+-k\gradxy T\cdot\nvec=h(T-T_{\infty}),
+\end{equation}
+where \(h\) is the heat-transfer coefficient and \(T_{\infty}\) is the external ambient temperature. For the ballistic-diffusive Module 4 model, boundary emission and re-entry can be represented by effective boundary conditions on heat-carrier populations or by an equivalent reduced thermal boundary term.
+
+\subsection{Carrier boundary conditions}
+
+Ohmic contacts can prescribe equilibrium or quasi-equilibrium carrier values. Insulating boundaries impose zero normal current,
+\begin{equation}
+\Jvec_n\cdot\nvec=0,
+\qquad
+\Jvec_p\cdot\nvec=0.
+\end{equation}
+Surface recombination can be modeled by normal current losses proportional to carrier excess:
+\begin{align}
+\frac{1}{q}\Jvec_n\cdot\nvec &= S_n(n-n_{\mathrm{eq}}), \\
+-
+\frac{1}{q}\Jvec_p\cdot\nvec &= S_p(p-p_{\mathrm{eq}}),
+\end{align}
+where \(S_n\) and \(S_p\) are surface recombination velocities.
+
+\subsection{Initial conditions}
+
+A natural coupled simulation starts from a pre-irradiation equilibrium state:
+\begin{align}
+C_j(x,y,0)&=C_{j0}(x,y), \\
+T(x,y,0)&=T_0(x,y), \\
+n(x,y,0)&=n_0(x,y), \\
+p(x,y,0)&=p_0(x,y), \\
+\phi(x,y,0)&=\phi_0(x,y),
+\end{align}
+where \(\phi_0\) is obtained by solving Poisson's equation with the initial dopants, defects, and carrier concentrations. Radiation then enters through \(\dot{q}_{\mathrm{rad}}\), \(S_j\), \(G_{\mathrm{rad}}\), and \(\dot{q}_{\mathrm{th}}\).
+
+\section{Time scales and stiffness}
+
+Module 6 contains processes with very different characteristic times. Carrier redistribution can be extremely fast compared with defect annealing. Thermal diffusion may be intermediate, but ballistic heat-carrier effects can introduce nonlocal transport on short time and length scales. Defect reactions may persist long after the initial radiation event.
+
+A useful set of process time scales is
+\begin{align}
+\tau_{\mathrm{car}} &\sim \frac{L^2}{D_n} \quad \text{or} \quad \frac{L}{\mu_n |\Evec|}, \\
+\tau_{\mathrm{th}} &\sim \frac{L^2}{\alpha}, \qquad \alpha=\frac{k}{\rhom\cpsym}, \\
+\tau_{\mathrm{def},j} &\sim \frac{L^2}{D_j}, \\
+\tau_{\mathrm{ann},j} &\sim \frac{1}{k_{\mathrm{ann},j}}, \\
+\tau_{\mathrm{rec}} &\sim \frac{1}{\sigma v_{\mathrm{th}}N_t}.
+\end{align}
+These time scales can differ by many orders of magnitude. Therefore, the coupled solver should not assume that one universal time step resolves all physics equally well. In early MATLAB implementation, it is better to start with quasi-static subproblems and then introduce time dependence gradually.
+
+\subsection{Dimensionless indicators}
+
+Several dimensionless groups help decide which couplings matter.
+
+The defect Damkohler number compares transport and reaction:
+\begin{equation}
+\Da_j=\frac{L^2/D_j}{1/k_j}=\frac{k_j L^2}{D_j}.
+\end{equation}
+If \(\Da_j\ll 1\), diffusion is fast compared with reaction. If \(\Da_j\gg 1\), reaction is fast compared with diffusion.
+
+A carrier Peclet number compares drift and diffusion:
+\begin{equation}
+\Pe_n=\frac{\mu_n |\Evec|L}{D_n},
+\qquad
+\Pe_p=\frac{\mu_p |\Evec|L}{D_p}.
+\end{equation}
+If \(\Pe\gg 1\), drift dominates; if \(\Pe\ll 1\), diffusion dominates.
+
+For Module 4, the Knudsen number compares heat-carrier mean free path with device length:
+\begin{equation}
+\Kn=\frac{\Lambda}{L}.
+\end{equation}
+If \(\Kn\ll 1\), Fourier-like diffusion is more accurate. If \(\Kn\sim 1\), ballistic-diffusive physics matters.
+
+The Biot number compares boundary heat transfer with internal conduction:
+\begin{equation}
+\Bi=\frac{hL}{k}.
+\end{equation}
+Large \(\Bi\) means the boundary can strongly influence the internal temperature profile.
+
+\section{Recommended first implementation path}
+
+A full Module 6 implementation can become complicated quickly. The first version should preserve the coupling architecture while enabling verification at each level. A practical staged path is as follows.
+
+\subsection{Level 0: one-way coupling}
+
+Run each module once in a physically ordered sequence:
+\begin{equation}
+\dot{q}_{\mathrm{rad}}
+\rightarrow
+\Cvec
+\rightarrow
+\phi,\Evec
+\rightarrow
+T
+\rightarrow
+n,p,\Jvec
+\rightarrow
+ y_{\mathrm{device}}.
+\end{equation}
+No feedback iteration is applied. This tests data formats, interpolation, units, and field alignment.
+
+\subsection{Level 1: electrostatic-carrier coupling}
+
+Couple Poisson and drift-diffusion while holding \(\Cvec\) and \(T\) fixed:
+\begin{equation}
+(n,p) \leftrightarrow \rho \leftrightarrow \phi,\Evec.
+\end{equation}
+This is the classical semiconductor-device coupling and is the most important step for current-voltage response.
+
+\subsection{Level 2: defect-electrostatic-carrier coupling}
+
+Allow the defect charge and trap density to affect both electrostatics and recombination:
+\begin{equation}
+\Cvec \rightarrow \rho_{\mathrm{def}},N_t \rightarrow \phi,\Evec,R_{\mathrm{SRH}} \rightarrow n,p,\Jvec.
+\end{equation}
+At this level, radiation damage directly modifies the device electrical response.
+
+\subsection{Level 3: thermal feedback}
+
+Add temperature-dependent coefficients and heat generation:
+\begin{equation}
+T \leftrightarrow \left(D_j,k_{\mathrm{ann},j},\mu_n,\mu_p,R\right),
+\qquad
+\Jvec\cdot\Evec \rightarrow T.
+\end{equation}
+This level captures self-heating, thermally enhanced defect kinetics, and temperature-dependent transport degradation.
+
+\subsection{Level 4: full coupled iteration}
+
+Iterate all maps until convergence at every time step:
+\begin{equation}
+\Cvec \leftrightarrow \phi,\Evec \leftrightarrow n,p,\Jvec \leftrightarrow T \leftrightarrow \Cvec.
+\end{equation}
+This is the long-term target of Module 6.
+
+\section{Conservation and consistency checks}
+
+Module 6 must be checked more carefully than a single-physics module because coupling errors can produce apparently reasonable but physically wrong fields.
+
+\subsection{Charge consistency}
+
+At every coupled iteration, the charge density used in Poisson's equation should match the current defect and carrier fields:
+\begin{equation}
+\rho_{\mathrm{check}}
+=
+q\left[p-n+N_D^+-N_A^-+\sum_j z_jC_j\right].
+\end{equation}
+A useful diagnostic is
+\begin{equation}
+\epsilon_{\rho}
+=
+\frac{\norm{\rho_{\mathrm{Poisson}}-\rho_{\mathrm{check}}}_2}
+{\norm{\rho_{\mathrm{check}}}_2+\rho_{\mathrm{floor}}}.
+\end{equation}
+This should be close to zero if the coupling is implemented consistently.
+
+\subsection{Energy consistency}
+
+The thermal source should be decomposed and tracked:
+\begin{equation}
+Q_{\mathrm{tot}}
+=
+\dot{q}_{\mathrm{th}}+Q_{\mathrm{J}}+Q_{\mathrm{rec}}+Q_{\mathrm{def}}+Q_{\mathrm{ext}}.
+\end{equation}
+A useful output is the integrated power in each channel:
+\begin{equation}
+P_{a}(t)=\int_{\OmegaD}Q_a(x,y,t)\,d\Omega,
+\end{equation}
+where \(a\in\{\mathrm{th},\mathrm{J},\mathrm{rec},\mathrm{def},\mathrm{ext}\}\). This reveals whether one heat source dominates and whether the magnitude is physically plausible.
+
+\subsection{Carrier conservation}
+
+For an insulating device domain with no carrier flux through the boundary, the total number of carriers should change only through generation and recombination:
+\begin{align}
+\frac{d}{dt}\int_{\OmegaD} n\,d\Omega &= \int_{\OmegaD}(G-R)\,d\Omega, \\
+\frac{d}{dt}\int_{\OmegaD} p\,d\Omega &= \int_{\OmegaD}(G-R)\,d\Omega.
+\end{align}
+With contacts, boundary current terms must be included. For electrons,
+\begin{equation}
+\frac{d}{dt}\int_{\OmegaD} n\,d\Omega
+=
+\frac{1}{q}\int_{\partial\OmegaD}\Jvec_n\cdot\nvec\,d\Gamma
++
+\int_{\OmegaD}(G-R)\,d\Omega.
+\end{equation}
+For holes,
+\begin{equation}
+\frac{d}{dt}\int_{\OmegaD} p\,d\Omega
+=
+-
+\frac{1}{q}\int_{\partial\OmegaD}\Jvec_p\cdot\nvec\,d\Gamma
++
+\int_{\OmegaD}(G-R)\,d\Omega.
+\end{equation}
+These identities are important sign checks for Module 5 inside Module 6.
+
+\section{Device-response outputs}
+
+The final output of Module 6 is not merely a set of fields. The project goal is to connect radiation damage to measurable device degradation. Typical outputs include:
+\begin{align}
+I_a(t) &= \int_{\Gamma_a}\Jvec\cdot\nvec_a\,d\Gamma, \\
+\Delta I_{\mathrm{leak}}(t) &= I_{\mathrm{leak}}(t)-I_{\mathrm{leak},0}, \\
+\Delta V_{\mathrm{th}}(t) &= V_{\mathrm{th}}(t)-V_{\mathrm{th},0}, \\
+Q_{\mathrm{col}}(t) &= \int_0^t\int_{\Gamma_a}\Jvec\cdot\nvec_a\,d\Gamma\,dt', \\
+y_{\mathrm{device}} &= \mathcal{G}\left(\Cvec,T,\phi,n,p,\Jvec\right).
+\end{align}
+Here \(I_a\) is terminal current through contact \(a\), \(\Delta I_{\mathrm{leak}}\) is leakage-current shift, \(\Delta V_{\mathrm{th}}\) is threshold-voltage shift, \(Q_{\mathrm{col}}\) is collected charge, and \(\mathcal{G}\) is a reduced post-processing map from fields to device-level response.
+
+For the first project implementation, a simple degradation score can be constructed from normalized metrics:
+\begin{equation}
+\boxed{
+S_{\mathrm{deg}}
+=w_C\frac{\norm{\Cvec-\Cvec_0}}{\norm{\Cvec_0}+C_{\mathrm{floor}}}
++w_T\frac{\norm{T-T_0}}{\norm{T_0}}
++w_I\frac{|I-I_0|}{|I_0|+I_{\mathrm{floor}}}
++w_R\frac{\int_{\OmegaD}R\,d\Omega}{R_{\mathrm{ref}}}.}
+\label{eq:degradation_score}
+\end{equation}
+This is not a fundamental physics law. It is a reduced scoring model that can help compare simulations and decide which physics channels dominate the final response.
+
+\section{Common failure modes}
+
+\subsection{Unit inconsistency}
+
+A frequent error is mixing volumetric sources and area-integrated sources. If \(\dot{q}_{\mathrm{rad}}\) is a volumetric rate, its units are \(\mathrm{W/m^3}\). If it has been depth-integrated rather than depth-averaged, its units become \(\mathrm{W/m^2}\). Module 6 should use a depth-averaged volumetric source when the two-dimensional model represents an out-of-plane averaged material volume.
+
+\subsection{Using stale fields}
+
+If the defect map is updated but Poisson's equation still uses the previous defect map, the potential is inconsistent. If the current density is updated but the thermal source still uses the previous current density, the thermal field is inconsistent. Module 6 should explicitly record which time level and coupling iteration each field comes from.
+
+\subsection{Sign errors in carrier transport}
+
+Electron particles drift opposite \(\Evec\); holes drift along \(\Evec\). Conventional electron current points opposite electron particle motion. This distinction must be preserved in code, notes, and figures.
+
+\subsection{Over-coupling too early}
+
+Turning on every feedback loop at once can make debugging impossible. The recommended approach is to verify one-way coupling, then electrostatic-carrier coupling, then defect-electrostatic-carrier coupling, and only then thermal feedback.
+
+\section{Summary}
+
+Module 6 is the self-consistent coupling layer for the radiation-effects project. It joins the Module 3 defect map, Module 2 electrostatic potential map, Module 4 temperature map, and Module 5 carrier map over the same two-dimensional device cross section. The essential coupling equations are
+\begin{align}
+\rho &= q\left[p-n+N_D^+-N_A^-+\sum_j z_j C_j\right], \\
+\Evec &= -\gradxy\phi, \\
+\Jvec_n &= q\mu_n n\Evec + qD_n\gradxy n, \\
+\Jvec_p &= q\mu_p p\Evec - qD_p\gradxy p, \\
+Q_{\mathrm{tot}} &= \dot{q}_{\mathrm{th}}+\Jvec\cdot\Evec+Q_{\mathrm{rec}}+Q_{\mathrm{def}}+Q_{\mathrm{ext}}.
+\end{align}
+These equations express the key feedbacks: defects change charge density, mobility, and recombination; carriers change space charge and heat generation; temperature changes mobilities and defect kinetics; and the potential steers carrier and charged-defect motion.
+
+The first implementation should not begin with a fully monolithic solve. It should begin with one-way map passing, then add fixed-point coupling between selected modules. Once the field maps converge under iteration, Module 6 becomes the physics bridge from radiation-induced material damage to measurable device response.
+
+\end{document}

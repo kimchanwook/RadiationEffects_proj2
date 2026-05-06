@@ -1,0 +1,30 @@
+\contentsline {section}{Symbols and acronyms used in this document}{2}{Doc-Start}%
+\contentsline {section}{\numberline {1}What Module 5 is solving}{6}{section.1}%
+\contentsline {section}{\numberline {2}Sign conventions: electric field, carrier motion, and current}{7}{section.2}%
+\contentsline {section}{\numberline {3}Carrier conservation from particle balance}{8}{section.3}%
+\contentsline {subsection}{\numberline {3.1}Electron particle balance}{8}{subsection.3.1}%
+\contentsline {subsection}{\numberline {3.2}Hole particle balance}{8}{subsection.3.2}%
+\contentsline {section}{\numberline {4}Deriving the drift-diffusion current densities}{9}{section.4}%
+\contentsline {subsection}{\numberline {4.1}Drift contribution}{9}{subsection.4.1}%
+\contentsline {subsection}{\numberline {4.2}Diffusion contribution}{9}{subsection.4.2}%
+\contentsline {subsection}{\numberline {4.3}Final drift-diffusion form}{10}{subsection.4.3}%
+\contentsline {subsection}{\numberline {4.4}Einstein relation}{10}{subsection.4.4}%
+\contentsline {section}{\numberline {5}Full two-dimensional Module 5 PDE system}{10}{section.5}%
+\contentsline {section}{\numberline {6}How Module 2 electrostatics couples into Module 5}{11}{section.6}%
+\contentsline {section}{\numberline {7}Defects as mobility modifiers}{11}{section.7}%
+\contentsline {subsection}{\numberline {7.1}Microscopic origin: momentum relaxation}{12}{subsection.7.1}%
+\contentsline {subsection}{\numberline {7.2}Reduced mobility closure for this project}{12}{subsection.7.2}%
+\contentsline {section}{\numberline {8}Defects as recombination centers}{13}{section.8}%
+\contentsline {subsection}{\numberline {8.1}Why trap-assisted recombination matters}{13}{subsection.8.1}%
+\contentsline {subsection}{\numberline {8.2}SRH recombination rate}{13}{subsection.8.2}%
+\contentsline {subsection}{\numberline {8.3}Radiation-induced defects as trap populations}{14}{subsection.8.3}%
+\contentsline {section}{\numberline {9}Total generation and recombination terms}{14}{section.9}%
+\contentsline {section}{\numberline {10}How Module 1 can supply carrier generation}{15}{section.10}%
+\contentsline {section}{\numberline {11}Boundary conditions for the carrier equations}{15}{section.11}%
+\contentsline {subsection}{\numberline {11.1}Ohmic contacts}{15}{subsection.11.1}%
+\contentsline {subsection}{\numberline {11.2}Insulating boundaries}{15}{subsection.11.2}%
+\contentsline {subsection}{\numberline {11.3}Surface recombination}{16}{subsection.11.3}%
+\contentsline {section}{\numberline {12}Reduced first implementation for RadiationEffects\_proj2}{16}{section.12}%
+\contentsline {section}{\numberline {13}Coupling back into Module 6}{17}{section.13}%
+\contentsline {section}{\numberline {14}Physical interpretation for the Module 5 slide}{17}{section.14}%
+\contentsline {section}{\numberline {15}Summary of the Module 5 equations}{17}{section.15}%

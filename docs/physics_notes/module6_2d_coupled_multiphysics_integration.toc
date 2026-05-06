@@ -1,0 +1,51 @@
+\contentsline {section}{Symbols and acronyms used in this document}{3}{Doc-Start}%
+\contentsline {section}{\numberline {1}Role of Module 6 in the project}{7}{section.1}%
+\contentsline {section}{\numberline {2}The four coupled maps over the same device cross section}{8}{section.2}%
+\contentsline {subsection}{\numberline {2.1}Defect map}{8}{subsection.2.1}%
+\contentsline {subsection}{\numberline {2.2}Potential map}{9}{subsection.2.2}%
+\contentsline {subsection}{\numberline {2.3}Temperature map}{9}{subsection.2.3}%
+\contentsline {subsection}{\numberline {2.4}Carrier map}{9}{subsection.2.4}%
+\contentsline {section}{\numberline {3}Coupled governing equations}{9}{section.3}%
+\contentsline {subsection}{\numberline {3.1}Defect evolution equation}{9}{subsection.3.1}%
+\contentsline {subsection}{\numberline {3.2}Electrostatic potential equation}{10}{subsection.3.2}%
+\contentsline {subsection}{\numberline {3.3}Thermal equation}{11}{subsection.3.3}%
+\contentsline {subsection}{\numberline {3.4}Carrier transport equations}{11}{subsection.3.4}%
+\contentsline {section}{\numberline {4}Where the feedback loops come from}{12}{section.4}%
+\contentsline {subsection}{\numberline {4.1}Defects perturb electrostatics}{12}{subsection.4.1}%
+\contentsline {subsection}{\numberline {4.2}Electrostatics steers carriers and charged defects}{13}{subsection.4.2}%
+\contentsline {subsection}{\numberline {4.3}Defects modify mobility}{13}{subsection.4.3}%
+\contentsline {subsection}{\numberline {4.4}Defects modify recombination}{13}{subsection.4.4}%
+\contentsline {subsection}{\numberline {4.5}Temperature modifies almost every coefficient}{13}{subsection.4.5}%
+\contentsline {subsection}{\numberline {4.6}Carriers and currents generate heat}{14}{subsection.4.6}%
+\contentsline {section}{\numberline {5}Monolithic coupled system}{14}{section.5}%
+\contentsline {section}{\numberline {6}Weak forms for a two-dimensional FEM implementation}{15}{section.6}%
+\contentsline {subsection}{\numberline {6.1}Poisson weak form}{15}{subsection.6.1}%
+\contentsline {subsection}{\numberline {6.2}Thermal weak form}{16}{subsection.6.2}%
+\contentsline {subsection}{\numberline {6.3}Defect weak form}{16}{subsection.6.3}%
+\contentsline {subsection}{\numberline {6.4}Carrier weak forms}{16}{subsection.6.4}%
+\contentsline {section}{\numberline {7}Staggered coupling strategy for the first implementation}{17}{section.7}%
+\contentsline {section}{\numberline {8}Boundary and initial conditions}{18}{section.8}%
+\contentsline {subsection}{\numberline {8.1}Defect boundary conditions}{18}{subsection.8.1}%
+\contentsline {subsection}{\numberline {8.2}Electrostatic boundary conditions}{18}{subsection.8.2}%
+\contentsline {subsection}{\numberline {8.3}Thermal boundary conditions}{19}{subsection.8.3}%
+\contentsline {subsection}{\numberline {8.4}Carrier boundary conditions}{19}{subsection.8.4}%
+\contentsline {subsection}{\numberline {8.5}Initial conditions}{19}{subsection.8.5}%
+\contentsline {section}{\numberline {9}Time scales and stiffness}{20}{section.9}%
+\contentsline {subsection}{\numberline {9.1}Dimensionless indicators}{20}{subsection.9.1}%
+\contentsline {section}{\numberline {10}Recommended first implementation path}{21}{section.10}%
+\contentsline {subsection}{\numberline {10.1}Level 0: one-way coupling}{21}{subsection.10.1}%
+\contentsline {subsection}{\numberline {10.2}Level 1: electrostatic-carrier coupling}{21}{subsection.10.2}%
+\contentsline {subsection}{\numberline {10.3}Level 2: defect-electrostatic-carrier coupling}{22}{subsection.10.3}%
+\contentsline {subsection}{\numberline {10.4}Level 3: thermal feedback}{22}{subsection.10.4}%
+\contentsline {subsection}{\numberline {10.5}Level 4: full coupled iteration}{22}{subsection.10.5}%
+\contentsline {section}{\numberline {11}Conservation and consistency checks}{22}{section.11}%
+\contentsline {subsection}{\numberline {11.1}Charge consistency}{22}{subsection.11.1}%
+\contentsline {subsection}{\numberline {11.2}Energy consistency}{23}{subsection.11.2}%
+\contentsline {subsection}{\numberline {11.3}Carrier conservation}{23}{subsection.11.3}%
+\contentsline {section}{\numberline {12}Device-response outputs}{23}{section.12}%
+\contentsline {section}{\numberline {13}Common failure modes}{24}{section.13}%
+\contentsline {subsection}{\numberline {13.1}Unit inconsistency}{24}{subsection.13.1}%
+\contentsline {subsection}{\numberline {13.2}Using stale fields}{24}{subsection.13.2}%
+\contentsline {subsection}{\numberline {13.3}Sign errors in carrier transport}{24}{subsection.13.3}%
+\contentsline {subsection}{\numberline {13.4}Over-coupling too early}{25}{subsection.13.4}%
+\contentsline {section}{\numberline {14}Summary}{25}{section.14}%
