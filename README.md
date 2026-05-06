@@ -1,7 +1,6 @@
 # RadiationEffects_proj2
 
-This repository builds a physics-based framework linking radiation energy deposition in silicon to long-term device degradation. The top-level `README.md`, `project_plan.tex`, and `project_plan.pdf` are the three maintained architecture documents and should be updated whenever the project architecture changes. `This work was conducted with the assistance of a large language model (LLM), specifically ChatGPT`.
-
+This repository builds a physics-based framework linking radiation energy deposition in silicon to long-term device degradation. The top-level `README.md`, `project_plan.tex`, and `project_plan.pdf` are the three maintained architecture documents and should be updated whenever the project architecture changes.
 
 ## High-level structure
 
@@ -21,17 +20,6 @@ This repository builds a physics-based framework linking radiation energy deposi
 - Module 6 - coupled multiphysics integration of Modules 2, 3, 4, and 5
 - Module 7 - multiscale extrapolation and scalable prediction methods
 
-
-
-## Module 1 physics-note update
-
-The documentation set now includes `docs/physics_notes/module1_geant4_energy_deposition.tex/.pdf`. This note formally defines the Module 1 radiation energy-deposition source
-
-```tex
-\dot{q}_{\mathrm{rad}}(\mathbf{r},t)=\frac{\partial E_{\mathrm{dep}}}{\partial V\,\partial t}
-```
-
-and distinguishes the total radiation-deposition map from the thermalized heat source, electron-hole generation source, and defect-generation source used by later modules.
 
 ## Module 1 interaction-resolved campaign update
 
@@ -77,10 +65,13 @@ For neutrons, the same interaction-resolved philosophy will be used, with exact 
 This package now includes:
 
 - updated top-level `project_plan` and `README`
+- Module 1 physics note defining the Geant4 energy-deposition source term and its reduced 2D mapping
 - Module 3 2D physics note, verified first MATLAB path, and first material-aware kinetic-coefficient framework
 - archived legacy Module 4a/4b thermal notes and baseline MATLAB path for reference
 - new Module 4 architecture centered on 2D ballistic-diffusive thermal transport
 - new Module 4 documentation path plus first executable MATLAB implementation
+- Module 5 physics note deriving drift-diffusion carrier transport, defect-assisted recombination, and defect-limited mobility
+- Module 6 physics note defining the coupled multiphysics integration of defect, electrostatic, thermal, and carrier maps
 - shared 2D grid/plotting conventions aligned with Module 3
 
 ## Run order workflow
