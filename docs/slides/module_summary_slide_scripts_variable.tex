@@ -1,0 +1,310 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=0.82in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{amsmath,amssymb,bm}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage[most]{tcolorbox}
+\usepackage{hyperref}
+
+\definecolor{deepblue}{RGB}{0,70,150}
+\definecolor{softblue}{RGB}{232,242,255}
+\definecolor{softgray}{RGB}{248,248,248}
+\definecolor{darkgreen}{RGB}{20,110,60}
+\definecolor{softgreen}{RGB}{236,250,240}
+\definecolor{softorange}{RGB}{255,247,232}
+\definecolor{darkorange}{RGB}{180,95,20}
+
+\hypersetup{colorlinks=true, linkcolor=deepblue, urlcolor=deepblue}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{4pt}
+\setlist[enumerate]{leftmargin=*, itemsep=2.5pt, topsep=3pt}
+
+\newtcolorbox{slidebox}[2][]{
+  colback=softblue,
+  colframe=deepblue,
+  boxrule=0.8pt,
+  arc=1.5mm,
+  left=2.2mm,
+  right=2.2mm,
+  top=1.5mm,
+  bottom=1.5mm,
+  title={#2},
+  fonttitle=\bfseries,
+  breakable,
+  #1
+}
+
+\newcommand{\qrad}{\dot{q}_{\mathrm{rad}}}
+\newcommand{\qth}{\dot{q}_{\mathrm{th}}}
+\newcommand{\Evec}{\bm{E}}
+\newcommand{\Jvec}{\bm{J}}
+\newcommand{\Jn}{\bm{J}_n}
+\newcommand{\Jp}{\bm{J}_p}
+\newcommand{\ydev}{y_{\mathrm{device}}}
+\newcommand{\DOF}{N_{\mathrm{dof}}}
+
+\title{Variable-Length Speaker Scripts for Module Summary Slides\\\large Radiation Effects Project 2}
+\author{}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{tcolorbox}[colback=softgreen,colframe=darkgreen,title=How to use this document]
+Each slide script contains between five and eight sentences, with longer scripts assigned to slides that contain denser physics or more coupling.  The goal is not to read every equation derivation, but to give a clear spoken path from the physical idea to the simulation role and then to the device-level consequence.
+\end{tcolorbox}
+
+\tableofcontents
+\newpage
+
+\section{Module 1: Geant4 Energy Deposition and Source Maps}
+
+\begin{slidebox}{Module 1, Slide 1: Convert particle transport into source maps}
+\begin{enumerate}
+\item Module 1 begins with the most microscopic part of the project: an incoming particle enters silicon and loses energy through scattering, ionization, and possible nuclear interactions.
+\item Geant4 tracks this particle history event by event, so the output is not yet a device equation but a spatial record of where the radiation placed energy in the material.
+\item The central continuum quantity is \(\qrad(\bm r,t)\), the radiation-induced energy deposition per unit volume per unit time.
+\item I use this quantity as a source map, meaning it tells the downstream physics where the material first receives radiation forcing.
+\item It is important not to call all of \(\qrad\) heat immediately, because deposited energy can first become ionization, electronic excitation, displacement damage, secondary particles, or defect formation.
+\item For the later modules, the key step is to partition the deposited energy into thermal heating, electron-hole-pair generation, and defect-generation source terms.
+\item In plain language, Module 1 converts particle transport into the initial maps that drive every other part of the radiation-effects model.
+\end{enumerate}
+\end{slidebox}
+
+\begin{slidebox}{Module 1, Slide 2: Map 3D Geant4 scoring to the 2D project model}
+\begin{enumerate}
+\item Geant4 naturally produces a three-dimensional scoring field because the particle track is three-dimensional inside the silicon volume.
+\item The rest of this project is intentionally built as a two-dimensional device cross-section model, so the 3D source must be reduced before it is passed to the continuum modules.
+\item With the project convention, the resolved device plane is \((x,y)\), and the out-of-plane depth direction is \(z\).
+\item The reduced source is therefore the depth average \(\qrad^{xy}(x,y,t)=L_z^{-1}\int \qrad(x,y,z,t)\,dz\), which preserves the mean cross-sectional forcing.
+\item Because this is an average rather than an integral, the units remain \(\mathrm{W/m^3}\), so the source can still be used as a volumetric source in later partial differential equations.
+\item This reduction greatly lowers computational cost, but it also means the model does not resolve sharp out-of-plane hot spots or rare localized peaks.
+\item The correct interpretation is that Module 1 provides a physically motivated 2D forcing map, not a complete replacement for the full 3D Monte Carlo history.
+\end{enumerate}
+\end{slidebox}
+
+\section{Module 2: Electrostatics with Defect-Dependent Space Charge}
+
+\begin{slidebox}{Module 2, Slide 1: Electrostatic map from radiation-induced charge}
+\begin{enumerate}
+\item Module 2 computes the electrostatic potential \(\phi(x,y,t)\) and the electric field \(\Evec(x,y,t)=-\nabla\phi(x,y,t)\) inside the irradiated device.
+\item The governing equation is Poisson's equation, \(\nabla\cdot(\varepsilon\nabla\phi)=-\rho\), which states that charge density shapes the potential landscape.
+\item The total charge density \(\rho\) includes mobile electrons, mobile holes, fixed ionized dopants, and radiation-induced charged defects.
+\item This means radiation affects electrostatics indirectly by changing the material's charge distribution after energy deposition and defect formation.
+\item The practical output is an electric-field map that can be distorted near junctions, depletion regions, interfaces, and local defect clusters.
+\item That field map becomes a direct input to carrier drift in Module 5 and to the coupled feedback system in Module 6.
+\end{enumerate}
+\end{slidebox}
+
+\begin{slidebox}{Module 2, Slide 2: Defect charge perturbs depletion and junction fields}
+\begin{enumerate}
+\item Radiation-induced defects are not all electrically neutral; many can act as charged traps depending on their species, charge state, and local Fermi level.
+\item A compact way to include them is \(\rho_{\mathrm{def}}=q\sum_j z_jC_j\), where \(C_j\) is the concentration of defect species \(j\) and \(z_j\) is its charge number.
+\item This added charge perturbs the potential by \(\delta\phi\), and the corresponding field perturbation is \(\delta\Evec=-\nabla\delta\phi\).
+\item Physically, a charged defect cloud can locally bend field lines even when the external bias voltage is unchanged.
+\item In a junction device, this can alter depletion width, shift high-field regions, and redirect where carriers are collected or lost.
+\item The key message is that material damage becomes electrical degradation partly because charged defects reshape the field environment seen by mobile carriers.
+\end{enumerate}
+\end{slidebox}
+
+\begin{slidebox}{Module 2, Slide 3: FEM weak form, boundary conditions, and outputs}
+\begin{enumerate}
+\item Numerically, Module 2 is a finite element solution of Poisson's equation on the two-dimensional device geometry.
+\item The weak form is useful because it handles irregular regions, dielectric interfaces, contact boundaries, and possible surface charge in a unified framework.
+\item Contact voltages enter as Dirichlet boundary conditions, while insulating or symmetry boundaries can be represented by normal-field conditions.
+\item The main outputs are \(\phi(x,y,t)\), \(\Evec(x,y,t)\), and any derived quantities such as depletion-region changes or local peak-field shifts.
+\item These outputs should be checked against simple cases where the sign of the defect charge produces the expected direction of field bending.
+\item Once validated, Module 2 provides the electrostatic bridge between defect physics and current-flow changes.
+\end{enumerate}
+\end{slidebox}
+
+\section{Module 3: Defect Evolution, Migration, Recombination, and Annealing}
+
+\begin{slidebox}{Module 3, Slide 1: Defect evolution after radiation deposition}
+\begin{enumerate}
+\item Module 3 takes the initial damage information from Module 1 and turns it into time-dependent defect concentrations \(C_j(x,y,t)\).
+\item Each \(C_j\) represents a population of one defect species, such as vacancies, interstitials, traps, or defect complexes.
+\item The governing structure is a diffusion-reaction equation, where diffusion moves defects through the lattice and reaction terms create or remove them.
+\item Radiation appears as a source term that seeds the initial defect population or continues to generate defects during irradiation.
+\item The module is needed because defects do not simply stay where they were created; they migrate, recombine, cluster, anneal, and sometimes become electrically active.
+\item The output is an evolving defect map that later modifies space charge, temperature response, carrier mobility, recombination, and device behavior.
+\end{enumerate}
+\end{slidebox}
+
+\begin{slidebox}{Module 3, Slide 2: Recombination, annealing, and temperature-dependent kinetics}
+\begin{enumerate}
+\item The reaction terms in Module 3 describe how raw damage evolves into either persistent degradation or partial recovery.
+\item Vacancy-interstitial recombination is a basic recovery process in which a missing atom site and an extra atom annihilate as a pair and restore part of the lattice.
+\item Annealing is broader, because it can include migration to sinks, defect restructuring, complex dissociation, or reactions that reduce the electrically active defect population.
+\item Diffusion and annealing rates often follow Arrhenius-type behavior, such as \(D_j=D_{0,j}\exp[-E_{D,j}/(k_BT)]\) and \(k_j=k_{0,j}\exp[-E_{A,j}/(k_BT)]\).
+\item This makes temperature a powerful control variable, since small thermal changes can produce large changes in reaction and migration rates.
+\item There is no universal time ordering for migration, recombination, and annealing because the dominant pathway depends on defect species, charge state, local concentration, geometry, and temperature.
+\item The slide's central message is that Module 3 converts a static damage map into a dynamic material state.
+\end{enumerate}
+\end{slidebox}
+
+\begin{slidebox}{Module 3, Slide 3: FEM form, verification limits, and coupling role}
+\begin{enumerate}
+\item Computationally, Module 3 is a transient two-dimensional finite element diffusion-reaction problem.
+\item The weak form allows the project to include spatially varying diffusivity, temperature-dependent kinetics, material interfaces, and boundary conditions such as zero defect flux.
+\item A first verification test is pure diffusion with zero-flux boundaries, where the total number of defects should remain constant.
+\item A second verification test is pure annealing, where a single defect population should decay according to the expected analytic rate law.
+\item After verification, the defect concentrations \(C_j\) become inputs to electrostatics, recombination, mobility degradation, and thermal feedback.
+\item In simple terms, Module 3 tells us where radiation damage remains, where it moves, and how much of it the material can recover over time.
+\end{enumerate}
+\end{slidebox}
+
+\section{Module 4: Thermal Transport with Ballistic-Diffusive Corrections}
+
+\begin{slidebox}{Module 4, Slide 1: Thermal response after radiation energy deposition}
+\begin{enumerate}
+\item Module 4 predicts how the thermalized portion of radiation energy changes the temperature field \(T(x,y,t)\) in the device.
+\item The starting point is energy conservation: temperature rises when energy is deposited locally and falls when heat is transported away.
+\item If heat carriers scatter many times over a very short distance, the model reduces to the ordinary Fourier heat equation.
+\item Radiation damage is more delicate because the energy deposition can be highly localized, and the initial heat carriers may travel a finite distance before losing directional memory.
+\item For that reason, Module 4 includes a path from ordinary diffusion toward a ballistic-diffusive description.
+\item The temperature map matters because it changes defect diffusion, annealing rates, carrier mobility, recombination, and the coupled device response.
+\end{enumerate}
+\end{slidebox}
+
+\begin{slidebox}{Module 4, Slide 2: Microscopic carrier picture and BTE starting point}
+\begin{enumerate}
+\item The microscopic view is that heat is carried by excitations, mainly phonons for lattice heat and sometimes energetic electrons and holes before full thermalization.
+\item The Boltzmann transport equation describes how a carrier distribution moves through space, changes direction, scatters, and relaxes toward local equilibrium.
+\item The mean free path \(\lambda=v\tau\) is the typical distance a carrier travels before scattering, where \(v\) is carrier speed and \(\tau\) is scattering time.
+\item The Knudsen number \(\mathrm{Kn}=\lambda/L\) compares this microscopic travel distance to the device or hot-spot length scale \(L\).
+\item When \(\mathrm{Kn}\ll 1\), carriers scatter many times and ordinary diffusion is appropriate.
+\item When \(\mathrm{Kn}\sim 1\), carriers can preserve memory of their emission point, so heat transport becomes partly nonlocal.
+\item Boundaries matter in this regime because carriers emitted from or transmitted through boundaries can carry energy away and later influence a different location.
+\item This slide explains why Module 4 cannot always be treated as a simple local heat-smearing problem.
+\end{enumerate}
+\end{slidebox}
+
+\begin{slidebox}{Module 4, Slide 3: Reduced ballistic-diffusive thermal equations}
+\begin{enumerate}
+\item The reduced ballistic-diffusive model separates thermal energy into a ballistic component and a scattered medium component.
+\item The ballistic component represents carriers that still remember where they were emitted or where they last scattered.
+\item The medium component represents carriers that have scattered enough to behave more like an ordinary diffusive temperature field.
+\item The resulting temperature equation resembles a heat equation, but it contains additional source and flux terms that account for nonlocal carrier exchange.
+\item This structure lets the model represent finite carrier flight without solving the full Boltzmann transport equation everywhere.
+\item As a consistency check, when the ballistic energy and ballistic flux are set to zero, the model collapses back to the standard Fourier heat equation.
+\item In other words, the reduced model keeps the familiar heat-equation framework while adding the leading correction for nonlocal thermal memory.
+\end{enumerate}
+\end{slidebox}
+
+\begin{slidebox}{Module 4, Slide 4: FEM form, coupling, and project outputs}
+\begin{enumerate}
+\item For project implementation, Module 4 is written as a two-dimensional finite element thermal solve with an effective source term.
+\item This effective source combines local thermalized radiation heating with corrections from ballistic energy storage and ballistic carrier flux.
+\item The advantage is that the thermal model remains compatible with the same mesh-based multiphysics framework used in Modules 2, 3, 5, and 6.
+\item The main outputs are \(T(x,y,t)\), \(\nabla T(x,y,t)\), and the effective thermal forcing passed to the coupled solver.
+\item These outputs are not just thermal diagnostics, because temperature enters Arrhenius defect kinetics, carrier transport coefficients, and recombination rates.
+\item The practical role of Module 4 is to decide whether radiation energy stays local, spreads diffusively, or leaves a longer-range thermal memory in the device.
+\end{enumerate}
+\end{slidebox}
+
+\section{Module 5: Carrier Drift-Diffusion with Defect Recombination and Mobility Loss}
+
+\begin{slidebox}{Module 5, Slide 1: Carrier conservation and drift-diffusion transport}
+\begin{enumerate}
+\item Module 5 predicts how mobile electrons and holes move after radiation has altered the field, material defects, and temperature.
+\item The starting point is carrier conservation, which says that electron and hole densities change because carriers flow in, flow out, are generated, or recombine.
+\item Drift describes motion driven by the electric field, while diffusion describes spreading from high carrier concentration to low carrier concentration.
+\item Because electrons are negatively charged, they drift opposite the electric field; because holes behave as positive carriers, they drift along the electric field.
+\item The current densities \(\Jn\) and \(\Jp\) combine drift and diffusion, so current is determined by both electrostatics and carrier-density gradients.
+\item This module turns the internal radiation-damaged material state into electrical quantities such as current flow, charge collection, and loss of device performance.
+\end{enumerate}
+\end{slidebox}
+
+\begin{slidebox}{Module 5, Slide 2: Defects as mobility modifiers and recombination centers}
+\begin{enumerate}
+\item Radiation-induced defects affect carrier transport in two major ways: they scatter carriers and they create trap states.
+\item Scattering shortens the effective mean free path and reduces carrier mobility, so the same electric field produces less drift current.
+\item A simple mobility model can represent this by making \(\mu_n\) and \(\mu_p\) decrease as defect concentration increases.
+\item Trap states enable Shockley-Read-Hall recombination, where an electron and a hole are captured through a defect state and removed from mobile transport.
+\item The recombination rate depends on trap density, carrier concentrations, capture coefficients, and temperature-dependent parameters.
+\item The active trap density is connected to the defect concentrations \(C_j\) computed in Module 3.
+\item Therefore one defect population can simultaneously distort fields, reduce mobility, increase recombination, and lower the measurable current.
+\end{enumerate}
+\end{slidebox}
+
+\begin{slidebox}{Module 5, Slide 3: Coupled reduced PDE and device response}
+\begin{enumerate}
+\item The reduced Module 5 system solves electron and hole continuity equations on the same two-dimensional domain used by the other continuum modules.
+\item Module 1 provides radiation-induced carrier generation through the fraction of deposited energy that creates electron-hole pairs.
+\item Module 2 provides the electric field \(\Evec=-\nabla\phi\), Module 3 provides defect and trap densities, and Module 4 provides temperature-dependent transport coefficients.
+\item The contact current is obtained by integrating the total current density, \(\Jn+\Jp\), over the relevant contact boundary.
+\item These currents can be converted into device-level outputs such as leakage current, collected charge, gain reduction, threshold shift, or current-voltage distortion.
+\item In the overall project chain, Module 5 is the step where material damage becomes an observable electrical response.
+\end{enumerate}
+\end{slidebox}
+
+\section{Module 6: Coupled Multiphysics Integration}
+
+\begin{slidebox}{Module 6, Slide 1: One coupled state, four interacting maps}
+\begin{enumerate}
+\item Module 6 combines the defect map, electrostatic potential map, temperature map, and carrier maps into one self-consistent device state.
+\item The state vector \(\bm U=[C_1,\ldots,C_N,\phi,T,n,p]^T\) collects the fields that evolve together.
+\item Each field is both an output of one physics module and an input to another physics module.
+\item Defects change charge density, charge density changes electric field, electric field changes carrier transport, and carrier transport changes heating and recombination.
+\item This mutual dependence means the final device response cannot always be predicted accurately by running the modules in a one-way chain only once.
+\item Module 6 is therefore the integration layer that turns separate physics models into a coupled radiation-effects simulation.
+\end{enumerate}
+\end{slidebox}
+
+\begin{slidebox}{Module 6, Slide 2: Feedback loops and coupling terms}
+\begin{enumerate}
+\item The central feedback loop begins with \(\qrad\), which seeds heat, carriers, and defects after the radiation event.
+\item Charged defects contribute to the total charge density, so they modify \(\phi\) and the electric field \(\Evec\).
+\item The changed electric field steers electron and hole currents through \(\Jn\) and \(\Jp\).
+\item Carrier transport modifies the device through current flow, recombination, and Joule heating terms such as \(\Jvec\cdot\Evec\).
+\item Temperature then feeds back by changing diffusion coefficients, annealing rates, mobility, and recombination parameters.
+\item Defects also feed directly into mobility degradation and Shockley-Read-Hall recombination.
+\item This creates a closed feedback network rather than a sequence of independent calculations.
+\item The point of Module 6 is to solve this network until the maps are mutually consistent for the chosen radiation environment and bias condition.
+\end{enumerate}
+\end{slidebox}
+
+\begin{slidebox}{Module 6, Slide 3: FEM residuals, staged coupling, and outputs}
+\begin{enumerate}
+\item Numerically, Module 6 can be written as a coupled residual problem where every governing equation must be satisfied at the same time.
+\item A fully monolithic solve would solve all unknowns together, but this can be expensive and difficult for a first implementation.
+\item A practical first strategy is a staggered iteration: update defects, then electrostatics, then temperature, then carriers, and repeat until the fields change very little.
+\item Finite element methods provide the weak-form machinery for solving each partial differential equation on the same geometry or on compatible meshes.
+\item The coupled solution can then be checked through conservation of charge, energy balance, carrier continuity, and convergence of the iteration.
+\item The final outputs are device-level quantities such as leakage current, collected charge, threshold shift, terminal current, and degradation metrics.
+\item These outputs are exactly what Module 8 uses to decide which physics is essential and which physics can be reduced.
+\end{enumerate}
+\end{slidebox}
+
+\section{Module 8: Reduced-Fidelity Modeling and Importance Scoring}
+
+\begin{slidebox}{Module 8, Slide 1: Reduced-fidelity modeling strategy}
+\begin{enumerate}
+\item Module 8 asks how much of the detailed physics model can be simplified while still preserving the device response that matters.
+\item The model hierarchy moves from three-dimensional transport to two-dimensional multiphysics, then to one-dimensional reduced physics, and finally to lumped or scoring models.
+\item Each reduction removes spatial detail or physics detail, but it should not remove the dominant pathway controlling the chosen output.
+\item A reduced model is acceptable only if its prediction error stays within a tolerance relative to a higher-fidelity reference model.
+\item The dominant-path idea is to keep the high-impact chain, such as radiation deposition to defects to fields to current, while bypassing weak side paths.
+\item The goal is not to make the model simpler for its own sake, but to make it fast enough for sweeps, uncertainty studies, and engineering decisions.
+\end{enumerate}
+\end{slidebox}
+
+\begin{slidebox}{Module 8, Slide 2: Impact-cost importance scoring}
+\begin{enumerate}
+\item Module 8 ranks model components by comparing their estimated impact on the final device output with their computational cost.
+\item Impact can be estimated by ablation, where a module or term is removed, or by sensitivity analysis, where an input parameter is perturbed and the output change is measured.
+\item Cost can be estimated from wall-clock time, solver calls, degrees of freedom, time steps, nonlinear iterations, and Monte Carlo histories.
+\item After normalization, an importance score such as \(\Pi_m=\widetilde I_m/(\widetilde C_m+\varepsilon_0)\) rewards physics that changes the output strongly for relatively little cost.
+\item High-impact, low-cost physics should be kept in the working model.
+\item High-impact, high-cost physics should be reduced carefully rather than discarded.
+\item Low-impact, high-cost physics is the best candidate for bypassing, tabulating, or replacing with a simpler scoring rule.
+\end{enumerate}
+\end{slidebox}
+
+\end{document}
