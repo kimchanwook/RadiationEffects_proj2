@@ -23,7 +23,7 @@
 \ProjectTOC
 
 \begin{notebox}
-\textbf{Current architecture revision.} Module 1 is now planned as an \textbf{interaction-resolved Geant4 campaign} with separate photon and neutron runs across targeted energy bands so that different microscopic interaction mechanisms can be studied intentionally rather than mixed together in one broad source case. Modules 2--6 are now 2D-first. Module 2 now includes a first executable two-dimensional finite-element Poisson solver using linear triangular elements for defect-dependent space charge. Module 4 is now a single \textbf{two-dimensional ballistic-diffusive thermal-transport module} adapted from the ballistic-diffusive heat-conduction framework developed in the FEM\_BallisticDiffusion\_PINN project. The older Module 4a/4b thermal notes are archived as legacy baseline material. Module 7 remains the scaling and multiscale-prediction module.
+\textbf{Current architecture revision.} Module 1 is now planned as an \textbf{interaction-resolved Geant4 campaign} with separate photon and neutron runs across targeted energy bands so that different microscopic interaction mechanisms can be studied intentionally rather than mixed together in one broad source case. Modules 2--6 are now 2D-first. Module 2 now includes a first executable two-dimensional finite-element Poisson solver using linear triangular elements for defect-dependent space charge. Module 3 now also includes a linear triangular finite-element diffusion-reaction path with mass, diffusion, and reaction matrix assembly, in parallel with the earlier structured-grid implementation. Module 4 is now a single \textbf{two-dimensional ballistic-diffusive thermal-transport module} adapted from the ballistic-diffusive heat-conduction framework developed in the FEM\_BallisticDiffusion\_PINN project. Module 4 now includes both the first structured-grid ballistic-diffusive path and a linear triangular FEM path with heat-capacity matrix, thermal-conductivity matrix, source-vector assembly, and backward-Euler time stepping. Module 5 now includes a first linear triangular FEM drift-diffusion path with carrier mass, diffusion, electric-field drift, and linear recombination matrix assembly. Module 6 now includes a first staggered linear triangular FEM coupling scaffold that places defect concentration, electrostatic potential, temperature, electron density, and hole density on a shared mesh and iterates the coupled maps. The older Module 4a/4b thermal notes are archived as legacy baseline material. Module 7 remains the scaling and multiscale-prediction module.
 \end{notebox}
 
 \section{Project objective}
@@ -49,10 +49,10 @@ The intended physics chain is:
 \midrule
 1 & Interaction-resolved Geant4 radiation deposition campaign in silicon & Run separate photon and neutron simulations in targeted energy bands so that distinct interaction mechanisms can be isolated, compared, and translated into deposition maps, secondary-particle spectra, and damage-precursor metrics for later modules.\\
 2 & Two-dimensional electrostatics with defect-dependent space charge & Solve the 2D electrostatic Poisson problem for a damaged silicon structure using a linear triangular finite-element implementation. Convert dopants and charged defects into electric potential, electric field, and depletion-structure changes.\\
-3 & Two-dimensional defect evolution with material-aware kinetic coefficients & Evolve vacancies, interstitials, complexes, and effective defect species in 2D using diffusion, reaction, migration, and annealing laws whose reduced coefficients can depend on temperature, charge state, dopants, and electric field.\\
-4 & Two-dimensional ballistic-diffusive thermal transport in silicon & Use a reduced ballistic-diffusive heat-conduction framework to evolve the 2D thermal field in silicon, retain finite-flight-time and boundary-memory effects beyond Fourier conduction, support volumetric radiation-related heat sources, and update temperature-dependent defect and device coefficients. A first executable MATLAB path is now included using a reduced rectangular-domain ballistic-flux closure.\\
-5 & Two-dimensional drift-diffusion carrier transport with defect-assisted recombination & Predict how the damaged device transports electrons and holes under the altered field, temperature, and trap landscape.\\
-6 & Coupled two-dimensional multiphysics degradation model & Couple Modules 2, 3, 4, and 5 into a self-consistent simulator for defect evolution, field evolution, thermal evolution, and carrier-transport degradation.\\
+3 & Two-dimensional defect evolution with material-aware kinetic coefficients & Evolve vacancies, interstitials, complexes, and effective defect species in 2D using diffusion, reaction, migration, and annealing laws whose reduced coefficients can depend on temperature, charge state, dopants, and electric field. The implementation now includes both a structured-grid path and a first linear-triangle FEM path for the transient diffusion-reaction equation.\\
+4 & Two-dimensional ballistic-diffusive thermal transport in silicon & Use a reduced ballistic-diffusive heat-conduction framework to evolve the 2D thermal field in silicon, retain finite-flight-time and boundary-memory effects beyond Fourier conduction, support volumetric radiation-related heat sources, and update temperature-dependent defect and device coefficients. The implementation now includes a structured-grid path and a first linear-triangle FEM path for the ballistic-diffusive thermal equation.\\
+5 & Two-dimensional drift-diffusion carrier transport with defect-assisted recombination & Predict how the damaged device transports electrons and holes under the altered field, temperature, and trap landscape. The implementation now includes a first linear-triangle FEM path with mass, diffusion, drift, and linearized recombination matrix assembly.\\
+6 & Coupled two-dimensional multiphysics degradation model & Couple Modules 2, 3, 4, and 5 into a self-consistent simulator for defect evolution, field evolution, thermal evolution, and carrier-transport degradation. The current implementation adds a first staggered shared-mesh linear-triangle FEM coupling scaffold with convergence and charge-consistency diagnostics.\\
 7 & Multiscale extrapolation and scalable prediction & Develop methods for making predictions on much larger spatial, temporal, or statistical scales than the direct high-fidelity simulation can afford. This module covers controlled approximations, quantified error bars, statistical upscaling, and hybrid multiresolution workflows.\\
 \bottomrule
 \end{longtable}
@@ -83,11 +83,11 @@ This module describes the time evolution of radiation-induced defects after they
 
 \textbf{Module 4. Two-Dimensional Ballistic-Diffusive Thermal Transport in Silicon}
 
-This module adds temperature as an active physical driver using a reduced ballistic-diffusive heat-conduction model derived from the carrier Boltzmann picture. The purpose is to retain a clearer microscopic foundation than a plain Fourier heat equation while still keeping the solver executable on the same 2D device cross section used by the other modules. The thermal field controls defect diffusivities, annealing rates, and later carrier-transport coefficients. In the revised architecture, Module 4 accepts volumetric source terms appropriate for radiation-related heating and retains an explicit ballistic contribution through a first reduced rectangular-domain boundary-emission closure so that finite-flight-time and boundary-memory effects can already be represented in the initial implementation.
+This module adds temperature as an active physical driver using a reduced ballistic-diffusive heat-conduction model derived from the carrier Boltzmann picture. The purpose is to retain a clearer microscopic foundation than a plain Fourier heat equation while still keeping the solver executable on the same 2D device cross section used by the other modules. The thermal field controls defect diffusivities, annealing rates, and later carrier-transport coefficients. In the revised architecture, Module 4 accepts volumetric source terms appropriate for radiation-related heating and retains an explicit ballistic contribution through a first reduced rectangular-domain boundary-emission closure so that finite-flight-time and boundary-memory effects can already be represented in the initial implementation. The new FEM path derives and implements the weak form using linear triangular elements, a consistent heat-capacity matrix, a thermal-conductivity matrix, a distributed source vector, natural no-flux boundaries, and backward-Euler time stepping for the second-order-in-time relaxation equation.
 
 \textbf{Module 5. Two-Dimensional Drift-Diffusion Carrier Transport with Defect-Assisted Recombination}
 
-This module translates material damage into electrical performance changes. Using 2D drift-diffusion transport equations, the model solves for electron and hole motion under the influence of the internal electric field and carrier concentration gradients. Radiation-induced defects enter through trap-assisted recombination, trapping, and lifetime degradation. In other words, this module shows how the evolving defect population, altered electrostatics, and temperature field affect measurable device behavior such as leakage current, charge collection, recombination losses, or degraded diode response.
+This module translates material damage into electrical performance changes. Using 2D drift-diffusion transport equations, the model solves for electron and hole motion under the influence of the internal electric field and carrier concentration gradients. Radiation-induced defects enter through trap-assisted recombination, trapping, lifetime degradation, and defect-limited mobility. The new FEM path expresses the electron and hole equations in weak form, stores carrier concentrations as nodal unknowns on a triangular mesh, assembles carrier mass, diffusion, electric-field drift, and linear recombination matrices, and advances the reduced equations with backward-Euler time stepping. In other words, this module shows how the evolving defect population, altered electrostatics, and temperature field affect measurable device behavior such as leakage current, charge collection, recombination losses, or degraded diode response.
 
 \textbf{Module 6. Combined Multiphysics Model Using Modules 2, 3, 4, and 5}
 
@@ -185,7 +185,7 @@ arrow/.style={-{Latex[length=2.4mm]}, very thick, draw=accent}
     \item \textbf{Module 3:} 2D defect evolution on a structured grid.
     \item \textbf{Module 2:} 2D electrostatics with prescribed charged defects; first FEM Poisson path now implemented and ready for coupling to Module 3 defect fields.
     \item \textbf{Module 4:} 2D ballistic-diffusive thermal solver plus temperature-dependent coefficient handoff to later modules.
-    \item \textbf{Module 5:} 2D drift-diffusion with prescribed electrostatic field, thermal field, and defect/trap fields.
+    \item \textbf{Module 5:} 2D drift-diffusion with prescribed electrostatic field, thermal field, and defect/trap fields; first linear-triangle FEM path now implemented.
     \item \textbf{Module 6:} weak coupling, then stronger feedback and iterative convergence.
     \item \textbf{Module 7:} scalable-prediction methods after at least one credible high-fidelity coupled workflow exists.
 \end{enumerate}
@@ -210,26 +210,29 @@ arrow/.style={-{Latex[length=2.4mm]}, very thick, draw=accent}
 \textbf{Path} & \textbf{Role in the updated 2D plan}\\
 \midrule
 \path{matlab/main_module2_electrostatics.m} & Top-level entry for the 2D electrostatic solve.\\
-\path{matlab/main_module3_2d_defect_evolution.m} & Top-level entry for the 2D defect-evolution solve.\\
-\path{matlab/main_module4_2d_ballistic_diffusive_thermal.m} & Top-level entry for the Module 4 two-dimensional ballistic-diffusive thermal solve; first executable MATLAB implementation included.\\
-\path{matlab/main_module5_drift_diffusion.m} & Top-level entry for the 2D carrier-transport solve.\\
-\path{matlab/main_module6_multiphysics.m} & Top-level coupled driver that orchestrates Modules 2, 3, 4, and 5.\\
+\path{matlab/main_module3_2d_defect_evolution.m} & Top-level entry for the structured-grid 2D defect-evolution solve.\\
+\path{matlab/main_module3_fem_defect_evolution.m} & Top-level entry for the linear triangular FEM defect diffusion-reaction solve.\\
+\path{matlab/main_module4_2d_ballistic_diffusive_thermal.m} & Top-level entry for the structured-grid Module 4 two-dimensional ballistic-diffusive thermal solve.\\
+\path{matlab/main_module4_fem_ballistic_diffusive_thermal.m} & Top-level entry for the linear triangular FEM Module 4 ballistic-diffusive thermal solve.\\
+\path{matlab/main_module5_drift_diffusion.m} & Top-level entry for the 2D FEM carrier-transport solve.\\
+\path{matlab/main_module5_fem_drift_diffusion.m} & Compatibility wrapper for the Module 5 linear triangular FEM carrier solver.\\
+\path{matlab/main_module6_multiphysics.m} & Top-level coupled FEM driver that orchestrates Modules 2, 3, 4, and 5 through a staggered Picard-style iteration.\\
 \path{matlab/src/grid/} & Shared 2D grid generation and spatial operators.\\
-\path{matlab/src/module3_defects/} & Module 3 defect evolution operators and initialization helpers.\\
-\path{matlab/src/module4_thermal/} & Module 4 ballistic-diffusive thermal operators, initialization helpers, source-term assembly, reduced ballistic-flux closures, and verification support.\\
+\path{matlab/src/module3_defects/} & Module 3 defect evolution operators, initialization helpers, material-aware coefficients, and the new FEM mass/diffusion/reaction assembly functions.\\
+\path{matlab/src/module4_thermal/} & Module 4 ballistic-diffusive thermal operators, initialization helpers, source-term assembly, reduced ballistic-flux closures, FEM heat-capacity and conductivity assembly, implicit FEM stepping, and verification support.\\
 \path{matlab/src/module2_electrostatics/} & Implemented Module 2 finite-element Poisson operators, triangular mesh generation, charge assembly, boundary-condition insertion, and field postprocessing.\\
-\path{matlab/src/transport/} & Planned drift-diffusion operators, recombination models, mobility models, and current extraction.\\
+\path{matlab/src/module5_transport/} & Module 5 FEM drift-diffusion operators, carrier matrix assembly, linear recombination closure, mobility/source evaluation, current extraction, plotting, and summary output.\\
 \path{matlab/src/diagnostics/} & Shared diagnostics, error metrics, and summary writers.\\
 \path{matlab/src/io/} & Shared I/O helpers and history save utilities.\\
 \path{matlab/src/plot/} & Shared 2D visualization and history plotting utilities.\\
-\path{matlab/tests/} & Verification problems and regression tests, including Module 2 electrostatic limiting-case checks.\\
+\path{matlab/tests/} & Verification problems and regression tests, including Module 2 electrostatic limiting-case checks, Module 3 FEM diffusion-reaction checks, Module 4 FEM thermal checks, and Module 5 FEM carrier-transport checks.\\
 \path{matlab/outputs/} & Saved run products, plots, summaries, and histories.\\
 \bottomrule
 \end{longtable}
 
 \section{Thermal-model rationale and comparison strategy}
 \subsection{Why the ballistic-diffusive model is now primary}
-The revised Module 4 becomes the primary thermal branch because it preserves a clearer microscopic connection to finite-speed heat-carrier transport than the old continuum baseline while still remaining executable in 2D. The model is more ambitious than Fourier conduction, but it is still substantially simpler than a full angularly resolved phonon Boltzmann solve.
+The revised Module 4 becomes the primary thermal branch because it preserves a clearer microscopic connection to finite-speed heat-carrier transport than the old continuum baseline while still remaining executable in 2D. The model is more ambitious than Fourier conduction, but it is still substantially simpler than a full angularly resolved phonon Boltzmann solve. The added FEM path makes the module easier to defend numerically because the thermal equation is now expressed through a weak form, triangular shape functions, element matrices, and assembled global time-stepping equations.
 
 \subsection{How it should still be benchmarked}
 Even though the split 4a/4b architecture is removed, it is still useful to compare the new Module 4 against a simple Fourier benchmark when validating the implementation. Useful metrics include
@@ -262,9 +265,9 @@ Each module needs at least one low-complexity verification path.
 \midrule
 1 & Compare deposition trends against known silicon behavior and verify that the exported 2D binning is internally consistent.\\
 2 & Use manufactured or symmetric charge configurations whose 2D potential and field patterns are physically obvious; verify sign conventions and boundary-condition behavior.\\
-3 & Check pure diffusion, pure annealing, and symmetry-preserving source cases in 2D. Total inventory should behave correctly under the chosen boundaries.\\
+3 & Check pure diffusion, pure annealing, and symmetry-preserving source cases in 2D. The structured-grid path and FEM path should both conserve total inventory under pure diffusion with zero-flux boundaries and reproduce the first-order annealing limit.\\
 4 & Recover expected limits of the 2D ballistic-diffusive thermal model, including equilibrium preservation, localized-pulse spreading, and measurable deviations from a Fourier baseline when boundary-memory effects matter; formal diffusive-limit comparison remains the next validation step.\\
-5 & Verify defect-free transport first, then turn on simple trap-assisted recombination. Check that zero-field or symmetric cases behave sensibly.\\
+5 & Verify defect-free transport first, then turn on simple trap-assisted recombination. Check uniform no-field preservation, pure lifetime recombination, Gaussian diffusion inventory conservation, and current-sign conventions under a uniform electric field.\\
 6 & Confirm that decoupled or weakly coupled limits reduce to standalone solutions. Track iterative residuals and relaxation behavior.\\
 7 & Every scalable-prediction method must be benchmarked against a higher-fidelity reference. The benchmark should report both speedup and error metrics.\\
 \bottomrule
@@ -285,10 +288,10 @@ This document should be revised whenever a module definition changes, the dimens
 \section{Near-term next steps after this revision}
 \begin{enumerate}[leftmargin=1.6em]
     \item Keep the top-level \texttt{README.md}, \texttt{project\_plan.tex}, and \texttt{project\_plan.pdf} synchronized whenever the project architecture changes.
-    \item Verify the first 2D Module 3 code path on the user's MATLAB environment.
-    \item Completed: implemented the first 2D reduced ballistic-diffusive Module 4 MATLAB path with uniform-equilibrium, localized-pulse, and boundary-heating cases.
-    \item Keep the Module 4 note, file map, and run-order documentation synchronized with the implemented single-module thermal architecture.
-    \item Update the Module 2, 4, and 5 implementation notes so their first solver architecture is 2D rather than 1D where applicable.
+    \item Verify the structured-grid and FEM Module 3 code paths, the FEM Module 4 code path, and the new FEM Module 5 carrier-transport code path, on the user's MATLAB environment.
+    \item Completed: implemented the first 2D reduced ballistic-diffusive Module 4 structured-grid MATLAB path with uniform-equilibrium, localized-pulse, and boundary-heating cases.
+    \item Keep the Module 4 note, file map, and run-order documentation synchronized with both the structured-grid and FEM thermal paths.
+    \item Completed: added Module 2, Module 3, Module 4, and Module 5 FEM implementation notes and first reduced FEM solver paths.
     \item Decide the first benchmark quantity of interest for Module 7 so that future approximations can be measured against something physically meaningful.
 \end{enumerate}
 

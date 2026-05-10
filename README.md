@@ -14,10 +14,10 @@ This repository builds a physics-based framework linking radiation energy deposi
 
 - Module 1 - interaction-resolved Geant4 radiation deposition campaign in silicon
 - Module 2 - 2D electrostatics with defect-dependent space charge using a first linear-triangle FEM Poisson solver
-- Module 3 - 2D defect diffusion-reaction evolution and annealing with material-aware kinetic coefficients
-- Module 4 - 2D ballistic-diffusive thermal transport in silicon
-- Module 5 - 2D drift-diffusion carrier transport with defect-assisted recombination
-- Module 6 - coupled multiphysics integration of Modules 2, 3, 4, and 5
+- Module 3 - 2D defect diffusion-reaction evolution and annealing with material-aware kinetic coefficients; includes both the original structured-grid path and a new linear-triangle FEM path
+- Module 4 - 2D ballistic-diffusive thermal transport in silicon; includes the original structured-grid path and a new linear-triangle FEM path
+- Module 5 - 2D drift-diffusion carrier transport with defect-assisted recombination using a first linear-triangle FEM path
+- Module 6 - coupled multiphysics integration of Modules 2, 3, 4, and 5 using a first staggered linear-triangle FEM coupling scaffold
 - Module 7 - multiscale extrapolation and scalable prediction methods
 
 
@@ -67,14 +67,19 @@ This package now includes:
 - updated top-level `project_plan` and `README`
 - Module 1 physics note defining the Geant4 energy-deposition source term and its reduced 2D mapping
 - Module 2 expanded physics note, first MATLAB FEM Poisson path, triangular mesh generation, and electrostatic verification tests
-- Module 3 2D physics note, verified first MATLAB path, and first material-aware kinetic-coefficient framework
+- Module 3 expanded physics note with FEM weak form, mass/diffusion/reaction matrices, backward-Euler time stepping, verified structured-grid path, material-aware kinetic-coefficient framework, and first linear-triangle FEM path
 - archived legacy Module 4a/4b thermal notes and baseline MATLAB path for reference
 - new Module 4 architecture centered on 2D ballistic-diffusive thermal transport
 - new Module 4 documentation path plus first executable MATLAB implementation
-- Module 5 physics note deriving drift-diffusion carrier transport, defect-assisted recombination, and defect-limited mobility
-- Module 6 physics note defining the coupled multiphysics integration of defect, electrostatic, thermal, and carrier maps
+- Module 4 expanded FEM documentation, linear-triangle thermal matrix assembly, and first implicit FEM ballistic-diffusive thermal path
+- Module 5 expanded physics note with FEM weak form, mass/diffusion/drift/recombination matrices, backward-Euler time stepping, first executable linear-triangle carrier-transport path, and carrier-transport verification tests
+- Module 6 expanded physics note defining the coupled multiphysics integration of defect, electrostatic, thermal, and carrier maps, including shared-mesh FEM discretization, block residual structure, and a first staggered MATLAB FEM coupling path
 - shared 2D grid/plotting conventions aligned with Module 3
 - Module 2 FEM implementation note in `docs/implementation_notes/module2_fem_implementation_note.md`
+- Module 3 FEM implementation note in `docs/implementation_notes/module3_fem_implementation_note.md`
+- Module 4 FEM implementation note in `docs/implementation_notes/module4_fem_implementation_note.md`
+- Module 5 FEM implementation note in `docs/implementation_notes/module5_fem_implementation_note.md`
+- Module 6 FEM implementation note in `docs/implementation_notes/module6_fem_implementation_note.md`
 
 ## Run order workflow
 
@@ -89,8 +94,8 @@ This package now includes:
 
 ## Immediate next technical objective
 
-The next technical objective is to run the new Module 2 FEM verification tests in MATLAB, then replace the synthetic localized charged-defect field with a defect concentration field exported from Module 3. After that, Module 4 temperature feedback should be coupled back into Module 3 coefficient updates and compared against the legacy Fourier baseline in the diffusive limit.
+The next technical objective is to run the new Module 2, Module 3, Module 4, Module 5, and Module 6 FEM verification tests in MATLAB. After that, refine the Module 6 staggered coupling path by replacing the reduced thermal update with the full Module 4 ballistic-diffusive FEM update, adding stronger defect-field drift coupling, and tightening the Poisson/drift-diffusion fixed-point loop. The Module 4 FEM path should also be compared against the structured-grid ballistic-diffusive path and the archived Fourier baseline in the diffusive limit.
 
 ## Important note
 
-This archive now includes both the earlier Module 4 ballistic-diffusive thermal architecture update and a new Module 2 finite-element electrostatics update. The Module 2 path is a first working FEM Poisson implementation, not yet a fully coupled semiconductor device simulator.
+This archive now includes the earlier Module 4 ballistic-diffusive thermal architecture update, the Module 2 finite-element electrostatics update, the Module 3 finite-element defect-evolution update, the Module 4 finite-element thermal-transport update, the Module 5 finite-element drift-diffusion carrier-transport update, and the Module 6 staggered finite-element coupling update. The Module 2, Module 3, Module 4, Module 5, and Module 6 FEM paths are first reduced solvers and coupling scaffolds, not yet a full production semiconductor TCAD simulator.
