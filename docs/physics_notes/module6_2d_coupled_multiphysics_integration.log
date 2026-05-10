@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.26 (TeX Live 2025/dev/Debian) (preloaded format=pdflatex 2026.2.6)  5 MAY 2026 23:54
+This is pdfTeX, Version 3.141592653-2.6-1.40.26 (TeX Live 2025/dev/Debian) (preloaded format=pdflatex 2026.2.6)  10 MAY 2026 05:06
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -1093,11 +1093,11 @@ c/dvips/lm/lm-ec.enc}
 \tf@toc=\write5
 \openout5 = `module6_2d_coupled_multiphysics_integration.toc'.
 
- [3{/usr/share/texmf/fonts/enc/dvips/lm/lm-mathit.enc}] [4{/usr/share/texmf/fon
-ts/enc/dvips/lm/lm-rm.enc}{/usr/share/texmf/fonts/enc/dvips/lm/lm-mathsy.enc}{/
-usr/share/texmf/fonts/enc/dvips/lm/lm-mathex.enc}] [5] [6]
 
-[7]
+
+[3] [4{/usr/share/texmf/fonts/enc/dvips/lm/lm-mathit.enc}{/usr/share/texmf/font
+s/enc/dvips/lm/lm-rm.enc}] [5{/usr/share/texmf/fonts/enc/dvips/lm/lm-mathsy.enc
+}{/usr/share/texmf/fonts/enc/dvips/lm/lm-mathex.enc}] [6] [7]
 
 [8]
 
@@ -1128,32 +1128,47 @@ usr/share/texmf/fonts/enc/dvips/lm/lm-mathex.enc}] [5] [6]
 [21]
 
 [22]
+LaTeX Font Info:    Trying to load font information for TS1+lmr on input line 8
+47.
+ (/usr/share/texmf/tex/latex/lm/ts1lmr.fd
+File: ts1lmr.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
+)
 
-[23]
+[23{/usr/share/texmf/fonts/enc/dvips/lm/lm-ts1.enc}]
 
 [24]
 
-[25] (./module6_2d_coupled_multiphysics_integration.aux)
+[25]
+
+[26]
+
+[27]
+
+[28]
+
+[29]
+
+[30]
+
+[31]
+
+[32] (./module6_2d_coupled_multiphysics_integration.aux)
  ***********
 LaTeX2e <2024-11-01> patch level 2
 L3 programming layer <2025-01-18>
  ***********
-
-
-LaTeX Warning: Label(s) may have changed. Rerun to get cross-references right.
-
 Package rerunfilecheck Info: File `module6_2d_coupled_multiphysics_integration.
 out' has not changed.
-(rerunfilecheck)             Checksum: B31D79872D9AE245DC7ABC0A5E58059B;10147.
+(rerunfilecheck)             Checksum: B7FC77EA870002EA24942EA359D24DD7;12545.
  ) 
 Here is how much of TeX's memory you used:
- 32078 strings out of 473197
- 645464 string characters out of 5718606
- 1094353 words of memory out of 5000000
- 54516 multiletter control sequences out of 15000+600000
- 619327 words of font info for 142 fonts, out of 8000000 for 9000
+ 32200 strings out of 473197
+ 647635 string characters out of 5718606
+ 1115046 words of memory out of 5000000
+ 54572 multiletter control sequences out of 15000+600000
+ 620154 words of font info for 149 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 121i,13n,124p,1040b,1186s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ 121i,13n,124p,1040b,1199s stack positions out of 10000i,1000n,20000p,200000b,200000s
 </usr/share/texmf/fonts/type1/public/lm/lmbsy10.pfb></usr/share/texmf/fonts/t
 ype1/public/lm/lmbx10.pfb></usr/share/texmf/fonts/type1/public/lm/lmbx12.pfb></
 usr/share/texmf/fonts/type1/public/lm/lmex10.pfb></usr/share/texmf/fonts/type1/
@@ -1165,11 +1180,11 @@ xmf/fonts/type1/public/lm/lmr12.pfb></usr/share/texmf/fonts/type1/public/lm/lmr
 type1/public/lm/lmsy10.pfb></usr/share/texmf/fonts/type1/public/lm/lmsy8.pfb></
 usr/share/texmf/fonts/type1/public/lm/lmtt10.pfb></usr/share/texmf/fonts/type1/
 public/lm/lmtt12.pfb>
-Output written on module6_2d_coupled_multiphysics_integration.pdf (25 pages, 34
-6578 bytes).
+Output written on module6_2d_coupled_multiphysics_integration.pdf (32 pages, 37
+4543 bytes).
 PDF statistics:
- 647 PDF objects out of 1000 (max. 8388607)
- 580 compressed objects within 6 object streams
- 202 named destinations out of 1000 (max. 500000)
- 34213 words of extra memory for PDF output out of 35830 (max. 10000000)
+ 779 PDF objects out of 1000 (max. 8388607)
+ 702 compressed objects within 8 object streams
+ 251 named destinations out of 1000 (max. 500000)
+ 36341 words of extra memory for PDF output out of 42996 (max. 10000000)
 

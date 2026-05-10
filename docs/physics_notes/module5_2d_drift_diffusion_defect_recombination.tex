@@ -32,6 +32,16 @@
 DD & Drift-diffusion & Continuum carrier-transport model using drift from electric fields and diffusion from concentration gradients. \\
 SRH & Shockley-Read-Hall & Trap-assisted recombination mechanism mediated by defect levels in the semiconductor band gap. \\
 PDE & Partial differential equation & Equation involving derivatives in space and/or time. \\
+FEM & Finite element method & Numerical method that approximates the carrier equations by local polynomial basis functions on small elements. \\
+T3 & Three-node triangle & Linear triangular finite element used for the first Module 5 FEM implementation. \\
+$N_a$ & Shape function & Local interpolation function associated with node $a$ of a triangular element. \\
+$\tilde{n}_a,\tilde{p}_a$ & Nodal carrier values & Discrete electron and hole concentrations stored at mesh nodes. \\
+$\mathbf{M}$ & Mass matrix & Matrix from the time-derivative term $\int_\Omega w\,\partial c/\partial t\,d\Omega$. \\
+$\mathbf{K}_{D}$ & Diffusion matrix & Matrix from $\int_\Omega D\nabla w\cdot\nabla c\,d\Omega$. \\
+$\mathbf{K}_{E}$ & Drift/advection matrix & Matrix from $\int_\Omega \nabla w\cdot(\pm\mu\mathbf{E}c)\,d\Omega$. \\
+$\mathbf{K}_{R}$ & Recombination matrix & Linearized reaction matrix representing carrier loss by recombination. \\
+$\mathbf{f}_{G}$ & Generation vector & FEM load vector from volumetric carrier-generation sources. \\
+$\Delta t$ & Time step & Discrete time increment used in backward-Euler carrier stepping. \\
 \(x,y\) & In-plane coordinates & Spatial coordinates in the two-dimensional device cross section. \\
 \(z\) & Out-of-plane coordinate & Direction averaged out in the reduced two-dimensional project model. \\
 \(t\) & Time & Independent time coordinate. \\
@@ -491,6 +501,193 @@ with
 \end{equation}
 This is the minimal physics bridge from defect evolution to carrier-transport degradation.
 
+
+\section{Finite element formulation of the Module 5 drift-diffusion equations}
+
+The preceding sections define the continuum carrier-transport model. For implementation in MATLAB, Module 5 must convert the two coupled carrier PDEs into algebraic equations on a mesh. The first FEM version uses the same rectangular triangular mesh philosophy used by Modules 2--4: the silicon cross section is divided into three-node triangular elements, and the electron and hole concentrations are stored as nodal unknowns.
+
+\subsection{Why Module 5 is numerically harder than Modules 2--4}
+
+Module 2 is a scalar elliptic Poisson problem. Module 3 is primarily diffusion-reaction. Module 4 is thermal diffusion with a reduced ballistic-diffusive source treatment. Module 5 is more delicate because drift-diffusion contains a field-driven transport term. The electron equation can be written as
+\begin{equation}
+    \frac{\partial n}{\partial t}-\nabla_{xy}\cdot\left(D_n\nabla_{xy}n+\mu_n n\mathbf{E}\right)=G-R,
+    \label{eq:m5_fem_strong_n}
+\end{equation}
+and the hole equation can be written as
+\begin{equation}
+    \frac{\partial p}{\partial t}-\nabla_{xy}\cdot\left(D_p\nabla_{xy}p-\mu_p p\mathbf{E}\right)=G-R.
+    \label{eq:m5_fem_strong_p}
+\end{equation}
+The two equations have the same diffusion form but opposite drift sign. This sign difference is not arbitrary. It comes from the fact that electrons and holes move in opposite directions under the same electric field.
+
+For a first robust MATLAB implementation, the FEM step treats \(\mathbf{E}\), \(T\), \(C_j\), \(\mu_n\), \(\mu_p\), \(D_n\), and \(D_p\) as known during one carrier solve. That is a one-way-coupled or Picard-lagged form. A later Module 6 implementation can iterate Module 2 and Module 5 until \(\phi\), \(\mathbf{E}\), \(n\), and \(p\) are self-consistent.
+
+\subsection{Mesh and finite-element approximation}
+
+Let \(\Omega\) be the two-dimensional silicon device cross section. The FEM mesh divides \(\Omega\) into triangular elements \(\Omega_e\). For a three-node linear triangle, the carrier fields inside each element are approximated by
+\begin{align}
+    n_h(x,y,t) &= \sum_{a=1}^{3} N_a(x,y)\tilde{n}_a(t), \\
+    p_h(x,y,t) &= \sum_{a=1}^{3} N_a(x,y)\tilde{p}_a(t).
+\end{align}
+Here \(N_a\) is the shape function associated with local node \(a\), while \(\tilde{n}_a\) and \(\tilde{p}_a\) are nodal electron and hole concentrations. The same interpolation is used for the test function \(w\). This is the standard Galerkin choice.
+
+For a linear triangular element, the shape functions are linear in \(x\) and \(y\), and their gradients are constant within the element. This makes the element diffusion matrix especially simple. The electric field and transport coefficients are evaluated using element-averaged nodal values in the first implementation.
+
+\subsection{Weak form for the electron equation}
+
+Multiply Eq.~\eqref{eq:m5_fem_strong_n} by a test function \(w\) and integrate over the domain:
+\begin{equation}
+    \int_\Omega w\frac{\partial n}{\partial t}\,d\Omega
+    -\int_\Omega w\nabla_{xy}\cdot\left(D_n\nabla_{xy}n+\mu_n n\mathbf{E}\right)d\Omega
+    =\int_\Omega w(G-R)\,d\Omega.
+\end{equation}
+Using integration by parts on the divergence term gives
+\begin{equation}
+    \int_\Omega w\frac{\partial n}{\partial t}\,d\Omega
+    +\int_\Omega \nabla_{xy}w\cdot\left(D_n\nabla_{xy}n+\mu_n n\mathbf{E}\right)d\Omega
+    -\int_{\partial\Omega}w\left(D_n\nabla_{xy}n+\mu_n n\mathbf{E}\right)\cdot\mathbf{n}\,d\Gamma
+    =\int_\Omega w(G-R)\,d\Omega.
+    \label{eq:m5_weak_n}
+\end{equation}
+If the boundary is insulating for electrons, then the normal particle flux is zero and the boundary term vanishes naturally. If a contact fixes the electron concentration, that Dirichlet value is imposed strongly after global matrix assembly.
+
+\subsection{Weak form for the hole equation}
+
+The same operation on Eq.~\eqref{eq:m5_fem_strong_p} gives
+\begin{equation}
+    \int_\Omega w\frac{\partial p}{\partial t}\,d\Omega
+    +\int_\Omega \nabla_{xy}w\cdot\left(D_p\nabla_{xy}p-\mu_p p\mathbf{E}\right)d\Omega
+    -\int_{\partial\Omega}w\left(D_p\nabla_{xy}p-\mu_p p\mathbf{E}\right)\cdot\mathbf{n}\,d\Gamma
+    =\int_\Omega w(G-R)\,d\Omega.
+    \label{eq:m5_weak_p}
+\end{equation}
+The diffusion term has the same sign as the electron equation. The field-driven term has the opposite sign. This is the FEM-level manifestation of electron-hole charge-sign physics.
+
+\subsection{Element matrices}
+
+For a scalar carrier field \(c\), where \(c=n\) or \(c=p\), the consistent element mass matrix is
+\begin{equation}
+    M^e_{ab}=\int_{\Omega_e}N_aN_b\,d\Omega.
+\end{equation}
+For a linear triangle of area \(A_e\),
+\begin{equation}
+    \mathbf{M}^e=\frac{A_e}{12}
+    \begin{bmatrix}
+    2&1&1\\
+    1&2&1\\
+    1&1&2
+    \end{bmatrix}.
+\end{equation}
+The diffusion matrix is
+\begin{equation}
+    K^e_{D,ab}=\int_{\Omega_e}D\nabla N_a\cdot\nabla N_b\,d\Omega.
+\end{equation}
+With constant \(D\) inside a linear triangle,
+\begin{equation}
+    K^e_{D,ab}=D_e A_e\nabla N_a\cdot\nabla N_b.
+\end{equation}
+
+The drift matrix has different signs for electrons and holes. Define a sign parameter
+\begin{equation}
+    s_n=+1,\qquad s_p=-1.
+\end{equation}
+Then the element drift matrix can be written compactly as
+\begin{equation}
+    K^e_{E,ab}=\int_{\Omega_e}s_c\,\mu_c\left(\nabla N_a\cdot\mathbf{E}\right)N_b\,d\Omega,
+    \qquad c\in\{n,p\}.
+    \label{eq:m5_element_drift}
+\end{equation}
+For a linear triangle with element-averaged \(\mu_c\) and \(\mathbf{E}\), this becomes
+\begin{equation}
+    K^e_{E,ab}\approx s_c\mu_{c,e}A_e\left(\nabla N_a\cdot\mathbf{E}_e\right)\frac{1}{3}.
+\end{equation}
+This matrix is generally nonsymmetric because drift is directional. That is an important numerical distinction from pure diffusion.
+
+For the first reduced implementation, recombination is linearized as a lifetime loss toward a reference concentration:
+\begin{equation}
+    R_c\approx \frac{c-c_{\mathrm{eq}}}{\tau_c}.
+\end{equation}
+This gives the element recombination matrix
+\begin{equation}
+    K^e_{R,ab}=\int_{\Omega_e}\frac{1}{\tau_c}N_aN_b\,d\Omega,
+\end{equation}
+and the equilibrium-restoring source vector
+\begin{equation}
+    f^e_{R,a}=\int_{\Omega_e}N_a\frac{c_{\mathrm{eq}}}{\tau_c}\,d\Omega.
+\end{equation}
+The SRH formula remains the physics target. The linear lifetime model is the stable first FEM closure used to test the transport machinery before full nonlinear SRH coupling.
+
+\subsection{Generation vector}
+
+A volumetric carrier-generation source \(G(x,y,t)\) contributes the element vector
+\begin{equation}
+    f^e_{G,a}=\int_{\Omega_e}N_aG\,d\Omega.
+\end{equation}
+For an element-averaged source \(G_e\),
+\begin{equation}
+    f^e_{G,a}\approx \frac{A_e}{3}G_e.
+\end{equation}
+This is where a radiation-induced carrier-generation map from Module 1 can enter the carrier equations.
+
+\subsection{Global semidiscrete system}
+
+After element assembly, each carrier equation takes the matrix form
+\begin{equation}
+    \mathbf{M}\frac{d\tilde{\mathbf{c}}}{dt}
+    +\left(\mathbf{K}_{D,c}+\mathbf{K}_{E,c}+\mathbf{K}_{R,c}\right)\tilde{\mathbf{c}}
+    =\mathbf{f}_{G,c}+\mathbf{f}_{R,c}+\mathbf{f}_{\Gamma,c},
+    \label{eq:m5_semidiscrete}
+\end{equation}
+where \(\tilde{\mathbf{c}}\) is either the nodal electron vector \(\tilde{\mathbf{n}}\) or the nodal hole vector \(\tilde{\mathbf{p}}\). The term \(\mathbf{f}_{\Gamma,c}\) represents any nonzero prescribed boundary flux. For insulating boundaries, \(\mathbf{f}_{\Gamma,c}=\mathbf{0}\).
+
+Using backward Euler in time gives
+\begin{equation}
+    \left[\frac{\mathbf{M}}{\Delta t}
+    +\mathbf{K}_{D,c}+\mathbf{K}_{E,c}+\mathbf{K}_{R,c}\right]
+    \tilde{\mathbf{c}}^{k+1}
+    =\frac{\mathbf{M}}{\Delta t}\tilde{\mathbf{c}}^{k}
+    +\mathbf{f}_{G,c}^{k+1}+\mathbf{f}_{R,c}^{k+1}+\mathbf{f}_{\Gamma,c}^{k+1}.
+    \label{eq:m5_backward_euler}
+\end{equation}
+This is the actual algebraic equation solved by the first Module 5 FEM MATLAB path.
+
+\subsection{Boundary-condition handling}
+
+Module 5 uses two boundary-condition classes in the first FEM solver:
+\begin{enumerate}[leftmargin=1.6em]
+    \item \textbf{Dirichlet contact boundaries:} prescribed nodal carrier concentrations on selected contact nodes. These are imposed strongly by replacing rows of the global system with identity rows.
+    \item \textbf{Natural zero-flux boundaries:} no normal carrier flux through insulating or symmetry edges. These require no extra matrix modification because the boundary integral in the weak form vanishes.
+\end{enumerate}
+Surface recombination can later be added as a Robin boundary term. For electrons, this would add a boundary matrix proportional to \(qS_n\int_{\Gamma}N_aN_b\,d\Gamma\), and for holes a corresponding term proportional to \(qS_p\). The first implementation keeps this optional feature documented but not required.
+
+\subsection{Current-density postprocessing}
+
+After the nodal carrier concentrations are solved, the elementwise carrier gradients are computed from the same shape-function gradients:
+\begin{align}
+    \nabla n_h\big|_{\Omega_e} &= \sum_{a=1}^{3}\tilde{n}_a\nabla N_a, \\
+    \nabla p_h\big|_{\Omega_e} &= \sum_{a=1}^{3}\tilde{p}_a\nabla N_a.
+\end{align}
+The element currents are then evaluated as
+\begin{align}
+    \mathbf{J}_{n,e} &= q\mu_{n,e}n_e\mathbf{E}_e+qD_{n,e}\nabla n_h, \\
+    \mathbf{J}_{p,e} &= q\mu_{p,e}p_e\mathbf{E}_e-qD_{p,e}\nabla p_h.
+\end{align}
+These currents are the practical Module 5 outputs. Terminal current can be estimated by integrating the normal component of \(\mathbf{J}_n+\mathbf{J}_p\) along a selected contact boundary.
+
+\subsection{Verification logic for the FEM carrier solver}
+
+The first FEM carrier solver should be verified before any complicated radiation coupling is trusted. The minimum verification set is:
+\begin{enumerate}[leftmargin=1.6em]
+    \item \textbf{Uniform no-field preservation:} with \(\mathbf{E}=0\), \(G=0\), no recombination, and uniform initial \(n,p\), the solution should remain uniform.
+    \item \textbf{Pure lifetime recombination:} with \(\mathbf{E}=0\), no diffusion gradients, and uniform initial excess carriers, the numerical solution should follow \(c(t)-c_{\mathrm{eq}}=[c(0)-c_{\mathrm{eq}}]\exp(-t/\tau_c)\).
+    \item \textbf{Pure diffusion smoothing:} with \(\mathbf{E}=0\) and no recombination, a localized Gaussian carrier packet should broaden while total carrier inventory is conserved under zero-flux boundaries.
+    \item \textbf{Field-driven drift sanity check:} with a uniform electric field and weak diffusion, electrons and holes should drift in opposite particle directions while their conventional drift-current components follow the sign conventions derived above.
+\end{enumerate}
+
+\begin{notebox}
+\textbf{Interview-relevant point.} The FEM part of Module 5 is not just ``meshing the equations.'' The mesh defines where the carrier unknowns live, the shape functions define how carrier concentrations vary inside each element, the weak form defines which derivatives are required, and the assembled matrices encode diffusion, field-driven drift, and recombination losses in a form that MATLAB can solve.
+\end{notebox}
+
 \section{Coupling back into Module 6}
 
 Module 5 closes an important loop. Carriers are not just passive outputs. They change space charge, recombination heating, and sometimes defect charge state. In Module 6, the coupling becomes
@@ -533,6 +730,14 @@ D_n&=\mu_n\frac{\kB T}{q},\qquad D_p=\mu_p\frac{\kB T}{q}, \\
 \mu_n&=\mu_n(T,C_j),\qquad \mu_p=\mu_p(T,C_j), \\
 R&\approx \sum_j R_{\mathrm{SRH},j}(n,p,T,C_j).
 \end{align}
+
+The first FEM implementation solves the corresponding nodal systems
+\begin{equation}
+    \left[\frac{\mathbf{M}}{\Delta t}+\mathbf{K}_{D,c}+\mathbf{K}_{E,c}+\mathbf{K}_{R,c}\right]\tilde{\mathbf{c}}^{k+1}
+    =\frac{\mathbf{M}}{\Delta t}\tilde{\mathbf{c}}^{k}+\mathbf{f}_{G,c}^{k+1}+\mathbf{f}_{R,c}^{k+1},
+    \qquad c\in\{n,p\}.
+\end{equation}
+Here \(c=n\) uses the electron drift sign and \(c=p\) uses the hole drift sign.
 
 \begin{physicsbox}
 \textbf{Main result.} Module 5 is where material damage becomes electrical degradation. The same defect map that modifies electrostatics in Module 2 and evolves in Module 3 also lowers mobility and increases trap-assisted recombination in Module 5. This changes carrier densities, current paths, leakage, and ultimately measurable device response.

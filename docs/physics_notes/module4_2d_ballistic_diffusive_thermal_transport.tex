@@ -74,6 +74,13 @@ P1 approximation & First-order spherical harmonics approximation & Angular-momen
 \(N_i\) & FEM basis function & Shape function associated with node \(i\). \\
 \(M\) & Mass matrix & FEM matrix from \(\int_\Omega N_i N_j\,\dd V\). \\
 \(K\) & Stiffness matrix & FEM matrix from \(\int_\Omega \nabla N_i\cdot \alpha \nabla N_j\,\dd V\). \\
+\(M_C\) & Heat-capacity mass matrix & FEM matrix \(\int_\Omega C N_iN_j\,\dd A\) used in the temperature form of Module~4. \\
+\(K_T\) & Thermal conductivity matrix & FEM matrix \(\int_\Omega k\nabla N_i\cdot\nabla N_j\,\dd A\). \\
+\(\bm{T}\) & Nodal temperature vector & Vector of nodal values used to represent the FEM temperature field. \\
+\(\bm{V}\) & Nodal temperature-rate vector & Vector of nodal values approximating \(\partial T/\partial t\). \\
+\(\Delta t\) & Time step & Time increment used in the backward-Euler FEM update. \\
+\(\Omega_e\) & Element domain & Area occupied by one triangular finite element. \\
+\(A_e\) & Element area & Physical area of one triangular element. \\
 \(\eta\) & Nondimensional coordinate & \(\eta=x/L\). \\
 \(t^*\) & Nondimensional time & \(t^*=t/\tau\). \\
 \(\theta_m\) & Nondimensional medium energy & Normalized version of \(u_m-u_{m0}\). \\
@@ -206,7 +213,7 @@ The quantity \(f\) is an occupation number: it tells us how many carriers occupy
 \begin{equation}
     f_0(\omega,T)=\frac{1}{\exp(\hbar\omega/\kB T)-1},
 \end{equation}
-which is the Bose-Einstein distribution. For electrons, the equilibrium distribution would be Fermi-Dirac. Module 1 focuses on the phonon-like heat-carrier derivation, but the transport structure is more general.
+which is the Bose-Einstein distribution. For electrons, the equilibrium distribution would be Fermi-Dirac. This derivation focuses on the phonon-like heat-carrier picture, but the transport structure is more general.
 
 \section{Deriving the Boltzmann transport equation}
 \subsection{Streaming without scattering}
@@ -873,7 +880,7 @@ Therefore Eq.~\eqref{eq:bd_1d_dimensional_expanded} becomes
 \end{equation}
 
 \begin{notebox}
-\textbf{Slide takeaway.} The nondimensional thin-film equation exposes the controlling parameter. The same physical equation changes character as \(\mathrm{Kn}=\mfp/L\) changes. This is why Module 1 validation must sweep \(\mathrm{Kn}\).
+\textbf{Slide takeaway.} The nondimensional thin-film equation exposes the controlling parameter. The same physical equation changes character as \(\mathrm{Kn}=\mfp/L\) changes. This is why Module~4 validation must sweep \(\mathrm{Kn}\).
 \end{notebox}
 
 \subsection{Dimensionless initial and boundary conditions}
@@ -998,7 +1005,7 @@ One way to see the issue is to imagine the whole film at uniform equilibrium tem
 \textbf{Physical meaning.} The equilibrium subtraction is not a mathematical trick to hide an error. It is a bookkeeping correction that keeps the approximate split model focused on the nonequilibrium change from the reference state.
 \end{physicsbox}
 
-\subsection{What should be plotted in the Module 1 validation}
+\subsection{What should be plotted in the Module~4 validation}
 For \(\mathrm{Kn}=0.01,0.1,1,10\), the validation should plot:
 \begin{enumerate}[leftmargin=1.6em]
     \item \(\theta_m(\eta,t^*)\): scattered medium energy,
@@ -1107,27 +1114,232 @@ This second-order-in-time system can be solved directly or rewritten as a first-
     \tau M\dot{\bm{V}}&=\bm{F}_{\mathrm{BD}}+\bm{F}_{\partial\Omega}-M\bm{V}-K\bm{U}.
 \end{align}
 
-\section{Practical implementation strategy for this project}
-The project should not begin with the full qubit geometry. The physically defensible sequence is:
+\section{Module 4 FEM specialization for the MATLAB implementation}
+The previous weak and matrix forms describe the general finite-element structure. The MATLAB implementation added for Module~4 uses a concrete specialization: a two-dimensional rectangular silicon cross section, divided into three-node triangular elements, with nodal temperature as the primary unknown. This section is included so that the implemented code can be explained from first principles rather than described only as a numerical black box.
+
+\subsection{Strong form solved by the FEM path}
+The FEM path uses the temperature version of the reduced ballistic-diffusive equation,
+\begin{equation}
+    \tau C\pdv[2]{T}{t}+C\pdv{T}{t}
+    -\nabla\cdot(k\nabla T)
+    = Q+\tau\pdv{Q}{t}-\nabla\cdot\qvec_b,
+    \label{eq:module4_fem_strong_temperature}
+\end{equation}
+where \(T\) is the medium-equivalent temperature, \(C\) is volumetric heat capacity, \(k\) is thermal conductivity, \(Q\) is volumetric heat generation, and \(\qvec_b\) is the reduced ballistic heat-flux contribution. The right-hand side is grouped as
+\begin{equation}
+    S_T = Q+\tau\pdv{Q}{t}-\nabla\cdot\qvec_b.
+    \label{eq:module4_fem_source_group}
+\end{equation}
+Therefore Eq.~\eqref{eq:module4_fem_strong_temperature} becomes
+\begin{equation}
+    \tau C T_{tt}+C T_t-\nabla\cdot(k\nabla T)=S_T.
+    \label{eq:module4_fem_strong_compact}
+\end{equation}
+This form is the direct thermal analogue of the FEM equations used in Modules~2 and~3: the PDE is converted into a weak statement, then into element matrices, then assembled into a global matrix problem.
+
+\subsection{Triangular mesh and nodal temperature unknowns}
+The two-dimensional domain \(\Omega=[0,L_x]\times[0,L_y]\) is discretized into a structured triangular mesh. A rectangular grid of nodes is first generated, and each rectangular cell is split into two counter-clockwise triangles. The mesh data are
+\begin{align}
+    \text{nodes} &= \{(x_i,y_i)\}_{i=1}^{N_n},\\
+    \text{elements} &= \{(i_1,i_2,i_3)_e\}_{e=1}^{N_e},
+\end{align}
+where \(N_n\) is the number of nodes and \(N_e\) is the number of triangular elements.
+
+The FEM approximation writes the temperature as
+\begin{equation}
+    T_h(x,y,t)=\sum_{j=1}^{N_n} N_j(x,y)T_j(t),
+    \label{eq:module4_temperature_interpolation}
+\end{equation}
+where \(N_j\) is the global shape function associated with node \(j\), and \(T_j(t)\) is the nodal temperature. Inside one three-node triangle, the local form is
+\begin{equation}
+    T_h^{(e)}(x,y,t)=N_1^{(e)}(x,y)T_1^{(e)}(t)
+    +N_2^{(e)}(x,y)T_2^{(e)}(t)
+    +N_3^{(e)}(x,y)T_3^{(e)}(t).
+    \label{eq:module4_local_temperature_interpolation}
+\end{equation}
+For a linear triangle,
+\begin{equation}
+    N_a^{(e)}(x,y)=a_a+b_a x+c_a y, \qquad a=1,2,3,
+\end{equation}
+and the gradient \(\nabla N_a^{(e)}\) is constant inside the element.
+
+\subsection{Weak form in temperature variables}
+Multiply Eq.~\eqref{eq:module4_fem_strong_compact} by a test function \(w\) and integrate over the domain:
+\begin{equation}
+    \int_\Omega w\tau C T_{tt}\,\dd A
+    +\int_\Omega w C T_t\,\dd A
+    -\int_\Omega w\nabla\cdot(k\nabla T)\,\dd A
+    =\int_\Omega wS_T\,\dd A.
+\end{equation}
+Integrating the conduction term by parts gives
+\begin{equation}
+    \boxed{
+    \int_\Omega w\tau C T_{tt}\,\dd A
+    +\int_\Omega w C T_t\,\dd A
+    +\int_\Omega \nabla w\cdot k\nabla T\,\dd A
+    =\int_\Omega wS_T\,\dd A
+    +\int_{\partial\Omega} w k\nabla T\cdot\nvec\,\dd s.}
+    \label{eq:module4_fem_temperature_weak}
+\end{equation}
+For the first MATLAB implementation, the default boundary condition is homogeneous natural conductive flux,
+\begin{equation}
+    k\nabla T\cdot\nvec=0 \quad \text{on insulated or symmetry boundaries},
+\end{equation}
+so the boundary term vanishes unless an explicit Neumann thermal flux is added later. Fixed-temperature boundaries can also be imposed strongly by replacing the corresponding matrix rows with prescribed nodal values.
+
+\subsection{Element heat-capacity matrix}
+Choosing \(w=N_i\) and substituting Eq.~\eqref{eq:module4_temperature_interpolation} gives the heat-capacity matrix
+\begin{equation}
+    (M_C)_{ij}=\int_\Omega C N_iN_j\,\dd A.
+\end{equation}
+For one linear triangular element with constant \(C\),
+\begin{equation}
+    \boxed{
+    M_C^{(e)}=\frac{C A_e}{12}
+    \begin{bmatrix}
+    2&1&1\\
+    1&2&1\\
+    1&1&2
+    \end{bmatrix}.}
+    \label{eq:module4_element_heat_capacity_matrix}
+\end{equation}
+This is the thermal analogue of a consistent mass matrix. It maps nodal temperature and nodal temperature rate into element thermal energy storage.
+
+\subsection{Element conductivity matrix}
+The conduction matrix is
+\begin{equation}
+    (K_T)_{ij}=\int_\Omega k\nabla N_i\cdot\nabla N_j\,\dd A.
+\end{equation}
+For a linear triangle with constant \(k\), the gradients are constant, so
+\begin{equation}
+    \boxed{
+    K_T^{(e)}=k A_e\,B_eB_e^T,}
+    \label{eq:module4_element_conductivity_matrix}
+\end{equation}
+where
+\begin{equation}
+    B_e=
+    \begin{bmatrix}
+    \nabla N_1^{(e)}\\
+    \nabla N_2^{(e)}\\
+    \nabla N_3^{(e)}
+    \end{bmatrix}.
+\end{equation}
+The physical meaning is direct: stronger thermal conductivity \(k\) or sharper basis-function gradients increase the energetic penalty for strong temperature curvature.
+
+\subsection{Element source vector}
+The right-hand-side vector is
+\begin{equation}
+    (F_T)_i=\int_\Omega N_iS_T\,\dd A.
+\end{equation}
+At the element level,
+\begin{equation}
+    \bm{F}_T^{(e)}=\int_{\Omega_e}\bm{N}^T
+    \left(Q+\tau\pdv{Q}{t}-\nabla\cdot\qvec_b\right)\dd A.
+    \label{eq:module4_element_source_vector}
+\end{equation}
+The implemented reduced solver evaluates \(S_T\) at nodes and uses the same consistent triangular mass weighting used for scalar source projection. This is the correct first implementation because it treats the thermal source as a distributed load rather than injecting heat at one grid point.
+
+\subsection{Global semi-discrete FEM equation}
+After element assembly, the global system is
+\begin{equation}
+    \boxed{
+    \tau M_C\ddot{\bm{T}}+M_C\dot{\bm{T}}+K_T\bm{T}=\bm{F}_T(t).}
+    \label{eq:module4_global_fem_system}
+\end{equation}
+Here \(\bm{T}\) is the vector of nodal temperatures. This equation has the same assembly logic as the Module~2 Poisson solver and the Module~3 diffusion-reaction solver, but it has a second time derivative because the ballistic-diffusive reduction retains a relaxation-time correction.
+
+\subsection{Backward-Euler time stepping used in MATLAB}
+Define the nodal temperature-rate vector
+\begin{equation}
+    \bm{V}=\dot{\bm{T}}.
+\end{equation}
+The first-order system is
+\begin{align}
+    \dot{\bm{T}} &= \bm{V},\\
+    \tau M_C\dot{\bm{V}}+M_C\bm{V}+K_T\bm{T} &= \bm{F}_T(t).
+\end{align}
+Using backward Euler,
+\begin{equation}
+    \bm{V}^{n+1}=\frac{\bm{T}^{n+1}-\bm{T}^{n}}{\Delta t},
+\end{equation}
+and substituting into the second equation gives the linear solve
+\begin{equation}
+    \boxed{
+    \left(\frac{\tau}{\Delta t^2}M_C+\frac{1}{\Delta t}M_C+K_T\right)\bm{T}^{n+1}
+    =\bm{F}_T^{n+1}
+    +\left(\frac{\tau}{\Delta t^2}+\frac{1}{\Delta t}\right)M_C\bm{T}^{n}
+    +\frac{\tau}{\Delta t}M_C\bm{V}^{n}.}
+    \label{eq:module4_backward_euler_solve}
+\end{equation}
+Then
+\begin{equation}
+    \bm{V}^{n+1}=\frac{\bm{T}^{n+1}-\bm{T}^n}{\Delta t}.
+\end{equation}
+In the diffusive limit \(\tau\to0\), Eq.~\eqref{eq:module4_backward_euler_solve} reduces to the ordinary implicit heat-equation step,
+\begin{equation}
+    \boxed{
+    \left(\frac{1}{\Delta t}M_C+K_T\right)\bm{T}^{n+1}
+    =\bm{F}_T^{n+1}+\frac{1}{\Delta t}M_C\bm{T}^{n}.}
+    \label{eq:module4_backward_euler_fourier_limit}
+\end{equation}
+This limiting behavior is an important verification check: the FEM ballistic-diffusive solver must collapse to a standard FEM heat solver when the relaxation-time and ballistic terms are removed.
+
+\subsection{How the ballistic term is represented in the first FEM path}
+A full ballistic treatment would require angular quadrature or ray tracing. The first executable Module~4 FEM path instead uses the same reduced rectangular-domain closure as the structured-grid Module~4 solver: each boundary can emit an attenuated, retarded heat-carrier contribution traveling approximately normal to that boundary. The code evaluates \(\qvec_b\) at mesh nodes and approximates \(-\nabla\cdot\qvec_b\) as a nodal source term.
+
+This is not the final microscopic ballistic model. It is a deliberately reduced closure that gives the FEM system the correct place to include finite-flight-time and boundary-memory effects while keeping the first solver simple enough to verify.
+
+\subsection{Verification tests for the FEM path}
+The FEM-specific tests are:
 \begin{enumerate}[leftmargin=1.6em]
-    \item Validate the one-dimensional thin-film equation for several \(\mathrm{Kn}\) values.
-    \item Confirm the diffusive limit as \(\mathrm{Kn}\ll1\).
-    \item Confirm finite propagation and reduced early-time heat flux as \(\mathrm{Kn}\sim1\).
-    \item Add a simple three-dimensional box before using a realistic transmon geometry.
-    \item Only then couple the transport model to geometry-dependent trap and heat-sink studies.
+    \item \textbf{Uniform equilibrium:} with uniform initial temperature, no source, no ballistic emission, and natural no-flux boundaries, the solution should remain uniform.
+    \item \textbf{Gaussian diffusion in the Fourier limit:} setting \(\tau=0\) and \(\qvec_b=0\) should produce ordinary thermal smoothing while conserving total thermal energy under insulated boundaries.
+    \item \textbf{Uniform volumetric source:} a spatially uniform source should keep the field spatially uniform and should match the analytic uniform response in time.
+    \item \textbf{Boundary-emission demonstration:} a boundary-emitted ballistic pulse should enter the FEM system through \(-\nabla\cdot\qvec_b\) and generate a localized thermal response.
+\end{enumerate}
+These checks make the FEM implementation defensible: they test storage, conduction, source projection, boundary handling, and the diffusive-limit reduction separately.
+
+\subsection{MATLAB implementation map}
+The Module~4 FEM implementation corresponds to the derivation as follows:
+\begin{center}
+\begin{tabularx}{0.95\textwidth}{>{\RaggedRight\arraybackslash}p{0.34\textwidth}>{\RaggedRight\arraybackslash}X}
+\toprule
+FEM concept & MATLAB implementation target \\
+\midrule
+Triangular mesh & \path{make_rectangular_tri_mesh_2d.m} \\
+Element heat-capacity matrix & \path{compute_element_heat_capacity_triangle.m} \\
+Element conductivity matrix & \path{compute_element_conductivity_triangle.m} \\
+Global matrix assembly & \path{assemble_thermal_fem_2d.m} \\
+Source projection & \path{assemble_thermal_source_fem_2d.m} and \path{evaluate_module4_fem_source_2d.m} \\
+Implicit time stepping & \path{solve_ballistic_diffusive_thermal_fem_2d.m} \\
+Top-level driver & \path{main_module4_fem_ballistic_diffusive_thermal.m} \\
+Verification tests & \path{test_module4_fem_uniform_equilibrium_2d.m}, \path{test_module4_fem_gaussian_diffusion_2d.m}, and \path{test_module4_fem_uniform_source_2d.m} \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+
+
+\section{Practical implementation strategy for this project}
+The Module~4 implementation should be built in layers rather than jumping directly to a realistic chip geometry. The defensible sequence is:
+\begin{enumerate}[leftmargin=1.6em]
+    \item verify the linear-triangle FEM heat-capacity and conductivity matrices on simple rectangular domains,
+    \item verify the diffusive limit by setting \(\tau=0\) and \(\qvec_b=0\),
+    \item verify the ballistic-diffusive relaxation term with spatially uniform sources where analytic solutions exist,
+    \item add the reduced boundary-emission ballistic source \(-\nabla\cdot\qvec_b\),
+    \item compare the FEM path against the existing structured-grid Module~4 path and the archived Fourier baseline,
+    \item only then couple the temperature field back into Module~3 kinetic coefficients and later Module~5 transport coefficients.
 \end{enumerate}
 
-For Module 1, the primary code target is therefore
+The primary FEM code target is therefore
 \begin{equation}
-    \texttt{main\_module1\_bd\_1d\_validation.m}.
+    \texttt{main\_module4\_fem\_ballistic\_diffusive\_thermal.m}.
 \end{equation}
-It should generate temperature/internal-energy profiles, ballistic flux terms, and surface flux histories for
-\begin{equation}
-    \mathrm{Kn}=0.01,\ 0.1,\ 1,\ 10.
-\end{equation}
+This driver should generate nodal temperature fields, source fields, ballistic-divergence fields, scalar history metrics, and verification summaries. The FEM path is not meant to replace the structured-grid path immediately. It provides an interview-defensible and geometry-extensible formulation that can later be generalized to irregular device domains.
 
 \section{How this connects to the superconducting-qubit project}
-The final goal of this project is not simply to solve a heat equation. The larger goal is to understand how geometry and materials influence energy flow and quasiparticle poisoning in superconducting qubit structures. Module 1 supplies the thermal transport language needed for later modules.
+The final goal of this project is not simply to solve a heat equation. The larger goal is to understand how geometry and materials influence energy flow and radiation-induced degradation in silicon device structures. Module~4 supplies the thermal transport field needed by the later defect, electrostatic, and carrier-transport modules.
 
 In a qubit device, local energy can be deposited near a Josephson junction, in a capacitor pad, in a substrate, or at an interface. The early-time flow of that energy can determine whether high-energy phonons or quasiparticles reach the sensitive junction region. A trap or heat sink changes the geometry and boundary conditions of the transport problem. Therefore, a model that captures finite carrier flight, boundary memory, and diffusion after scattering is more appropriate than immediately assuming ordinary Fourier conduction everywhere.
 
@@ -1162,7 +1374,7 @@ The derivation can be summarized as follows:
 \end{enumerate}
 
 
-\section{Lecture-ready slide translation for Module 1}
+\section{Lecture-ready slide translation for Module 4}
 This section converts the derivation into presentation logic. Each item corresponds to one possible slide or slide cluster.
 
 \begin{notebox}
@@ -1215,8 +1427,8 @@ Physical question: How do we validate the implementation? Governing parameter: \
 Physical question: Why does this matter for qubit poisoning? Governing idea: energy deposited in a small region can move through phonons and other carriers before local equilibrium is established. Design relevance: heat sinks and traps should be evaluated by how they alter energy and quasiparticle transport near the junction-sensitive region.
 \end{notebox}
 
-\section{Module 1 implementation checklist}
-Before moving to Module 2, the project should satisfy the following Module 1 checks:
+\section{Module 4 implementation checklist}
+Before coupling Module~4 to Modules~3, 5, and 6, the project should satisfy the following Module~4 checks:
 \begin{enumerate}[leftmargin=1.6em]
     \item The code can compute \(q_b^*(\eta,t^*)\) with the correct finite-arrival lower limit \(\mu_t=\eta/(\mathrm{Kn}t^*)\).
     \item The code can solve Eq.~\eqref{eq:bd_1d_dimensionless_expanded} for several \(\mathrm{Kn}\) values.
@@ -1296,7 +1508,7 @@ The first 2D implementation should be verified in stages.
 These tests are the right bridge between the original 1D benchmark and the intended 2D production module.
 
 \subsection{Summary of the revised Module 4 role}
-In the revised architecture, Module~4 is a single thermal-physics module based on ballistic-diffusive heat conduction rather than a split baseline-versus-comparison pair. The model is still reduced, but it carries a clearer microscopic foundation than a plain continuum heat equation and is therefore a better match to localized and quasi-ballistic thermal transport in silicon device structures.
+In the revised architecture, Module~4 is a single thermal-physics module based on ballistic-diffusive heat conduction rather than a split baseline-versus-comparison pair. The model is still reduced, but it carries a clearer microscopic foundation than a plain continuum heat equation and is therefore a better match to localized and quasi-ballistic thermal transport in silicon device structures. The updated implementation also has a linear triangular FEM path, so the same thermal equation can be explained in terms of mesh generation, shape functions, element heat-capacity matrices, element conductivity matrices, source-vector assembly, and implicit time stepping.
 
 
 \section{References}

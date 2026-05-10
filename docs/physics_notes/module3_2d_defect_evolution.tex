@@ -1,6 +1,6 @@
 \documentclass[11pt]{article}
 \input{../shared/project_style.tex}
-\newcommand{\xvec}{\mathbf{x}}
+\renewcommand{\xvec}{\mathbf{x}}
 \newcommand{\Jvec}{\mathbf{J}}
 \newcommand{\Ddef}{D}
 \newcommand{\kann}{k_{\mathrm{ann}}}
@@ -50,6 +50,16 @@ $\tau_D$ & Diffusion timescale & s \\
 $\tau_{\mathrm{ann}}$ & Annealing timescale & s \\
 $M(t)$ & Total defect inventory & dimension depends on dimensional reduction \\
 $\hat{\mathbf{n}}$ & Outward unit normal vector & dimensionless \\
+$\Omega$ & Two-dimensional computational domain & m$^2$ \\
+$\Omega_e$ & Area of one triangular finite element & m$^2$ \\
+$N_a$ & Shape function associated with local node $a$ & dimensionless \\
+$A_e$ & Area of element $e$ & m$^2$ \\
+$\bm{C}$ & Vector of nodal defect concentrations & m$^{-3}$ \\
+$\bm{M}$ & FEM mass matrix for the transient term & m$^2$ \\
+$\bm{K}_D$ & FEM diffusion matrix & m$^2$/s \\
+$\bm{K}_R$ & FEM reaction or annealing matrix & m$^2$/s \\
+$\Delta t$ & Time-step size & s \\
+$S$ & Volumetric defect source term & m$^{-3}$ s$^{-1}$ \\
 \bottomrule
 \end{longtable}
 
@@ -480,6 +490,241 @@ Now the thermal field changes not only how quickly defects move, but also how qu
 
 This coupling is one of the strongest reasons the project must be multiphysics. Defect kinetics and temperature cannot be treated as unrelated after the architecture has matured.
 
+
+\section{Finite-element formulation of Module 3}
+
+The preceding sections define the continuum physics. For implementation and interview defense, it is equally important to explain how the time-dependent diffusion-reaction equation is converted into algebraic equations. The present project now keeps two numerical paths conceptually distinct. The older Module 3 MATLAB path advances the equation on a structured Cartesian grid with a conservative finite-volume/finite-difference stencil. The new FEM path described here treats the same governing equation with linear triangular finite elements. Both solve the same physics, but they approximate the spatial operators differently.
+
+\subsection{Strong form used for the FEM derivation}
+
+Let $\Omega$ be the two-dimensional silicon cross section and let $\partial\Omega$ be its boundary. The scalar unknown is the defect concentration $C(x,y,t)$. The strong form is
+\begin{equation}
+\pdv{C}{t}
+=
+\nabla\cdot\left(D\nabla C\right)-k_{\mathrm{ann}}C+S
+\qquad \text{in } \Omega,
+\end{equation}
+where $D$ is the defect diffusivity, $k_{\mathrm{ann}}$ is the first-order annealing coefficient, and $S$ is an optional defect source term. The default post-irradiation cases use $S=0$ after the initial defect field has been created.
+
+The zero-flux boundary condition is
+\begin{equation}
+\hat{\mathbf{n}}\cdot\mathbf{J}_C = 0,
+\qquad
+\mathbf{J}_C=-D\nabla C,
+\end{equation}
+so
+\begin{equation}
+\hat{\mathbf{n}}\cdot D\nabla C = 0
+\qquad \text{on the zero-flux part of } \partial\Omega.
+\end{equation}
+This is the natural default condition for a closed computational region. It says defects do not leave the modeled silicon region through the boundary.
+
+\subsection{Weak form and why it is needed}
+
+To derive the FEM equations, multiply the strong form by a test function $w(x,y)$ and integrate over the domain:
+\begin{equation}
+\int_{\Omega} w \pdv{C}{t}\,d\Omega
+=
+\int_{\Omega} w\nabla\cdot(D\nabla C)\,d\Omega
+-
+\int_{\Omega} wk_{\mathrm{ann}}C\,d\Omega
++
+\int_{\Omega} wS\,d\Omega.
+\end{equation}
+Apply integration by parts to the diffusion term:
+\begin{equation}
+\int_{\Omega} w\nabla\cdot(D\nabla C)\,d\Omega
+=
+\int_{\partial\Omega} wD\nabla C\cdot\hat{\mathbf{n}}\,d\Gamma
+-
+\int_{\Omega} D\nabla w\cdot\nabla C\,d\Omega.
+\end{equation}
+For a homogeneous zero-flux boundary, the boundary integral vanishes. The weak form becomes
+\begin{equation}
+\boxed{
+\int_{\Omega} w \pdv{C}{t}\,d\Omega
++
+\int_{\Omega} D\nabla w\cdot\nabla C\,d\Omega
++
+\int_{\Omega} wk_{\mathrm{ann}}C\,d\Omega
+=
+\int_{\Omega} wS\,d\Omega .
+}
+\end{equation}
+This equation is the FEM starting point. It contains only first spatial derivatives of $C$, which is why ordinary $C^0$ continuous linear triangular elements are sufficient. In physical terms, the weak form balances the rate of defect inventory change, diffusive smoothing, local annealing loss, and any volumetric source.
+
+\subsection{Triangular mesh and nodal unknowns}
+
+The FEM implementation represents $\Omega$ using a triangular mesh. Each triangular element has three local nodes. The global unknown vector is
+\begin{equation}
+\bm{C}(t)=
+\begin{bmatrix}
+C_1(t) & C_2(t) & \cdots & C_N(t)
+\end{bmatrix}^{T},
+\end{equation}
+where $C_A(t)$ is the defect concentration at global node $A$ and $N$ is the total number of mesh nodes. This is analogous to the electrostatic potential vector in Module 2, except the unknown is now concentration rather than potential and the equation is time dependent rather than steady.
+
+A rectangular silicon cross section can still be meshed with triangles by first making a structured grid of points and then splitting each rectangular cell into two counter-clockwise triangular elements. This gives a simple mesh whose connectivity is easy to inspect and whose boundary node sets are known exactly.
+
+\subsection{Linear triangular shape functions}
+
+Inside element $e$, the concentration is approximated by
+\begin{equation}
+C^{(e)}(x,y,t)
+\approx
+\sum_{a=1}^{3}N_a(x,y)C_a^{(e)}(t),
+\end{equation}
+where $N_a$ are the three linear triangular shape functions. Each shape function is one at its own local node and zero at the other two local nodes:
+\begin{equation}
+N_a(\xvec_b)=\delta_{ab}.
+\end{equation}
+Thus the nodal values define the concentration everywhere inside the element by interpolation.
+
+For a linear triangle,
+\begin{equation}
+N_a(x,y)=\alpha_a+\beta_a x+\gamma_a y,
+\end{equation}
+so the gradient $\nabla N_a$ is constant within the element. This makes the element diffusion matrix especially simple, because $\nabla C$ is also constant inside each linear triangle.
+
+\subsection{Element mass matrix}
+
+The first term in the weak form produces a mass matrix. It is called a mass matrix by analogy with transient structural dynamics, but here it does not represent mechanical mass. It represents the storage or inventory of the scalar concentration field. The element mass matrix is
+\begin{equation}
+M_{ab}^{(e)}=\int_{\Omega_e}N_aN_b\,d\Omega.
+\end{equation}
+For a linear triangular element with area $A_e$,
+\begin{equation}
+\bm{M}^{(e)}=
+\frac{A_e}{12}
+\begin{bmatrix}
+2 & 1 & 1 \\
+1 & 2 & 1 \\
+1 & 1 & 2
+\end{bmatrix}.
+\end{equation}
+This matrix converts nodal time derivatives into element-level inventory changes.
+
+\subsection{Element diffusion matrix}
+
+The diffusion term gives
+\begin{equation}
+K_{D,ab}^{(e)}=\int_{\Omega_e}D\nabla N_a\cdot\nabla N_b\,d\Omega.
+\end{equation}
+If $D$ is constant over the element,
+\begin{equation}
+K_{D,ab}^{(e)}=D A_e\nabla N_a\cdot\nabla N_b.
+\end{equation}
+This matrix penalizes sharp concentration gradients between neighboring nodes. It is the defect-transport analogue of the electrostatic stiffness matrix in Module 2. The word ``stiffness'' here is numerical, not mechanical: it quantifies how strongly diffusion resists spatial concentration variations.
+
+When $D$ is supplied as a spatial field, the first implementation uses an element-average diffusivity,
+\begin{equation}
+D_e \approx \frac{D_1+D_2+D_3}{3},
+\end{equation}
+where $D_1,D_2,D_3$ are the nodal values on that triangle. Higher-order quadrature can be added later if the diffusivity varies strongly within individual elements.
+
+\subsection{Element reaction or annealing matrix}
+
+The first-order annealing term gives
+\begin{equation}
+K_{R,ab}^{(e)}=\int_{\Omega_e}k_{\mathrm{ann}}N_aN_b\,d\Omega.
+\end{equation}
+If $k_{\mathrm{ann}}$ is constant within the element,
+\begin{equation}
+\bm{K}_{R}^{(e)}=k_{\mathrm{ann},e}\bm{M}^{(e)}.
+\end{equation}
+This is the finite-element version of the local loss term $-k_{\mathrm{ann}}C$. It removes concentration locally without requiring spatial gradients. If the annealing coefficient varies in space, the first implementation again uses an element-average value.
+
+\subsection{Element source vector}
+
+If a volumetric source $S(x,y,t)$ is active, the element source vector is
+\begin{equation}
+f_a^{(e)}=\int_{\Omega_e}N_aS\,d\Omega.
+\end{equation}
+For the default post-irradiation evolution problem, radiation damage is represented mainly through the initial condition $C(x,y,0)=C_0(x,y)$ rather than a continuing source. In that case $\bm{f}^{(e)}=\bm{0}$ after $t=0$. If a time-dependent radiation source is later introduced, this vector is the natural place where it enters the FEM formulation.
+
+\subsection{Global assembly}
+
+Each triangular element contributes local matrices $\bm{M}^{(e)}$, $\bm{K}_{D}^{(e)}$, $\bm{K}_{R}^{(e)}$, and a local source vector $\bm{f}^{(e)}$. Assembly adds these local contributions into global matrices using the element-to-global node connectivity:
+\begin{align}
+M_{AB} &\leftarrow M_{AB}+M_{ab}^{(e)},\\
+K_{D,AB} &\leftarrow K_{D,AB}+K_{D,ab}^{(e)},\\
+K_{R,AB} &\leftarrow K_{R,AB}+K_{R,ab}^{(e)},\\
+f_A &\leftarrow f_A+f_a^{(e)}.
+\end{align}
+Here local node $a$ corresponds to global node $A$, and local node $b$ corresponds to global node $B$.
+
+The semi-discrete FEM equation is therefore
+\begin{equation}
+\boxed{
+\bm{M}\dv{\bm{C}}{t}+\left(\bm{K}_D+\bm{K}_R\right)\bm{C}=\bm{f}.
+}
+\end{equation}
+This is the central FEM equation for Module 3. It should be read as the matrix form of conservation plus diffusion plus annealing.
+
+\subsection{Implicit time stepping}
+
+The first FEM implementation uses backward Euler time stepping because it is more stable for diffusion-reaction problems than a simple explicit update. With time step $\Delta t$, the semi-discrete equation becomes
+\begin{equation}
+\left[\bm{M}+\Delta t\left(\bm{K}_D+\bm{K}_R\right)\right]\bm{C}^{n+1}
+=
+\bm{M}\bm{C}^{n}+\Delta t\bm{f}^{n+1}.
+\end{equation}
+For source-free evolution,
+\begin{equation}
+\left[\bm{M}+\Delta t\left(\bm{K}_D+\bm{K}_R\right)\right]\bm{C}^{n+1}
+=
+\bm{M}\bm{C}^{n}.
+\end{equation}
+The main advantage is that the method avoids the severe diffusion stability limit that appears in explicit schemes. Time-step accuracy still matters, but the method is not constrained in the same way by $\Delta t \lesssim h^2/D$ for stability.
+
+\subsection{Boundary-condition handling}
+
+Homogeneous zero-flux boundaries are natural in the weak form. Because the boundary integral vanishes, no special matrix modification is required. This is different from a Dirichlet boundary, where the concentration is prescribed directly and the corresponding nodal values must be constrained.
+
+For most Module 3 cases, zero-flux boundaries are the correct default because they test whether defect inventory is conserved under pure diffusion. Dirichlet or Robin sink boundaries can be added later to model surfaces, interfaces, or contacts that absorb mobile defects.
+
+\subsection{Postprocessing and conserved quantities}
+
+After solving for $\bm{C}^{n+1}$, the defect concentration can be plotted directly at nodes or interpolated over the triangular mesh. The defect flux inside an element is
+\begin{equation}
+\mathbf{J}_C^{(e)}=-D_e\nabla C^{(e)}
+=-D_e\sum_{a=1}^{3}C_a^{(e)}\nabla N_a.
+\end{equation}
+For linear triangles this flux is piecewise constant over each element.
+
+The total defect inventory is computed in FEM form as
+\begin{equation}
+M_C(t)=\int_{\Omega}C(x,y,t)\,d\Omega
+\approx
+\mathbf{1}^{T}\bm{M}\bm{C}(t),
+\end{equation}
+where $\mathbf{1}$ is a vector of ones. This quantity should remain constant for pure diffusion with zero-flux boundaries and should decay exponentially for spatially uniform first-order annealing.
+
+\subsection{MATLAB implementation map}
+
+The FEM implementation is organized as a parallel path to the existing structured-grid Module 3 solver:
+\begin{longtable}{p{0.40\textwidth} p{0.50\textwidth}}
+\toprule
+\textbf{File} & \textbf{Role} \\
+\midrule
+\endhead
+\path{main_module3_fem_defect_evolution.m} & Top-level driver for the FEM Module 3 cases. \\
+\path{default_module3_fem_params.m} & Defines the FEM domain, mesh resolution, diffusivity, annealing rate, time step, and initial condition. \\
+\path{make_rectangular_tri_mesh_2d.m} & Reuses the triangular mesh generator introduced for Module 2. \\
+\path{initialize_defect_field_fem_2d.m} & Builds nodal initial defect concentration fields. \\
+\path{compute_element_mass_triangle.m} & Computes the consistent mass matrix for a linear triangular element. \\
+\path{compute_element_diffusion_triangle.m} & Computes the triangular diffusion matrix from $D\nabla N_a\cdot\nabla N_b$. \\
+\path{assemble_defect_fem_2d.m} & Assembles global mass, diffusion, reaction, and source arrays. \\
+\path{solve_defect_diffusion_reaction_fem_2d.m} & Advances the implicit FEM system through time and records diagnostics. \\
+\path{write_module3_fem_summary.m} & Writes a text summary of the FEM run and verification metrics. \\
+\bottomrule
+\end{longtable}
+
+\subsection{What an interviewer may ask about the FEM side}
+
+A concise technical answer is: Module 3 solves a time-dependent scalar diffusion-reaction equation. The FEM weak form is obtained by multiplying by a test function, integrating over the domain, and integrating the diffusion term by parts. Linear triangular elements approximate the concentration field. The transient term produces a mass matrix $\bm{M}$, diffusion produces $\bm{K}_D$, first-order annealing produces $\bm{K}_R$, and backward Euler gives $[\bm{M}+\Delta t(\bm{K}_D+\bm{K}_R)]\bm{C}^{n+1}=\bm{M}\bm{C}^{n}+\Delta t\bm{f}^{n+1}$. Zero-flux boundaries are natural boundary conditions and require no explicit constraint in the homogeneous case.
+
+
 \section{How Module 3 couples to other modules}
 
 \subsection{Input from Module 1}
@@ -539,6 +784,8 @@ This is the equation set that turns a radiation-created damage map into an evolv
 \item P. M. Fahey, P. B. Griffin, and J. D. Plummer, ``Point defects and dopant diffusion in silicon, \emph{Reviews of Modern Physics} \textbf{61}, 289--384 (1989).
 \item G. D. Watkins, ``Intrinsic defects in silicon, in \emph{Deep Centers in Semiconductors}, 2nd ed., Gordon and Breach (1999).
 \item S. M. Sze and K. K. Ng, \emph{Physics of Semiconductor Devices}, 3rd ed., Wiley (2007).
+\item O. C. Zienkiewicz, R. L. Taylor, and J. Z. Zhu, \emph{The Finite Element Method: Its Basis and Fundamentals}, 7th ed., Elsevier (2013).
+\item D. L. Logan, \emph{A First Course in the Finite Element Method}, 6th ed., Cengage (2017).
 \end{enumerate}
 \end{sloppypar}
 

@@ -29,7 +29,7 @@
 \DocTitle{Module 6: Coupled Two-Dimensional Multiphysics Integration}{Derivation-Focused Physics Note for \texttt{RadiationEffects\_proj2}}{Self-consistent coupling of defect evolution, electrostatics, thermal transport, and carrier transport}
 
 \begin{overviewbox}
-\textbf{Purpose of this note.} Module 6 is the integration layer of \texttt{RadiationEffects\_proj2}. Modules 1--5 each describe one part of the radiation-to-device-degradation chain. Module 6 connects them into one coupled device model. The central idea is that the defect map, temperature map, electrostatic potential map, and carrier map are not independent post-processing products. They feed back on one another through space charge, mobility, recombination, heat generation, defect kinetics, and field-driven transport. This note defines the coupled state variables, writes the governing equations in a common two-dimensional notation, derives the main feedback loops, and gives a practical staggered solver strategy for the first MATLAB implementation.
+\textbf{Purpose of this note.} Module 6 is the integration layer of \texttt{RadiationEffects\_proj2}. Modules 1--5 each describe one part of the radiation-to-device-degradation chain. Module 6 connects them into one coupled device model. The central idea is that the defect map, temperature map, electrostatic potential map, and carrier map are not independent post-processing products. They feed back on one another through space charge, mobility, recombination, heat generation, defect kinetics, and field-driven transport. This note defines the coupled state variables, writes the governing equations in a common two-dimensional notation, derives the main feedback loops, develops the finite-element discretization structure used for coupling, and gives a practical staggered solver strategy for the first MATLAB implementation.
 \end{overviewbox}
 
 \ProjectTOC
@@ -115,6 +115,21 @@ DDD & Displacement damage dose & Damage metric associated with non-ionizing ener
 \(y_{\mathrm{device}}\) & Device response & Reduced measurable output such as leakage current, threshold shift, collected charge, or upset probability. \\
 \(I\) & Terminal current & Current through a device contact. \\
 \(V\) & Terminal voltage & Applied or measured voltage at a device terminal. \\
+
+\(\mathcal{T}_h\) & Finite-element mesh & Triangulation of the two-dimensional device domain. \\
+\(e\) & Element index & Index for one triangular finite element. \\
+\(N_a\) & Shape function & Linear finite-element basis function associated with local or global node \(a\). \\
+\(A_e\) & Element area & Area of triangular element \(e\). \\
+\(\Phi\) & Nodal potential vector & Vector containing finite-element nodal values of \(\phi\). \\
+\(\Theta\) & Nodal temperature vector & Vector containing finite-element nodal values of \(T\). \\
+\(\mathbf{c}_j\) & Nodal defect vector & Vector containing nodal values of defect species \(C_j\). \\
+\(\mathbf{n},\mathbf{p}\) & Nodal carrier vectors & Vectors containing nodal electron and hole concentrations. \\
+\(M\) & Mass matrix & Finite-element matrix from integrals of products of shape functions. \\
+\(K\) & Stiffness matrix & Finite-element matrix from gradient-gradient or transport terms. \\
+\(B_e\) & Element gradient matrix & Matrix containing gradients of linear triangular shape functions for element \(e\). \\
+\(\mathbf{b}\) & Source vector & Finite-element load vector assembled from volume and boundary source terms. \\
+\(\mathbf{r}\) & Discrete residual & Algebraic residual vector used to test convergence of a coupled solve. \\
+\(\mathbf{P}_{a\leftarrow b}\) & Projection operator & Interpolation or transfer matrix mapping a field from mesh \(b\) to mesh \(a\). \\
 \end{symtable}
 
 \section{Role of Module 6 in the project}
@@ -613,6 +628,232 @@ so
 \label{eq:weak_hole}
 \end{equation}
 The opposite signs follow from the sign difference between electron conventional current and hole conventional current in the continuity equations.
+
+\section{Finite-element discretization of the coupled Module 6 system}
+
+The previous section gave the weak forms. This section makes the finite-element implementation explicit. The first Module 6 MATLAB path uses the same linear triangular mesh style developed for Modules 2--5. This choice is deliberate: the goal is not only to solve each physics block, but to pass fields between blocks without ambiguous interpolation or unit conversion.
+
+\subsection{Shared mesh and nodal unknowns}
+
+Let \(\mathcal{T}_h\) be a triangular finite-element mesh of the two-dimensional device domain \(\OmegaD\). The domain is approximated as
+\begin{equation}
+\OmegaD \approx \Omega_h = \bigcup_{e=1}^{N_e} \Omega_e,
+\end{equation}
+where \(\Omega_e\) is one triangular element and \(N_e\) is the number of elements. For a three-node linear triangle, each element carries three local shape functions,
+\begin{equation}
+N_1(x,y), \qquad N_2(x,y), \qquad N_3(x,y),
+\end{equation}
+with the interpolation property
+\begin{equation}
+N_a(\text{node } b)=\delta_{ab}.
+\end{equation}
+For a coupled Module 6 solve, the finite-element approximations are
+\begin{align}
+C_j^h(x,y,t) &= \sum_{a=1}^{N_n} N_a(x,y)c_{j,a}(t), \\
+\phi^h(x,y,t) &= \sum_{a=1}^{N_n} N_a(x,y)\Phi_a(t), \\
+T^h(x,y,t) &= \sum_{a=1}^{N_n} N_a(x,y)\Theta_a(t), \\
+n^h(x,y,t) &= \sum_{a=1}^{N_n} N_a(x,y)n_a(t), \\
+p^h(x,y,t) &= \sum_{a=1}^{N_n} N_a(x,y)p_a(t).
+\end{align}
+Here \(N_n\) is the number of global mesh nodes. The unknowns are the nodal coefficients \(c_{j,a}\), \(\Phi_a\), \(\Theta_a\), \(n_a\), and \(p_a\). In vector form,
+\begin{equation}
+\boxed{
+\widetilde{\Uvec}
+=
+\begin{bmatrix}
+\mathbf{c}_1 \\
+\vdots \\
+\mathbf{c}_N \\
+\Phi \\
+\Theta \\
+\mathbf{n} \\
+\mathbf{p}
+\end{bmatrix}.}
+\label{eq:module6_discrete_state}
+\end{equation}
+This is the discrete counterpart of the continuum state vector in Eq.~\eqref{eq:state_vector}.
+
+\begin{physicsbox}
+\textbf{Why a shared mesh matters.} If Modules 2--5 use different meshes, every coupling term requires interpolation. That is possible, but it creates another source of error. The first Module 6 FEM implementation therefore uses one shared triangular mesh so that \(C_j\), \(\phi\), \(T\), \(n\), and \(p\) are all stored at the same nodes. This makes the first coupling path easier to verify.
+\end{physicsbox}
+
+\subsection{Element-level matrices on a linear triangle}
+
+For a linear triangular element, the gradients of the shape functions are constant inside the element. If the local nodal values of a scalar field \(u\) are stored in \(\mathbf{u}_e=[u_1,u_2,u_3]^T\), then
+\begin{equation}
+\gradxy u^h\big|_{\Omega_e}
+= B_e \mathbf{u}_e,
+\end{equation}
+where \(B_e\) is the element gradient matrix. This constant-gradient property makes the basic element matrices especially transparent.
+
+The scalar mass matrix is
+\begin{equation}
+\boxed{
+M^{(e)}_{ab}=\int_{\Omega_e}N_aN_b\,d\Omega
+=\frac{A_e}{12}
+\begin{bmatrix}
+2&1&1\\
+1&2&1\\
+1&1&2
+\end{bmatrix}_{ab}.}
+\label{eq:module6_scalar_mass_element}
+\end{equation}
+The diffusion or conductivity stiffness matrix for coefficient \(\kappa\) is
+\begin{equation}
+\boxed{
+K^{(e)}_{ab}=\int_{\Omega_e}\kappa\gradxy N_a\cdot\gradxy N_b\,d\Omega
+=\kappa_e A_e\,\gradxy N_a\cdot\gradxy N_b.}
+\label{eq:module6_stiffness_element}
+\end{equation}
+The source vector for a nodal source \(s^h=\sum_b N_bs_b\) is
+\begin{equation}
+\boxed{
+b^{(e)}_a=\int_{\Omega_e}N_a s^h\,d\Omega
+=\sum_{b=1}^{3}M^{(e)}_{ab}s_b.}
+\label{eq:module6_source_element}
+\end{equation}
+Equations~\eqref{eq:module6_scalar_mass_element}--\eqref{eq:module6_source_element} are reused across defect diffusion, heat conduction, Poisson electrostatics, and carrier diffusion. The physics changes through the coefficient \(\kappa\), the source term, the sign convention, and the variable being solved.
+
+\subsection{Discrete Poisson block}
+
+The Poisson weak form in Eq.~\eqref{eq:weak_poisson} gives the algebraic system
+\begin{equation}
+\boxed{K_{\phi}\Phi=\mathbf{b}_{\rho}+\mathbf{b}_{\Gamma,\phi}.}
+\label{eq:module6_poisson_discrete}
+\end{equation}
+For a uniform silicon permittivity, the element matrix is
+\begin{equation}
+(K_{\phi}^{(e)})_{ab}
+=\int_{\Omega_e}\epss\gradxy N_a\cdot\gradxy N_b\,d\Omega.
+\end{equation}
+The source vector is assembled from
+\begin{equation}
+(b_{\rho}^{(e)})_a
+=\int_{\Omega_e}N_a\rho^h\,d\Omega,
+\end{equation}
+where the nodal charge density is
+\begin{equation}
+\rho_a=q\left[p_a-n_a+N_{D,a}^{+}-N_{A,a}^{-}+\sum_{j=1}^{N}z_jc_{j,a}\right].
+\end{equation}
+Dirichlet contact potentials are imposed strongly by modifying rows and columns of the global matrix. Zero-normal-displacement boundaries are natural boundary conditions and require no extra source term.
+
+\subsection{Discrete defect block}
+
+For one defect species without field drift, the FEM semi-discrete equation is
+\begin{equation}
+\boxed{M_C\dot{\mathbf{c}}_j+\bigl(K_{D,j}+K_{R,j}\bigr)\mathbf{c}_j=\mathbf{s}_j.}
+\label{eq:module6_defect_discrete}
+\end{equation}
+Here
+\begin{align}
+(M_C^{(e)})_{ab} &= \int_{\Omega_e}N_aN_b\,d\Omega,\\
+(K_{D,j}^{(e)})_{ab} &= \int_{\Omega_e}D_j\gradxy N_a\cdot\gradxy N_b\,d\Omega,\\
+(K_{R,j}^{(e)})_{ab} &= \int_{\Omega_e}k_{\mathrm{ann},j}N_aN_b\,d\Omega.
+\end{align}
+A backward-Euler update gives
+\begin{equation}
+\boxed{
+\left[M_C+\dt\left(K_{D,j}+K_{R,j}\right)\right]\mathbf{c}_j^{m+1}
+=
+M_C\mathbf{c}_j^m+\dt\mathbf{s}_j^{m+1}.}
+\label{eq:module6_defect_be}
+\end{equation}
+If charged-defect drift is retained, an additional nonsymmetric drift matrix appears because the flux contains \(\mu_jz_jqC_j\Evec\). In the first coupled MATLAB path, this term is kept as a documented extension because the most important first coupling is the map \(C_j\rightarrow\rho_{\mathrm{def}}\rightarrow\phi\).
+
+\subsection{Discrete thermal block}
+
+For the Fourier-limit thermal update used inside the first Module 6 coupling scaffold,
+\begin{equation}
+M_T\dot{\Theta}+K_T\Theta=\mathbf{q}_{\mathrm{tot}},
+\end{equation}
+where
+\begin{align}
+(M_T^{(e)})_{ab} &= \int_{\Omega_e}\rhom\cpsym N_aN_b\,d\Omega,\\
+(K_T^{(e)})_{ab} &= \int_{\Omega_e}k\gradxy N_a\cdot\gradxy N_b\,d\Omega.
+\end{align}
+The backward-Euler update is
+\begin{equation}
+\boxed{
+\left(\frac{1}{\dt}M_T+K_T\right)\Theta^{m+1}
+=
+\frac{1}{\dt}M_T\Theta^m+
+\mathbf{q}_{\mathrm{tot}}^{m+1}.}
+\label{eq:module6_thermal_be}
+\end{equation}
+The full Module 4 ballistic-diffusive FEM path can replace this thermal sub-block. The reduced Fourier-limit form is still useful in Module 6 because it tests the coupling of heat sources, temperature-dependent coefficients, and FEM field transfer before adding the second-order ballistic-diffusive thermal state.
+
+\subsection{Discrete carrier blocks}
+
+For an electron-like scalar carrier variable, the reduced FEM form can be written as
+\begin{equation}
+\boxed{
+M_n\dot{\mathbf{n}}+
+\left(K_{D,n}+K_{E,n}+K_{R,n}\right)\mathbf{n}
+=
+\mathbf{g}_n+\mathbf{r}_{n,\mathrm{eq}}.}
+\label{eq:module6_electron_discrete}
+\end{equation}
+The hole block has the same structure but the drift sign changes. The diffusion matrix is built from \(D_n\gradxy N_a\cdot\gradxy N_b\), while the drift matrix comes from the weak form terms involving \(\mu_n\Evec n\). With backward Euler,
+\begin{equation}
+\boxed{
+\left[\frac{1}{\dt}M_n+K_{D,n}+K_{E,n}+K_{R,n}\right]\mathbf{n}^{m+1}
+=
+\frac{1}{\dt}M_n\mathbf{n}^{m}+\mathbf{g}_n+\mathbf{r}_{n,\mathrm{eq}}.}
+\label{eq:module6_electron_be}
+\end{equation}
+An analogous equation is solved for \(\mathbf{p}^{m+1}\). In Module 6 the coefficients inside these matrices depend on the current coupled estimates of \(T\), \(\Evec\), and \(\Cvec\):
+\begin{equation}
+\mu_n=\mu_n(T,\Cvec),
+\qquad
+D_n=D_n(T,\mu_n),
+\qquad
+K_{R,n}=K_{R,n}(\Cvec,T).
+\end{equation}
+
+\subsection{Discrete coupled residual and block structure}
+
+If all fields are solved at once, the coupled finite-element equations form one large nonlinear residual,
+\begin{equation}
+\boxed{\Rvec(\widetilde{\Uvec}^{m+1};\widetilde{\Uvec}^{m})=\bm{0}.}
+\end{equation}
+A schematic block structure is
+\begin{equation}
+\begin{bmatrix}
+R_C(\mathbf{c},\Phi,\Theta,\mathbf{n},\mathbf{p})\\
+R_\phi(\mathbf{c},\Phi,\mathbf{n},\mathbf{p})\\
+R_T(\mathbf{c},\Phi,\Theta,\mathbf{n},\mathbf{p})\\
+R_n(\mathbf{c},\Phi,\Theta,\mathbf{n},\mathbf{p})\\
+R_p(\mathbf{c},\Phi,\Theta,\mathbf{n},\mathbf{p})
+\end{bmatrix}
+=
+\bm{0}.
+\end{equation}
+The off-diagonal dependencies are the multiphysics couplings. For example, \(R_\phi\) depends on \(\mathbf{c}\), \(\mathbf{n}\), and \(\mathbf{p}\) through charge density; \(R_n\) depends on \(\Phi\) through the electric field and on \(\mathbf{c}\) through defect-dependent mobility and recombination; \(R_T\) depends on \(\Phi\), \(\mathbf{n}\), and \(\mathbf{p}\) through \(\Jvec\cdot\Evec\).
+
+A monolithic Newton method would linearize this entire residual and solve one large block Jacobian. The first MATLAB implementation instead uses a staggered fixed-point method, because each sub-block has already been tested in Modules 2--5 and the coupling terms can be verified one at a time.
+
+\subsection{Field transfer and interpolation policy}
+
+The first coupled implementation uses one common mesh. If later modules use different meshes, then field transfer must be explicit. If \(\mathbf{u}_b\) is a nodal field on mesh \(b\), its projection to mesh \(a\) should be written as
+\begin{equation}
+\boxed{\mathbf{u}_a=\mathbf{P}_{a\leftarrow b}\mathbf{u}_b.}
+\end{equation}
+Examples include projecting Module 3 defect fields onto the Module 2 electrostatic mesh, or projecting Module 2 electric fields onto the Module 5 transport mesh. These projection operators should be documented and tested because interpolation errors can masquerade as physics.
+
+\subsection{MATLAB implementation map for Module 6}
+
+The first executable Module 6 FEM path follows this code structure:
+\begin{itemize}[leftmargin=2em]
+\item \texttt{main\_module6\_multiphysics.m}: top-level entry point.
+\item \texttt{default\_module6\_fem\_params.m}: domain, coupling, material, defect, carrier, thermal, and boundary parameters.
+\item \texttt{initialize\_module6\_fem\_state.m}: initializes \(C\), \(\phi\), \(T\), \(n\), and \(p\) on the shared mesh.
+\item \texttt{solve\_coupled\_multiphysics\_fem\_2d.m}: staggered finite-element coupling loop.
+\item \texttt{update\_module6\_electrostatics.m}: builds \(\rho\), solves Poisson's equation, and computes \(\Evec\).
+\item \texttt{compute\_module6\_metrics.m}: evaluates convergence and scalar diagnostics.
+\item \texttt{write\_module6\_fem\_summary.m}: writes a human-readable summary file.
+\end{itemize}
+
+The important conceptual point is that Module 6 does not introduce a new element type. It reuses the same finite-element interpolation and assembly logic from Modules 2--5, then makes the source terms and coefficients depend on the other solved fields.
 
 \section{Staggered coupling strategy for the first implementation}
 
