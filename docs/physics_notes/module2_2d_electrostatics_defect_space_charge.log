@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.26 (TeX Live 2025/dev/Debian) (preloaded format=pdflatex 2026.2.6)  28 APR 2026 22:51
+This is pdfTeX, Version 3.141592653-2.6-1.40.26 (TeX Live 2025/dev/Debian) (preloaded format=pdflatex 2026.2.6)  10 MAY 2026 01:30
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -891,8 +891,8 @@ Package: translations 2022/02/05 v1.12 internationalization of LaTeX2e packages
 Package hyperref Info: Option `colorlinks' set `true' on input line 18.
 )
 Package translations Info: No language package found. I am going to use `englis
-h' as default language. on input line 15.
-LaTeX Font Info:    Trying to load font information for T1+lmr on input line 15
+h' as default language. on input line 14.
+LaTeX Font Info:    Trying to load font information for T1+lmr on input line 14
 .
 
 (/usr/share/texmf/tex/latex/lm/t1lmr.fd
@@ -901,24 +901,24 @@ File: t1lmr.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
 (./module2_2d_electrostatics_defect_space_charge.aux)
 \openout1 = `module2_2d_electrostatics_defect_space_charge.aux'.
 
-LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 15.
-LaTeX Font Info:    ... okay on input line 15.
-LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 15.
-LaTeX Font Info:    ... okay on input line 15.
-LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 15.
-LaTeX Font Info:    ... okay on input line 15.
-LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 15.
-LaTeX Font Info:    ... okay on input line 15.
-LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 15.
-LaTeX Font Info:    ... okay on input line 15.
-LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 15.
-LaTeX Font Info:    ... okay on input line 15.
-LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 15.
-LaTeX Font Info:    ... okay on input line 15.
-LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 15.
-LaTeX Font Info:    ... okay on input line 15.
-LaTeX Font Info:    Checking defaults for PU/pdf/m/n on input line 15.
-LaTeX Font Info:    ... okay on input line 15.
+LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 14.
+LaTeX Font Info:    ... okay on input line 14.
+LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 14.
+LaTeX Font Info:    ... okay on input line 14.
+LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 14.
+LaTeX Font Info:    ... okay on input line 14.
+LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 14.
+LaTeX Font Info:    ... okay on input line 14.
+LaTeX Font Info:    Checking defaults for TS1/cmr/m/n on input line 14.
+LaTeX Font Info:    ... okay on input line 14.
+LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 14.
+LaTeX Font Info:    ... okay on input line 14.
+LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 14.
+LaTeX Font Info:    ... okay on input line 14.
+LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 14.
+LaTeX Font Info:    ... okay on input line 14.
+LaTeX Font Info:    Checking defaults for PU/pdf/m/n on input line 14.
+LaTeX Font Info:    ... okay on input line 14.
 
 *geometry* driver: auto-detecting
 *geometry* detected driver: pdftex
@@ -954,22 +954,22 @@ LaTeX Font Info:    ... okay on input line 15.
 * \@reversemarginfalse
 * (1in=72.27pt=25.4mm, 1cm=28.453pt)
 
-LaTeX Info: Redefining \microtypecontext on input line 15.
-Package microtype Info: Applying patch `item' on input line 15.
-Package microtype Info: Applying patch `toc' on input line 15.
-Package microtype Info: Applying patch `eqnum' on input line 15.
+LaTeX Info: Redefining \microtypecontext on input line 14.
+Package microtype Info: Applying patch `item' on input line 14.
+Package microtype Info: Applying patch `toc' on input line 14.
+Package microtype Info: Applying patch `eqnum' on input line 14.
 
-Package microtype Warning: Unable to apply patch `footnote' on input line 15.
+Package microtype Warning: Unable to apply patch `footnote' on input line 14.
 
-Package microtype Info: Applying patch `verbatim' on input line 15.
-LaTeX Info: Redefining \microtypesetup on input line 15.
+Package microtype Info: Applying patch `verbatim' on input line 14.
+LaTeX Info: Redefining \microtypesetup on input line 14.
 Package microtype Info: Generating PDF output.
 Package microtype Info: Character protrusion enabled (level 2).
 Package microtype Info: Using default protrusion set `alltext'.
 Package microtype Info: Automatic font expansion enabled (level 2),
 (microtype)             stretch: 20, shrink: 20, step: 1, non-selected.
 Package microtype Info: Using default expansion set `alltext-nott'.
-LaTeX Info: Redefining \showhyphens on input line 15.
+LaTeX Info: Redefining \showhyphens on input line 14.
 Package microtype Info: No adjustment of tracking.
 Package microtype Info: No adjustment of interword spacing.
 Package microtype Info: No adjustment of character kerning.
@@ -999,7 +999,7 @@ Package epstopdf-base Info: Redefining graphics rule for `.eps' on input line 4
 File: epstopdf-sys.cfg 2010/07/13 v1.3 Configuration of (r)epstopdf for TeX Liv
 e
 ))
-Package hyperref Info: Link coloring ON on input line 15.
+Package hyperref Info: Link coloring ON on input line 14.
 
 (./module2_2d_electrostatics_defect_space_charge.out)
 (./module2_2d_electrostatics_defect_space_charge.out)
@@ -1025,9 +1025,9 @@ File: translations-basic-dictionary-english.trsl (english translation file `tra
 nslations-basic-dictionary')
 )
 Package translations Info: loading dictionary `translations-basic-dictionary' f
-or `english'. on input line 15.
+or `english'. on input line 14.
 LaTeX Font Info:    Trying to load font information for T1+lmtt on input line 1
-7.
+6.
  (/usr/share/texmf/tex/latex/lm/t1lmtt.fd
 File: t1lmtt.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
 )
@@ -1087,39 +1087,37 @@ File: mt-msb.cfg 2005/06/01 v1.0 microtype config. file: AMS symbols (b) (RS)
 [1{/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map}{/usr/share/texmf/fonts/en
 c/dvips/lm/lm-ec.enc}
 
-])
+]
+
+[2])
 \tf@toc=\write5
 \openout5 = `module2_2d_electrostatics_defect_space_charge.toc'.
 
 
-Overfull \hbox (7.81583pt too wide) in alignment at lines 32--36
+Overfull \hbox (7.81583pt too wide) in alignment at lines 31--35
  [] [] [] 
  []
 
 
-Overfull \hbox (7.81583pt too wide) in alignment at lines 36--56
+Overfull \hbox (7.81583pt too wide) in alignment at lines 35--55
  [] [] [] 
  []
-
-
-
-[2]
 
 [3{/usr/share/texmf/fonts/enc/dvips/lm/lm-mathit.enc}{/usr/share/texmf/fonts/en
 c/dvips/lm/lm-rm.enc}{/usr/share/texmf/fonts/enc/dvips/lm/lm-mathsy.enc}]
 
 [4]
+
+[5]
 LaTeX Font Info:    Trying to load font information for TS1+lmr on input line 1
-20.
+19.
  (/usr/share/texmf/tex/latex/lm/ts1lmr.fd
 File: ts1lmr.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
 )
 
-[5{/usr/share/texmf/fonts/enc/dvips/lm/lm-ts1.enc}]
+[6{/usr/share/texmf/fonts/enc/dvips/lm/lm-ts1.enc}]
 
-[6{/usr/share/texmf/fonts/enc/dvips/lm/lm-mathex.enc}]
-
-[7]
+[7{/usr/share/texmf/fonts/enc/dvips/lm/lm-mathex.enc}]
 
 [8]
 
@@ -1129,36 +1127,52 @@ File: ts1lmr.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
 
 [11]
 
-[12] (./module2_2d_electrostatics_defect_space_charge.aux)
+[12]
+
+[13]
+
+[14]
+
+[15]
+
+[16]
+
+[17]
+
+[18]
+
+[19] (./module2_2d_electrostatics_defect_space_charge.aux)
  ***********
 LaTeX2e <2024-11-01> patch level 2
 L3 programming layer <2025-01-18>
  ***********
 Package rerunfilecheck Info: File `module2_2d_electrostatics_defect_space_charg
 e.out' has not changed.
-(rerunfilecheck)             Checksum: A4DF324591F4064F9E12D9301C5571D7;8599.
+(rerunfilecheck)             Checksum: 6000BF7F72E9C066F694630A6DD4EC96;11486.
  ) 
 Here is how much of TeX's memory you used:
- 31908 strings out of 473197
- 643771 string characters out of 5718606
- 1028297 words of memory out of 5000000
- 54466 multiletter control sequences out of 15000+600000
- 623252 words of font info for 137 fonts, out of 8000000 for 9000
+ 32016 strings out of 473197
+ 645175 string characters out of 5718606
+ 1028537 words of memory out of 5000000
+ 54498 multiletter control sequences out of 15000+600000
+ 624664 words of font info for 151 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 121i,12n,124p,1042b,1118s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ 121i,13n,124p,1042b,1219s stack positions out of 10000i,1000n,20000p,200000b,200000s
 </usr/share/texmf/fonts/type1/public/lm/lmbx10.pfb></usr/share/texmf/fonts/ty
 pe1/public/lm/lmbx12.pfb></usr/share/texmf/fonts/type1/public/lm/lmex10.pfb></u
 sr/share/texmf/fonts/type1/public/lm/lmmi10.pfb></usr/share/texmf/fonts/type1/p
-ublic/lm/lmmi8.pfb></usr/share/texmf/fonts/type1/public/lm/lmr10.pfb></usr/shar
-e/texmf/fonts/type1/public/lm/lmr12.pfb></usr/share/texmf/fonts/type1/public/lm
-/lmr8.pfb></usr/share/texmf/fonts/type1/public/lm/lmri10.pfb></usr/share/texmf/
-fonts/type1/public/lm/lmsy10.pfb></usr/share/texmf/fonts/type1/public/lm/lmsy8.
-pfb></usr/share/texmf/fonts/type1/public/lm/lmtt12.pfb>
-Output written on module2_2d_electrostatics_defect_space_charge.pdf (12 pages, 
-250247 bytes).
+ublic/lm/lmmi6.pfb></usr/share/texmf/fonts/type1/public/lm/lmmi8.pfb></usr/shar
+e/texmf/fonts/type1/public/lm/lmmib10.pfb></usr/share/texmf/fonts/type1/public/
+lm/lmr10.pfb></usr/share/texmf/fonts/type1/public/lm/lmr12.pfb></usr/share/texm
+f/fonts/type1/public/lm/lmr8.pfb></usr/share/texmf/fonts/type1/public/lm/lmri10
+.pfb></usr/share/texmf/fonts/type1/public/lm/lmsy10.pfb></usr/share/texmf/fonts
+/type1/public/lm/lmsy8.pfb></usr/share/texmf/fonts/type1/public/lm/lmtt10.pfb><
+/usr/share/texmf/fonts/type1/public/lm/lmtt12.pfb>
+Output written on module2_2d_electrostatics_defect_space_charge.pdf (19 pages, 
+310803 bytes).
 PDF statistics:
- 386 PDF objects out of 1000 (max. 8388607)
- 340 compressed objects within 4 object streams
- 89 named destinations out of 1000 (max. 500000)
- 37685 words of extra memory for PDF output out of 42996 (max. 10000000)
+ 531 PDF objects out of 1000 (max. 8388607)
+ 471 compressed objects within 5 object streams
+ 138 named destinations out of 1000 (max. 500000)
+ 38293 words of extra memory for PDF output out of 42996 (max. 10000000)
 

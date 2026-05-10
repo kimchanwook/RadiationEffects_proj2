@@ -2,7 +2,6 @@
 \input{../shared/project_style.tex}
 \newcommand{\Evec}{\mathbf{E}}
 \newcommand{\Dvec}{\mathbf{D}}
-\newcommand{\xvec}{\mathbf{x}}
 \newcommand{\Jvec}{\mathbf{J}}
 \newcommand{\rhodef}{\rho_{\mathrm{def}}}
 \newcommand{\phib}{\phi}
@@ -20,7 +19,7 @@
 \vspace{0.8em}
 
 \begin{overviewbox}
-\textbf{Purpose of this note.} This note develops the electrostatic module that connects radiation-induced defect populations to the internal electric field structure of a silicon device. The goal is to start from Gauss's law and the electrostatic limit of Maxwell's equations, derive Poisson's equation, then show carefully how electrons, holes, dopants, and charged defect populations combine into the space-charge density that drives the potential and electric field solved in Module 2. This module is the electrostatic bridge between the defect-evolution physics of Module 3 and the carrier-transport physics of Module 5.
+\textbf{Purpose of this note.} This note develops the electrostatic module that connects radiation-induced defect populations to the internal electric field structure of a silicon device. The goal is to start from Gauss's law and the electrostatic limit of Maxwell's equations, derive Poisson's equation, then show carefully how electrons, holes, dopants, and charged defect populations combine into the space-charge density that drives the potential and electric field solved in Module 2. This module is the electrostatic bridge between the defect-evolution physics of Module 3 and the carrier-transport physics of Module 5. The note also derives the finite-element weak form used by the MATLAB implementation, including the triangular mesh, shape functions, element matrix, source vector, boundary-condition handling, and electric-field postprocessing.
 \end{overviewbox}
 
 \ProjectTOC
@@ -309,9 +308,224 @@ Module 5 needs the electric field. Once Module 2 solves for $\phi(x,y)$, the ele
 \end{equation}
 That field enters the drift terms in the electron and hole continuity equations. Thus Module 2 provides one of the essential inputs to carrier transport.
 
+
+\section{Finite-element formulation used by the MATLAB implementation}
+
+The preceding sections define the continuum electrostatic problem. A MATLAB solver cannot solve the continuum equation directly. It must replace the continuous potential field $\phi(x,y)$ by a finite number of unknown nodal values. This section gives the finite-element method (FEM) form implemented in Module 2.
+
+\subsection{Strong form, domain, and boundary split}
+
+Let $\Omega$ be the two-dimensional silicon cross section and let the boundary be split into a Dirichlet part $\Gamma_D$ and a Neumann part $\Gamma_N$:
+\begin{equation}
+\partial \Omega = \Gamma_D \cup \Gamma_N, \qquad \Gamma_D \cap \Gamma_N = \emptyset.
+\end{equation}
+The strong form solved in this module is
+\begin{equation}
+\nabla \cdot (\varepsilon_{\mathrm{Si}} \nabla \phi) = -\rho \qquad \text{in } \Omega.
+\end{equation}
+The boundary conditions are
+\begin{align}
+\phi &= \bar{\phi} && \text{on } \Gamma_D, \\
+\pdv{\phi}{n} &= g && \text{on } \Gamma_N,
+\end{align}
+where $\bar{\phi}$ is the prescribed contact potential, $n$ is the outward normal direction, and $g$ is the prescribed normal derivative of potential. The current first implementation uses left and right Dirichlet contacts and homogeneous natural Neumann conditions on the top and bottom boundaries.
+
+\subsection{Why the weak form is needed}
+
+Directly differentiating an approximate potential twice is unnecessarily restrictive. FEM instead multiplies the governing equation by a test function $w$ and integrates over the domain:
+\begin{equation}
+\int_{\Omega} w \, \nabla \cdot (\varepsilon_{\mathrm{Si}} \nabla \phi) \, d\Omega
+= -\int_{\Omega} w \rho \, d\Omega.
+\end{equation}
+Using integration by parts, or the divergence theorem, gives
+\begin{equation}
+\int_{\Gamma} w \varepsilon_{\mathrm{Si}} \pdv{\phi}{n} \, d\Gamma
+-
+\int_{\Omega} \varepsilon_{\mathrm{Si}} \nabla w \cdot \nabla \phi \, d\Omega
+= -\int_{\Omega} w \rho \, d\Omega.
+\end{equation}
+Rearranging gives the weak form:
+\begin{equation}
+\boxed{
+\int_{\Omega} \varepsilon_{\mathrm{Si}} \nabla w \cdot \nabla \phi \, d\Omega
+= \int_{\Omega} w \rho \, d\Omega
++ \int_{\Gamma_N} w \varepsilon_{\mathrm{Si}} g \, d\Gamma .
+}
+\end{equation}
+For the default zero-normal-field boundary, $g=0$ on $\Gamma_N$, the boundary integral vanishes. This is why homogeneous Neumann boundaries are called natural boundary conditions in this formulation: they do not require explicit modification of the global matrix.
+
+\subsection{Triangular mesh and nodal degrees of freedom}
+
+The implemented solver begins with a rectangular computational domain and splits it into linear triangular elements. The mesh consists of
+\begin{itemize}[leftmargin=1.5em]
+    \item nodal coordinates $\xvec_a=(x_a,y_a)$,
+    \item triangular elements defined by three node indices,
+    \item boundary node sets for the left, right, bottom, and top boundaries.
+\end{itemize}
+
+The unknown degree of freedom is one scalar electrostatic potential per node:
+\begin{equation}
+\bm{\Phi} =
+\begin{bmatrix}
+\phi_1 & \phi_2 & \cdots & \phi_N
+\end{bmatrix}^{T},
+\end{equation}
+where $N$ is the total number of mesh nodes.
+
+This is the electrostatic analogue of the displacement vector in a structural FEM problem. In mechanics, the nodal unknown may be displacement. In Module 2, the nodal unknown is the electric potential.
+
+\subsection{Linear triangular shape functions}
+
+Within each triangular element $e$, the potential is approximated as a weighted sum of nodal potentials:
+\begin{equation}
+\phi^{(e)}(x,y) \approx \sum_{a=1}^{3} N_a(x,y) \phi_a^{(e)}.
+\end{equation}
+The functions $N_a(x,y)$ are the element shape functions. For a linear triangle they are first-order polynomials of the form
+\begin{equation}
+N_a(x,y)=\alpha_a+\beta_a x+\gamma_a y.
+\end{equation}
+They satisfy the interpolation property
+\begin{equation}
+N_a(\xvec_b)=\delta_{ab},
+\end{equation}
+where $\delta_{ab}$ is the Kronecker delta. This means shape function $N_a$ is one at node $a$ and zero at the other two local nodes. The practical meaning is simple: the shape functions fill in the potential between nodes.
+
+For a triangle with node coordinates $(x_1,y_1)$, $(x_2,y_2)$, and $(x_3,y_3)$, define its area $A_e$ by
+\begin{equation}
+2A_e =
+\det
+\begin{bmatrix}
+1 & x_1 & y_1 \\
+1 & x_2 & y_2 \\
+1 & x_3 & y_3
+\end{bmatrix}.
+\end{equation}
+The gradients of the shape functions are constant inside a linear triangle:
+\begin{equation}
+\nabla N_a = \frac{1}{2A_e}
+\begin{bmatrix}
+ b_a \\
+ c_a
+\end{bmatrix},
+\end{equation}
+with
+\begin{align}
+b_1 &= y_2-y_3, & c_1 &= x_3-x_2, \\
+b_2 &= y_3-y_1, & c_2 &= x_1-x_3, \\
+b_3 &= y_1-y_2, & c_3 &= x_2-x_1.
+\end{align}
+Because the gradients are constant, the electric field is also constant inside each linear triangular element:
+\begin{equation}
+\Evec^{(e)} = -\nabla \phi^{(e)}
+= -\sum_{a=1}^{3} \phi_a^{(e)} \nabla N_a.
+\end{equation}
+
+\subsection{Element stiffness matrix}
+
+Choose the Galerkin method, meaning the test functions are chosen from the same shape-function space as the potential approximation. Taking $w=N_a$ and substituting the finite-element approximation gives the element matrix entries
+\begin{equation}
+K_{ab}^{(e)} = \int_{\Omega_e} \varepsilon_{\mathrm{Si}} \nabla N_a \cdot \nabla N_b \, d\Omega.
+\end{equation}
+For a linear triangle with constant $\varepsilon_{\mathrm{Si}}$, this integral reduces to
+\begin{equation}
+K_{ab}^{(e)}
+= \varepsilon_{\mathrm{Si}} A_e \, \nabla N_a \cdot \nabla N_b.
+\end{equation}
+Equivalently,
+\begin{equation}
+K_{ab}^{(e)}
+= \frac{\varepsilon_{\mathrm{Si}}}{4A_e}\left(b_a b_b + c_a c_b\right).
+\end{equation}
+This matrix is the electrostatic analogue of a structural stiffness matrix. It does not mean mechanical stiffness; it measures how strongly the energy-like quantity $\int \varepsilon |\nabla \phi|^2 d\Omega$ penalizes changes in potential between connected nodes.
+
+\subsection{Element source vector from space charge}
+
+The charge density $\rho(x,y)$ acts as the source term. In each element, the source vector is
+\begin{equation}
+b_a^{(e)} = \int_{\Omega_e} N_a \rho \, d\Omega.
+\end{equation}
+If $\rho$ is represented by nodal values and linearly interpolated inside the element,
+\begin{equation}
+\rho^{(e)}(x,y) \approx \sum_{a=1}^{3} N_a(x,y) \rho_a^{(e)},
+\end{equation}
+then the consistent source vector is
+\begin{equation}
+\bm{b}^{(e)}
+= \frac{A_e}{12}
+\begin{bmatrix}
+2 & 1 & 1 \\
+1 & 2 & 1 \\
+1 & 1 & 2
+\end{bmatrix}
+\begin{bmatrix}
+\rho_1^{(e)} \\
+\rho_2^{(e)} \\
+\rho_3^{(e)}
+\end{bmatrix}.
+\end{equation}
+This expression is implemented in \begin{tabular}[t]{@{}l@{}}\texttt{compute\_element}\\\texttt{\_source\_triangle.m}\end{tabular}.
+
+\subsection{Global assembly}
+
+Each element contributes a local $3\times 3$ matrix $K^{(e)}$ and a local three-entry source vector $\bm{b}^{(e)}$. Assembly means adding these element contributions into the global matrix and global right-hand side according to the element-to-global node connectivity:
+\begin{equation}
+K_{AB} \leftarrow K_{AB} + K_{ab}^{(e)},
+\qquad
+b_A \leftarrow b_A + b_a^{(e)},
+\end{equation}
+where local node $a$ in element $e$ corresponds to global node $A$, and local node $b$ corresponds to global node $B$.
+
+After assembly, the global algebraic system is
+\begin{equation}
+\boxed{K \bm{\Phi} = \bm{b}.}
+\end{equation}
+This is the discrete FEM version of the Module 2 Poisson equation.
+
+\subsection{Boundary-condition insertion}
+
+Dirichlet boundary conditions prescribe known potentials at selected nodes. If node $i$ is held at $\phi_i=\bar{\phi}_i$, the corresponding unknown is no longer solved freely. The implementation applies this strongly by modifying the global matrix and right-hand side so that the final linear system directly enforces
+\begin{equation}
+\Phi_i = \bar{\phi}_i.
+\end{equation}
+In the default device-like cases, the left boundary is set to one contact potential and the right boundary to another. The top and bottom boundaries are left as homogeneous natural Neumann boundaries unless explicitly changed.
+
+\subsection{Electric-field postprocessing}
+
+After solving for $\bm{\Phi}$, the code computes the electric field in each element using
+\begin{equation}
+\Evec^{(e)} = -\sum_{a=1}^{3} \phi_a^{(e)} \nabla N_a.
+\end{equation}
+Because a linear triangle gives a constant potential gradient inside each element, the element-level field is piecewise constant. For plotting, the implementation also computes a nodal electric field by area-weighted averaging of neighboring element fields.
+
+\subsection{MATLAB implementation map}
+
+The current implementation is organized as follows:
+\begin{longtable}{p{0.38\textwidth} p{0.52\textwidth}}
+\toprule
+\textbf{File} & \textbf{Role} \\
+\midrule
+\endhead
+\texttt{main\_module2\_electrostatics.m} & Top-level driver for Module 2 test cases and plots. \\
+\texttt{default\_module2\_params.m} & Defines physical constants, mesh size, defect-charge parameters, and boundary conditions. \\
+\texttt{make\_rectangular\_tri\_mesh\_2d.m} & Builds the rectangular triangular mesh and boundary node sets. \\
+\texttt{build\_space\_charge\_module2\_2d.m} & Converts carriers, dopants, and defect concentration into nodal $\rho$. \\
+\begin{tabular}[t]{@{}l@{}}\texttt{compute\_element}\\\texttt{\_stiffness\_triangle.m}\end{tabular} & Computes $K^{(e)}$ for a three-node triangular element. \\
+\begin{tabular}[t]{@{}l@{}}\texttt{compute\_element}\\\texttt{\_source\_triangle.m}\end{tabular} & Computes $\bm{b}^{(e)}$ from nodal charge density. \\
+\texttt{assemble\_poisson\_fem\_2d.m} & Assembles the global FEM matrix and source vector. \\
+\texttt{apply\_dirichlet\_bc.m} & Imposes known contact potentials strongly. \\
+\begin{tabular}[t]{@{}l@{}}\texttt{solve\_poisson\_defect}\\\texttt{\_space\_charge\_2d.m}\end{tabular} & Orchestrates mesh creation, charge assembly, linear solve, and field calculation. \\
+\begin{tabular}[t]{@{}l@{}}\texttt{compute\_electric\_field}\\\texttt{\_from\_potential\_2d.m}\end{tabular} & Computes element and nodal electric fields from the solved potential. \\
+\bottomrule
+\end{longtable}
+
+\subsection{What an interviewer may ask about the FEM side}
+
+The essential answer is: Module 2 solves a scalar elliptic Poisson equation using a Galerkin finite-element discretization with linear triangular elements. The nodal unknown is electrostatic potential, the element matrix comes from $\int \varepsilon \nabla N_a \cdot \nabla N_b d\Omega$, the source vector comes from $\int N_a \rho d\Omega$, Dirichlet contacts are imposed strongly, homogeneous Neumann boundaries enter naturally, and the electric field is recovered as the negative gradient of the solved potential.
+
+
 \section{Verification logic for Module 2}
 
-A derivation-heavy note should also state how the module can be checked.
+A derivation-heavy note should also state how the module can be checked. The MATLAB implementation includes the tests below in \texttt{matlab/tests/}.
 
 \subsection{Uniform zero-charge test}
 
@@ -365,6 +579,8 @@ This is the equation set that turns evolving radiation-induced material damage i
 \item S. M. Sze and K. K. Ng, \emph{Physics of Semiconductor Devices}, 3rd ed., Wiley (2007).
 \item D. K. Schroder, \emph{Semiconductor Material and Device Characterization}, 3rd ed., Wiley (2006).
 \item S. Selberherr, \emph{Analysis and Simulation of Semiconductor Devices}, Springer (1984).
+\item O. C. Zienkiewicz, R. L. Taylor, and J. Z. Zhu, \emph{The Finite Element Method: Its Basis and Fundamentals}, 7th ed., Elsevier (2013).
+\item D. L. Logan, \emph{A First Course in the Finite Element Method}, 6th ed., Cengage (2017).
 \end{enumerate}
 \end{sloppypar}
 
