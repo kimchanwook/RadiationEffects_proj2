@@ -23,7 +23,7 @@
 \ProjectTOC
 
 \begin{notebox}
-\textbf{Current architecture revision.} Module 1 is now planned as an \textbf{interaction-resolved Geant4 campaign} with separate photon and neutron runs across targeted energy bands so that different microscopic interaction mechanisms can be studied intentionally rather than mixed together in one broad source case. Modules 2--6 are now 2D-first. Module 4 is now a single \textbf{two-dimensional ballistic-diffusive thermal-transport module} adapted from the ballistic-diffusive heat-conduction framework developed in the FEM\_BallisticDiffusion\_PINN project. The older Module 4a/4b thermal notes are archived as legacy baseline material. Module 7 remains the scaling and multiscale-prediction module.
+\textbf{Current architecture revision.} Module 1 is now planned as an \textbf{interaction-resolved Geant4 campaign} with separate photon and neutron runs across targeted energy bands so that different microscopic interaction mechanisms can be studied intentionally rather than mixed together in one broad source case. Modules 2--6 are now 2D-first. Module 2 now includes a first executable two-dimensional finite-element Poisson solver using linear triangular elements for defect-dependent space charge. Module 4 is now a single \textbf{two-dimensional ballistic-diffusive thermal-transport module} adapted from the ballistic-diffusive heat-conduction framework developed in the FEM\_BallisticDiffusion\_PINN project. The older Module 4a/4b thermal notes are archived as legacy baseline material. Module 7 remains the scaling and multiscale-prediction module.
 \end{notebox}
 
 \section{Project objective}
@@ -48,7 +48,7 @@ The intended physics chain is:
 \textbf{No.} & \textbf{Module} & \textbf{Purpose}\\
 \midrule
 1 & Interaction-resolved Geant4 radiation deposition campaign in silicon & Run separate photon and neutron simulations in targeted energy bands so that distinct interaction mechanisms can be isolated, compared, and translated into deposition maps, secondary-particle spectra, and damage-precursor metrics for later modules.\\
-2 & Two-dimensional electrostatics with defect-dependent space charge & Solve the 2D electrostatic problem for a damaged silicon structure. Convert dopants and charged defects into electric potential, electric field, and depletion-structure changes.\\
+2 & Two-dimensional electrostatics with defect-dependent space charge & Solve the 2D electrostatic Poisson problem for a damaged silicon structure using a linear triangular finite-element implementation. Convert dopants and charged defects into electric potential, electric field, and depletion-structure changes.\\
 3 & Two-dimensional defect evolution with material-aware kinetic coefficients & Evolve vacancies, interstitials, complexes, and effective defect species in 2D using diffusion, reaction, migration, and annealing laws whose reduced coefficients can depend on temperature, charge state, dopants, and electric field.\\
 4 & Two-dimensional ballistic-diffusive thermal transport in silicon & Use a reduced ballistic-diffusive heat-conduction framework to evolve the 2D thermal field in silicon, retain finite-flight-time and boundary-memory effects beyond Fourier conduction, support volumetric radiation-related heat sources, and update temperature-dependent defect and device coefficients. A first executable MATLAB path is now included using a reduced rectangular-domain ballistic-flux closure.\\
 5 & Two-dimensional drift-diffusion carrier transport with defect-assisted recombination & Predict how the damaged device transports electrons and holes under the altered field, temperature, and trap landscape.\\
@@ -74,6 +74,8 @@ For neutrons, the same philosophy will be used: separate runs will be designed t
 \textbf{Module 2. Electrostatics with Defect-Dependent Space Charge in a 2D Silicon Device Cross Section}
 
 This module models how radiation-induced defects modify the electrostatic state of the device in two spatial dimensions. Defects can act as charged centers, traps, or ionized states that contribute to the net space-charge density. That altered space charge changes the electric potential and electric field inside the device. Physically, this matters because the internal field controls depletion behavior, carrier motion, and ultimately how the device responds under bias. This module therefore connects the evolving defect population to the device's internal field structure.
+
+The current implementation solves the scalar Poisson equation with a Galerkin finite-element method on a rectangular triangular mesh. The nodal unknown is electrostatic potential, the element matrix is assembled from $\int \varepsilon_{\mathrm{Si}} \nabla N_a\cdot\nabla N_b\,d\Omega$, the source vector is assembled from $\int N_a\rho\,d\Omega$, Dirichlet contact potentials are imposed strongly, and homogeneous Neumann boundaries enter naturally. The first verification cases check the zero-charge limit, linear Laplace solution, uniform space-charge limit, and localized charged-defect perturbation.
 
 \textbf{Module 3. Two-Dimensional Diffusion-Reaction Solver for Defect Migration and Annealing}
 
@@ -181,7 +183,7 @@ arrow/.style={-{Latex[length=2.4mm]}, very thick, draw=accent}
 \begin{enumerate}[leftmargin=1.6em]
     \item \textbf{Module 1:} Geant4 geometry, scoring, and export format.
     \item \textbf{Module 3:} 2D defect evolution on a structured grid.
-    \item \textbf{Module 2:} 2D electrostatics with prescribed charged defects.
+    \item \textbf{Module 2:} 2D electrostatics with prescribed charged defects; first FEM Poisson path now implemented and ready for coupling to Module 3 defect fields.
     \item \textbf{Module 4:} 2D ballistic-diffusive thermal solver plus temperature-dependent coefficient handoff to later modules.
     \item \textbf{Module 5:} 2D drift-diffusion with prescribed electrostatic field, thermal field, and defect/trap fields.
     \item \textbf{Module 6:} weak coupling, then stronger feedback and iterative convergence.
@@ -215,12 +217,12 @@ arrow/.style={-{Latex[length=2.4mm]}, very thick, draw=accent}
 \path{matlab/src/grid/} & Shared 2D grid generation and spatial operators.\\
 \path{matlab/src/module3_defects/} & Module 3 defect evolution operators and initialization helpers.\\
 \path{matlab/src/module4_thermal/} & Module 4 ballistic-diffusive thermal operators, initialization helpers, source-term assembly, reduced ballistic-flux closures, and verification support.\\
-\path{matlab/src/electrostatics/} & Planned 2D Poisson operators, charge assembly, and field postprocessing.\\
+\path{matlab/src/module2_electrostatics/} & Implemented Module 2 finite-element Poisson operators, triangular mesh generation, charge assembly, boundary-condition insertion, and field postprocessing.\\
 \path{matlab/src/transport/} & Planned drift-diffusion operators, recombination models, mobility models, and current extraction.\\
 \path{matlab/src/diagnostics/} & Shared diagnostics, error metrics, and summary writers.\\
 \path{matlab/src/io/} & Shared I/O helpers and history save utilities.\\
 \path{matlab/src/plot/} & Shared 2D visualization and history plotting utilities.\\
-\path{matlab/tests/} & Verification problems and regression tests, including limiting-case checks.\\
+\path{matlab/tests/} & Verification problems and regression tests, including Module 2 electrostatic limiting-case checks.\\
 \path{matlab/outputs/} & Saved run products, plots, summaries, and histories.\\
 \bottomrule
 \end{longtable}
