@@ -1,49 +1,50 @@
 \contentsline {section}{Symbols and acronyms used in this document}{3}{Doc-Start}%
 \contentsline {section}{\numberline {1}Purpose of Module 2 and its role in the project}{4}{section.1}%
-\contentsline {section}{\numberline {2}Starting point: electrostatics from Maxwell's equations}{4}{section.2}%
-\contentsline {subsection}{\numberline {2.1}Gauss's law in matter}{4}{subsection.2.1}%
+\contentsline {section}{\numberline {2}Starting point: electrostatics from Maxwell's equations}{5}{section.2}%
+\contentsline {subsection}{\numberline {2.1}Gauss's law in matter}{5}{subsection.2.1}%
 \contentsline {subsection}{\numberline {2.2}Electrostatic limit}{5}{subsection.2.2}%
 \contentsline {subsection}{\numberline {2.3}Why Poisson's equation is the right equation here}{5}{subsection.2.3}%
-\contentsline {section}{\numberline {3}Building the semiconductor space-charge density}{5}{section.3}%
+\contentsline {section}{\numberline {3}Building the semiconductor space-charge density}{6}{section.3}%
 \contentsline {subsection}{\numberline {3.1}Charge contributions in a semiconductor}{6}{subsection.3.1}%
 \contentsline {subsection}{\numberline {3.2}Physical interpretation of each contribution}{6}{subsection.3.2}%
-\contentsline {section}{\numberline {4}How defect populations enter the electrostatic problem}{6}{section.4}%
-\contentsline {subsection}{\numberline {4.1}Defect species and charge states}{6}{subsection.4.1}%
-\contentsline {subsection}{\numberline {4.2}Single-species reduced form}{7}{subsection.4.2}%
-\contentsline {section}{\numberline {5}Derivation of the project Poisson equation}{7}{section.5}%
-\contentsline {section}{\numberline {6}Reduction to the two-dimensional project geometry}{8}{section.6}%
-\contentsline {subsection}{\numberline {6.1}Why a two-dimensional model}{8}{subsection.6.1}%
-\contentsline {subsection}{\numberline {6.2}Cartesian reduction}{8}{subsection.6.2}%
-\contentsline {section}{\numberline {7}Useful limiting cases and physical intuition}{8}{section.7}%
-\contentsline {subsection}{\numberline {7.1}Charge-neutral region}{9}{subsection.7.1}%
-\contentsline {subsection}{\numberline {7.2}Uniform fixed space charge}{9}{subsection.7.2}%
-\contentsline {subsection}{\numberline {7.3}Effect of positive and negative defect charge}{9}{subsection.7.3}%
-\contentsline {section}{\numberline {8}Boundary conditions and their physical meaning}{9}{section.8}%
-\contentsline {subsection}{\numberline {8.1}Dirichlet boundary condition}{9}{subsection.8.1}%
-\contentsline {subsection}{\numberline {8.2}Neumann boundary condition}{10}{subsection.8.2}%
-\contentsline {subsection}{\numberline {8.3}Mixed physical picture}{10}{subsection.8.3}%
-\contentsline {section}{\numberline {9}Scaling arguments and characteristic magnitudes}{10}{section.9}%
-\contentsline {section}{\numberline {10}How Module 2 couples to the rest of the project}{10}{section.10}%
-\contentsline {subsection}{\numberline {10.1}Input from Module 3}{11}{subsection.10.1}%
-\contentsline {subsection}{\numberline {10.2}Input from Module 4}{11}{subsection.10.2}%
-\contentsline {subsection}{\numberline {10.3}Output to Module 5}{11}{subsection.10.3}%
-\contentsline {section}{\numberline {11}Finite-element formulation used by the MATLAB implementation}{11}{section.11}%
-\contentsline {subsection}{\numberline {11.1}Strong form, domain, and boundary split}{11}{subsection.11.1}%
-\contentsline {subsection}{\numberline {11.2}Why the weak form is needed}{12}{subsection.11.2}%
-\contentsline {subsection}{\numberline {11.3}Triangular mesh and nodal degrees of freedom}{12}{subsection.11.3}%
-\contentsline {subsection}{\numberline {11.4}Linear triangular shape functions}{13}{subsection.11.4}%
-\contentsline {subsection}{\numberline {11.5}Element stiffness matrix}{14}{subsection.11.5}%
-\contentsline {subsection}{\numberline {11.6}Element source vector from space charge}{14}{subsection.11.6}%
-\contentsline {subsection}{\numberline {11.7}Global assembly}{15}{subsection.11.7}%
-\contentsline {subsection}{\numberline {11.8}Boundary-condition insertion}{15}{subsection.11.8}%
-\contentsline {subsection}{\numberline {11.9}Electric-field postprocessing}{16}{subsection.11.9}%
-\contentsline {subsection}{\numberline {11.10}MATLAB implementation map}{16}{subsection.11.10}%
-\contentsline {subsection}{\numberline {11.11}What an interviewer may ask about the FEM side}{17}{subsection.11.11}%
-\contentsline {section}{\numberline {12}Verification logic for Module 2}{17}{section.12}%
-\contentsline {subsection}{\numberline {12.1}Uniform zero-charge test}{17}{subsection.12.1}%
-\contentsline {subsection}{\numberline {12.2}Linear-potential test}{17}{subsection.12.2}%
-\contentsline {subsection}{\numberline {12.3}Uniform space-charge test}{17}{subsection.12.3}%
-\contentsline {subsection}{\numberline {12.4}Defect-charge perturbation test}{17}{subsection.12.4}%
-\contentsline {section}{\numberline {13}What this module captures and what it does not}{18}{section.13}%
-\contentsline {section}{\numberline {14}Summary of the final project equation}{18}{section.14}%
-\contentsline {section}{\numberline {15}References}{18}{section.15}%
+\contentsline {section}{\numberline {4}How defect populations enter the electrostatic problem}{7}{section.4}%
+\contentsline {subsection}{\numberline {4.1}Defect species and charge states}{7}{subsection.4.1}%
+\contentsline {subsubsection}{\numberline {4.1.1}Why a vacancy is not automatically a positive charge}{8}{subsubsection.4.1.1}%
+\contentsline {subsection}{\numberline {4.2}Single-species reduced form}{8}{subsection.4.2}%
+\contentsline {section}{\numberline {5}Derivation of the project Poisson equation}{9}{section.5}%
+\contentsline {section}{\numberline {6}Reduction to the two-dimensional project geometry}{9}{section.6}%
+\contentsline {subsection}{\numberline {6.1}Why a two-dimensional model}{9}{subsection.6.1}%
+\contentsline {subsection}{\numberline {6.2}Cartesian reduction}{10}{subsection.6.2}%
+\contentsline {section}{\numberline {7}Useful limiting cases and physical intuition}{10}{section.7}%
+\contentsline {subsection}{\numberline {7.1}Charge-neutral region}{10}{subsection.7.1}%
+\contentsline {subsection}{\numberline {7.2}Uniform fixed space charge}{10}{subsection.7.2}%
+\contentsline {subsection}{\numberline {7.3}Effect of positive and negative defect charge}{11}{subsection.7.3}%
+\contentsline {section}{\numberline {8}Boundary conditions and their physical meaning}{11}{section.8}%
+\contentsline {subsection}{\numberline {8.1}Dirichlet boundary condition}{11}{subsection.8.1}%
+\contentsline {subsection}{\numberline {8.2}Neumann boundary condition}{11}{subsection.8.2}%
+\contentsline {subsection}{\numberline {8.3}Mixed physical picture}{11}{subsection.8.3}%
+\contentsline {section}{\numberline {9}Scaling arguments and characteristic magnitudes}{12}{section.9}%
+\contentsline {section}{\numberline {10}How Module 2 couples to the rest of the project}{12}{section.10}%
+\contentsline {subsection}{\numberline {10.1}Input from Module 3}{12}{subsection.10.1}%
+\contentsline {subsection}{\numberline {10.2}Input from Module 4}{12}{subsection.10.2}%
+\contentsline {subsection}{\numberline {10.3}Output to Module 5}{12}{subsection.10.3}%
+\contentsline {section}{\numberline {11}Finite-element formulation used by the MATLAB implementation}{13}{section.11}%
+\contentsline {subsection}{\numberline {11.1}Strong form, domain, and boundary split}{13}{subsection.11.1}%
+\contentsline {subsection}{\numberline {11.2}Why the weak form is needed}{13}{subsection.11.2}%
+\contentsline {subsection}{\numberline {11.3}Triangular mesh and nodal degrees of freedom}{14}{subsection.11.3}%
+\contentsline {subsection}{\numberline {11.4}Linear triangular shape functions}{14}{subsection.11.4}%
+\contentsline {subsection}{\numberline {11.5}Element stiffness matrix}{15}{subsection.11.5}%
+\contentsline {subsection}{\numberline {11.6}Element source vector from space charge}{16}{subsection.11.6}%
+\contentsline {subsection}{\numberline {11.7}Global assembly}{16}{subsection.11.7}%
+\contentsline {subsection}{\numberline {11.8}Boundary-condition insertion}{17}{subsection.11.8}%
+\contentsline {subsection}{\numberline {11.9}Electric-field postprocessing}{17}{subsection.11.9}%
+\contentsline {subsection}{\numberline {11.10}MATLAB implementation map}{17}{subsection.11.10}%
+\contentsline {subsection}{\numberline {11.11}What an interviewer may ask about the FEM side}{18}{subsection.11.11}%
+\contentsline {section}{\numberline {12}Verification logic for Module 2}{18}{section.12}%
+\contentsline {subsection}{\numberline {12.1}Uniform zero-charge test}{18}{subsection.12.1}%
+\contentsline {subsection}{\numberline {12.2}Linear-potential test}{18}{subsection.12.2}%
+\contentsline {subsection}{\numberline {12.3}Uniform space-charge test}{19}{subsection.12.3}%
+\contentsline {subsection}{\numberline {12.4}Defect-charge perturbation test}{19}{subsection.12.4}%
+\contentsline {section}{\numberline {13}What this module captures and what it does not}{19}{section.13}%
+\contentsline {section}{\numberline {14}Summary of the final project equation}{19}{section.14}%
+\contentsline {section}{\numberline {15}References}{20}{section.15}%

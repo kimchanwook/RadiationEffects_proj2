@@ -47,6 +47,10 @@ $N_D^+$ & Ionized donor concentration & m$^{-3}$ \\
 $N_A^-$ & Ionized acceptor concentration & m$^{-3}$ \\
 $C_i$ & Concentration of defect species $i$ & m$^{-3}$ \\
 $z_i$ & Effective charge number of defect species $i$ & dimensionless \\
+$V$ & Vacancy defect concentration, when used as an explicit defect species & m$^{-3}$ \\
+$I$ & Self-interstitial defect concentration, when used as an explicit defect species & m$^{-3}$ \\
+$V_2$ & Divacancy defect concentration, when used as an explicit defect species & m$^{-3}$ \\
+$VO$ & Vacancy-oxygen complex concentration, when used as an explicit defect species & m$^{-3}$ \\
 $x,y$ & Cartesian spatial coordinates & m \\
 $L$ & Characteristic device length scale & m \\
 $\phi_0$ & Characteristic potential scale & V \\
@@ -145,13 +149,44 @@ Suppose Module 3 evolves several defect concentrations,
 \begin{equation}
 C_1(x,y,t),\; C_2(x,y,t),\; \dots,\; C_M(x,y,t).
 \end{equation}
-Each species may possess one or more possible charge states. At the reduced project level, the cleanest way to map defects into electrostatics is to assign each defect species an effective average charge number $z_i$ and write
+In this notation, a \emph{defect species} means a radiation-induced material-defect population, not a mobile carrier or an intentional dopant. Thus $C_i$ does \emph{not} denote the electron concentration $n$, the hole concentration $p$, the ionized donor concentration $N_D^+$, or the ionized acceptor concentration $N_A^-$. Those carrier and dopant contributions already appear explicitly in the semiconductor space-charge density. The role of the $C_i$ fields is narrower: they represent damage-related populations supplied by Module 3 and converted by Module 2 into an additional defect-charge density.
+
+Examples of possible defect species in irradiated silicon include isolated vacancies, self-interstitials, and defect complexes. A representative mapping is
+\begin{center}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{p{0.18\textwidth} p{0.55\textwidth} p{0.18\textwidth}}
+\toprule
+\textbf{Example field} & \textbf{Physical meaning} & \textbf{Charge factor} \\
+\midrule
+$C_V$ & Concentration of vacancy defects $V$ & $z_V$ \\
+$C_I$ & Concentration of self-interstitial defects $I$ & $z_I$ \\
+$C_{V_2}$ & Concentration of divacancy complexes $V_2$ & $z_{V_2}$ \\
+$C_{VO}$ & Concentration of vacancy-oxygen complexes $VO$ & $z_{VO}$ \\
+$C_{\mathrm{trap},k}$ & Concentration of an effective charged trap family $k$ & $z_{\mathrm{trap},k}$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+This table is illustrative rather than exhaustive. The actual list of species depends on how detailed Module 3 is. A simple reduced model may keep only one effective defect concentration $C$, while a richer defect-kinetics model may separately evolve vacancies, interstitials, divacancies, impurity-defect complexes, and trap families.
+
+Each defect species may possess one or more possible charge states. At the reduced project level, the cleanest way to map defects into electrostatics is to assign each defect species an effective average charge number $z_i$ and write
 \begin{equation}
 \rho_{\mathrm{def}} = q \sum_{i=1}^{M} z_i C_i.
 \end{equation}
-If $z_i>0$, the species contributes positive charge on average. If $z_i<0$, it contributes negative charge on average. If $z_i=0$, the species is electrostatically neutral in the reduced model.
+If $z_i>0$, the species contributes positive charge on average. If $z_i<0$, it contributes negative charge on average. If $z_i=0$, the species is electrostatically neutral in the reduced model. The parameter $z_i$ is dimensionless; the charge carried per defect is $qz_i$, not $z_i$ alone.
 
-This is not yet the most microscopic treatment because a full trap-occupancy model would make $z_i$ depend on Fermi level, temperature, and capture/emission kinetics. But for the present project architecture, the above equation is the correct reduced bridge from Module 3 to Module 2.
+\subsubsection{Why a vacancy is not automatically a positive charge}
+
+It is important not to confuse a vacancy defect with a semiconductor hole. A hole is a missing valence-band electron and is represented by the mobile carrier concentration $p$. A vacancy, by contrast, is a missing silicon atom on a lattice site. When radiation displaces a silicon atom from its lattice position, the primary structural defect is a vacancy-interstitial pair, not automatically a mobile hole.
+
+A silicon atom in a crystal is not simply a positive nucleus sitting at a point. It is part of a covalent bonding network. Removing or displacing that atom changes the local bonding geometry. Neighboring atoms may be left with dangling bonds, the lattice may relax around the missing atom, and localized defect-induced electronic states may appear in the silicon band gap. Those localized states can capture or emit electrons depending on the local Fermi level, temperature, and carrier populations. Therefore the same structural defect may appear in different charge states, for example
+\begin{equation}
+V^+, \qquad V^0, \qquad V^-, \qquad V^{2-},
+\end{equation}
+where $V$ denotes a vacancy-like defect. In this notation, the superscript indicates the net electronic charge state of the defect after accounting for local bond breaking, dangling bonds, lattice relaxation, and occupancy of defect-induced electronic states.
+
+Thus the effective charge factor $z_i$ does not mean that a missing atom is automatically equal to $+q$. Instead, $z_i$ is a reduced charge-state parameter that represents the net electrostatic charge associated with defect species $i$ after microscopic electronic structure and occupancy effects have been collapsed into a device-scale model. For a vacancy-like defect, $z_V=+1$ would represent an average singly positive vacancy population, $z_V=0$ a neutral vacancy population, $z_V=-1$ a singly negative vacancy population, and $z_V=-2$ a doubly negative vacancy population. In a reduced model, $z_i$ may also be a non-integer effective average if several microscopic charge states are grouped into one continuum species.
+
+This is not yet the most microscopic treatment because a full trap-occupancy model would make $z_i$ depend on Fermi level, temperature, carrier capture rates, carrier emission rates, and defect energy levels in the band gap. But for the present project architecture, the above equation is the correct reduced bridge from Module 3 to Module 2: Module 3 supplies defect concentrations $C_i(x,y,t)$, while Module 2 uses their effective charge factors $z_i$ to compute the electrostatic source term.
 
 \subsection{Single-species reduced form}
 
