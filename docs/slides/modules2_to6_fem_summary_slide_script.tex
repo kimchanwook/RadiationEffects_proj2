@@ -1,0 +1,162 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=0.8in]{geometry}
+\usepackage{amsmath,amssymb,bm,booktabs,array}
+\usepackage{xcolor}
+\usepackage[most]{tcolorbox}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true,linkcolor=blue,urlcolor=blue}
+
+\definecolor{deepblue}{RGB}{0,70,150}
+\definecolor{softblue}{RGB}{232,242,255}
+\definecolor{softgray}{RGB}{246,247,249}
+\definecolor{darkgray}{RGB}{80,80,80}
+
+\newtcolorbox{scriptbox}{colback=softgray,colframe=darkgray,boxrule=0.5pt,arc=1.5mm,left=2mm,right=2mm,top=1mm,bottom=1mm}
+\newcommand{\dd}{\,\mathrm{d}}
+\newcommand{\grad}{\nabla}
+\newcommand{\divg}{\nabla\!\cdot}
+\newcommand{\E}{\bm{E}}
+\newcommand{\J}{\bm{J}}
+\newcommand{\epsSi}{\epsilon_{\mathrm{Si}}}
+\newcommand{\rhoDef}{\rho_{\mathrm{def}}}
+\newcommand{\mat}[1]{\mathbf{#1}}
+\newcommand{\vect}[1]{\bm{#1}}
+
+\title{Speaker Script for Modules 2--6 FEM Summary Slides}
+\author{RadiationEffects\_proj2}
+\date{}
+
+\begin{document}
+\maketitle
+
+\begin{center}
+\begin{tcolorbox}[colback=softblue,colframe=deepblue,width=0.92\textwidth]
+This document provides a spoken script for the 20-slide summary deck \texttt{modules2\_to6\_fem\_summary\_slides.pdf}. Each slide script is written as approximately six to eight complete sentences and is intended for technical interview practice or presentation rehearsal.
+\end{tcolorbox}
+\end{center}
+
+\tableofcontents
+\newpage
+
+\section*{Slide 1 -- Module 2: Electrostatic bridge from radiation defects to field}
+\addcontentsline{toc}{section}{Slide 1 -- Module 2: Electrostatic bridge from radiation defects to field}
+\begin{scriptbox}
+Module 2 is the electrostatic bridge between radiation-induced material damage and device-level electrical response. The central quantity is the total space-charge density, written as \(\rho=q(p-n+N_D^+-N_A^-)+\rho_{\mathrm{def}}\). The first four terms represent the ordinary semiconductor charge from holes, electrons, ionized donors, and ionized acceptors. The additional term \(\rho_{\mathrm{def}}\) represents charged radiation-induced defect populations supplied by Module 3. Once this charge density is known, Module 2 solves for the electrostatic potential \(\phi(x,y,t)\). The electric field is then obtained by \(\E=-\grad\phi\). This field later controls carrier drift in Module 5, so Module 2 converts material damage into the field environment experienced by mobile carriers.
+\end{scriptbox}
+
+\section*{Slide 2 -- Module 2: Electrostatic limit and Poisson equation}
+\addcontentsline{toc}{section}{Slide 2 -- Module 2: Electrostatic limit and Poisson equation}
+\begin{scriptbox}
+This slide explains why Module 2 uses Poisson's equation instead of the full time-dependent Maxwell equations. We begin with Gauss's law, \(\divg\vect{D}=\rho\), and use \(\vect{D}=\epsilon\E\) for silicon treated as a linear dielectric. In the electrostatic limit, the electric field is represented by a scalar potential, \(\E=-\grad\phi\). Substituting this into Gauss's law gives \(\divg(\epsilon\grad\phi)=-\rho\). For uniform silicon permittivity, this reduces to \(\epsSi\grad^2\phi=-\rho\). The reason magnetic induction is neglected is that the induced electric field scales like \((L/(c_{\mathrm{Si}}\tau))^2\) relative to the electrostatic field. For micron-scale devices and defect-evolution time scales, electromagnetic propagation is far faster than charge redistribution, so the electrostatic approximation is appropriate.
+\end{scriptbox}
+
+\section*{Slide 3 -- Module 2: Defect species and effective charge state}
+\addcontentsline{toc}{section}{Slide 3 -- Module 2: Defect species and effective charge state}
+\begin{scriptbox}
+Here the phrase defect species refers only to radiation-induced material defects, not to holes, electrons, donors, or acceptors. Examples include vacancies \(V\), self-interstitials \(I\), divacancies \(V_2\), and vacancy-oxygen complexes \(VO\). Module 3 evolves their concentration fields, such as \(C_V(x,y,t)\), \(C_I(x,y,t)\), \(C_{V_2}(x,y,t)\), and \(C_{VO}(x,y,t)\). Module 2 then converts these material-defect populations into defect charge through \(\rho_{\mathrm{def}}=q\sum_i z_iC_i\). The factor \(z_i\) is a dimensionless effective charge-state parameter. A vacancy is not automatically a positive charge, because removing a silicon atom changes the local covalent bonding network and can create dangling bonds and localized defect states. Depending on how those defect states capture or emit electrons, the defect may be positive, neutral, or negative.
+\end{scriptbox}
+
+\section*{Slide 4 -- Module 2: FEM weak form and matrix equation}
+\addcontentsline{toc}{section}{Slide 4 -- Module 2: FEM weak form and matrix equation}
+\begin{scriptbox}
+This slide shows how the continuous electrostatic equation becomes a finite-element matrix problem. We start from \(\divg(\epsSi\grad\phi)=-\rho\), multiply by a test function \(w\), and integrate over the domain. Integration by parts moves one derivative from \(\phi\) onto \(w\), giving the weak form \(\int_\Omega \epsSi\grad w\cdot\grad\phi\,\dd\Omega=\int_\Omega w\rho\,\dd\Omega+\int_{\Gamma_N}w\bar{d}\,\dd\Gamma\). In a linear triangular element, the potential is approximated as \(\phi_h=\sum_aN_a\Phi_a\). This leads to the element stiffness matrix \(K^e_{ab}=\int_{\Omega_e}\epsSi\grad N_a\cdot\grad N_b\,\dd\Omega\). The charge density creates the element source vector \(b^e_a=\int_{\Omega_e}N_a\rho\,\dd\Omega\). After assembling all element contributions and applying boundary conditions, the final FEM system is \(\mat{K}\vect{\Phi}=\vect{b}\).
+\end{scriptbox}
+
+\section*{Slide 5 -- Module 3: Defect evolution equation and source terms}
+\addcontentsline{toc}{section}{Slide 5 -- Module 3: Defect evolution equation and source terms}
+\begin{scriptbox}
+Module 3 evolves the radiation-induced material-defect populations over space and time. In the simplest single-species model, the defect concentration \(C(x,y,t)\) obeys \(\partial C/\partial t=\divg(D\grad C)+G-k_aC-R(C)\). The generation term \(G\) represents new defects created by radiation energy deposition or displacement events. The diffusion term \(\divg(D\grad C)\) describes spatial spreading of mobile defects. The annealing term \(k_aC\) removes defects through recovery or recombination processes. The nonlinear reaction term \(R(C)\) represents clustering, complex formation, or higher-order interactions. In the multi-species version, separate fields such as \(C_V\), \(C_I\), \(C_{V_2}\), and \(C_{VO}\) can interact through reactions like \(V+I\rightarrow\emptyset\), \(V+O\rightarrow VO\), or \(V+V\rightarrow V_2\).
+\end{scriptbox}
+
+\section*{Slide 6 -- Module 3: Effective transport and kinetic coefficients}
+\addcontentsline{toc}{section}{Slide 6 -- Module 3: Effective transport and kinetic coefficients}
+\begin{scriptbox}
+The structure of the defect-evolution equation is compact, but the coefficients contain the important material physics. The diffusivity of a defect species is often modeled by an Arrhenius law, \(D_i(T)=D_{i0}\exp[-E_{m,i}/(k_BT)]\). The migration barrier \(E_{m,i}\) measures how difficult it is for that defect to move through the lattice. Similarly, annealing or reaction rates may be written as \(k_i(T)=\nu_i\exp[-E_{a,i}/(k_BT)]\). This makes temperature from Module 4 an important input to Module 3. If charged-defect drift is included, the flux can contain both diffusion and electric-field drift, \(\J_i=-D_i\grad C_i+\mu_i z_i q C_i\E\). In the reduced baseline this drift may be omitted, but in the coupled model the field from Module 2 can feed back into defect evolution.
+\end{scriptbox}
+
+\section*{Slide 7 -- Module 3: FEM weak form for diffusion--reaction defects}
+\addcontentsline{toc}{section}{Slide 7 -- Module 3: FEM weak form for diffusion--reaction defects}
+\begin{scriptbox}
+This slide converts the defect diffusion-reaction equation into FEM form. Starting from \(\partial C/\partial t=\divg(D\grad C)+G-k_aC\), we multiply by a test function \(w\) and integrate over the domain. Integration by parts gives a weak form containing a time term, a diffusion term, a reaction term, and a source term. The natural zero-flux condition \(\vect{n}\cdot D\grad C=0\) appears naturally when the boundary term vanishes. With the finite-element approximation \(C_h=\sum_aN_aC_a\), the method produces a mass matrix \(M^e_{ab}=\int_{\Omega_e}N_aN_b\,\dd\Omega\). It also produces a diffusion matrix \(K^e_{ab}=\int_{\Omega_e}D\grad N_a\cdot\grad N_b\,\dd\Omega\) and a reaction matrix \(R^e_{ab}=\int_{\Omega_e}k_aN_aN_b\,\dd\Omega\). After global assembly, the semi-discrete equation becomes \(\mat{M}\dot{\vect{C}}+(\mat{K}+\mat{R})\vect{C}=\vect{g}\).
+\end{scriptbox}
+
+\section*{Slide 8 -- Module 3: Time stepping, verification, and coupling}
+\addcontentsline{toc}{section}{Slide 8 -- Module 3: Time stepping, verification, and coupling}
+\begin{scriptbox}
+Module 3 uses an implicit time step to handle diffusion and annealing robustly. With backward Euler, the defect update becomes \([\mat{M}+\Delta t(\mat{K}+\mat{R})]\vect{C}^{n+1}=\mat{M}\vect{C}^n+\Delta t\vect{g}^{n+1}\). If the reaction terms are nonlinear, then the system can be solved by fixed-point iteration, Newton iteration, or operator splitting. The first verification case is pure annealing, where the numerical solution should recover \(C(t)=C_0e^{-k_at}\). The second check is uniform-state preservation, where a uniform defect field should remain uniform under zero-flux boundaries and no source. The third check is diffusion inventory conservation, where \(\int_\Omega C\,\dd\Omega\) should remain constant when there are no sources or reactions. The coupling check is that the updated \(C_i\) fields should produce the expected defect charge \(qz_iC_i\) in Module 2.
+\end{scriptbox}
+
+\section*{Slide 9 -- Module 4: Thermal response and ballistic--diffusive motivation}
+\addcontentsline{toc}{section}{Slide 9 -- Module 4: Thermal response and ballistic--diffusive motivation}
+\begin{scriptbox}
+Module 4 computes how radiation-deposited energy becomes an evolving temperature field in the silicon device. The starting point is energy conservation, \(C_T\partial T/\partial t+\divg\vect{q}=Q_T\). With the Fourier heat-flux closure \(\vect{q}=-k\grad T\), this becomes \(C_T\partial T/\partial t=\divg(k\grad T)+Q_T\). This standard heat equation is appropriate when thermal carriers scatter frequently over the device length scale. The Knudsen number \(\mathrm{Kn}=\lambda/L\) measures whether transport is diffusive or quasi-ballistic. When \(\mathrm{Kn}\ll1\), Fourier diffusion is the correct limit. When \(\mathrm{Kn}\) approaches order \(0.1\) to \(1\), radiation energy may initially move nonlocally before relaxing into a local thermal bath.
+\end{scriptbox}
+
+\section*{Slide 10 -- Module 4: Reduced ballistic--diffusive source structure}
+\addcontentsline{toc}{section}{Slide 10 -- Module 4: Reduced ballistic--diffusive source structure}
+\begin{scriptbox}
+The reduced ballistic-diffusive model keeps a heat-equation structure but modifies the effective source term. The total energy is split into a ballistic part and a medium thermal part, \(u=u_b+u_m\). The total heat flux is similarly split as \(\vect{q}=\vect{q}_b+\vect{q}_m\). The medium component is closed by \(u_m=C_TT_m\) and \(\vect{q}_m=-k\grad T_m\). After substituting this split into energy conservation, the medium temperature obeys \(C_T\partial T_m/\partial t=\divg(k\grad T_m)+Q_{\mathrm{th}}-\divg\vect{q}_b-\partial u_b/\partial t\). The last two terms represent ballistic energy exchange with the thermal bath. In implementation, these effects can be grouped into an effective source \(Q_{\mathrm{eff}}=Q_{\mathrm{th}}+Q_{\mathrm{ballistic}}\).
+\end{scriptbox}
+
+\section*{Slide 11 -- Module 4: FEM weak form and thermal matrices}
+\addcontentsline{toc}{section}{Slide 11 -- Module 4: FEM weak form and thermal matrices}
+\begin{scriptbox}
+The thermal FEM formulation follows the same weak-form logic as the defect diffusion problem. Starting from \(C_T\partial T/\partial t=\divg(k\grad T)+Q_{\mathrm{eff}}\), we multiply by a test function and integrate over the domain. Integration by parts gives \(\int_\Omega wC_T\partial T/\partial t\,\dd\Omega+\int_\Omega k\grad w\cdot\grad T\,\dd\Omega=\int_\Omega wQ_{\mathrm{eff}}\,\dd\Omega+\int_{\Gamma_N}w\bar{q}\,\dd\Gamma\). The natural insulated boundary condition corresponds to zero normal heat flux. With \(T_h=\sum_aN_aT_a\), the element mass matrix is \(M^e_{ab}=\int_{\Omega_e}C_TN_aN_b\,\dd\Omega\). The thermal stiffness matrix is \(K^e_{ab}=\int_{\Omega_e}k\grad N_a\cdot\grad N_b\,\dd\Omega\). The assembled semi-discrete equation is \(\mat{M}_T\dot{\vect{T}}+\mat{K}_T\vect{T}=\vect{f}_T\).
+\end{scriptbox}
+
+\section*{Slide 12 -- Module 4: Thermal time stepping and checks}
+\addcontentsline{toc}{section}{Slide 12 -- Module 4: Thermal time stepping and checks}
+\begin{scriptbox}
+The thermal system is advanced using backward Euler for stability. The update equation is \((\mat{M}_T+\Delta t\mat{K}_T)\vect{T}^{n+1}=\mat{M}_T\vect{T}^n+\Delta t\vect{f}_T^{n+1}\). The source vector contains thermalized radiation energy, device heating, and any reduced ballistic correction. A simple source model is \(Q_{\mathrm{th}}=\eta_{\mathrm{th}}\dot{q}_{\mathrm{rad}}^{2D}+Q_{\mathrm{device}}\). Verification begins with uniform equilibrium, where no source and insulated boundaries should preserve constant temperature. A second check is Gaussian heat diffusion in the Fourier limit. A third check is a uniform volumetric source, where the spatially uniform temperature rise should match energy conservation.
+\end{scriptbox}
+
+\section*{Slide 13 -- Module 5: Carrier drift--diffusion with radiation defects}
+\addcontentsline{toc}{section}{Slide 13 -- Module 5: Carrier drift--diffusion with radiation defects}
+\begin{scriptbox}
+Module 5 evolves mobile electrons and holes after the electrostatic and material-damage fields are known. The continuity equations track how electron density \(n\) and hole density \(p\) change due to current divergence, generation, and recombination. The electron equation has the form \(\partial n/\partial t=(1/q)\divg\J_n+G_n-R_n\). The hole equation has the form \(\partial p/\partial t=-(1/q)\divg\J_p+G_p-R_p\). The sign difference reflects the negative charge of electrons and the positive charge of holes. The current densities combine drift and diffusion, with \(\J_n=q\mu_nn\E+qD_n\grad n\) and \(\J_p=q\mu_pp\E-qD_p\grad p\). Module 2 provides \(\E\), while Module 3 provides defect fields that affect trapping and recombination.
+\end{scriptbox}
+
+\section*{Slide 14 -- Module 5: Recombination, generation, and defect coupling}
+\addcontentsline{toc}{section}{Slide 14 -- Module 5: Recombination, generation, and defect coupling}
+\begin{scriptbox}
+Defects affect carriers through both field distortion and recombination kinetics. The field pathway is \(C_i\rightarrow\rho_{\mathrm{def}}\rightarrow\phi,\E\rightarrow\) drift. The lifetime pathway is \(C_i\rightarrow\tau_n,\tau_p\rightarrow R_n,R_p\rightarrow\) carrier loss. A reduced recombination model writes \(R_n\approx(n-n_{\mathrm{eq}})/\tau_n(C_i,T)\) and \(R_p\approx(p-p_{\mathrm{eq}})/\tau_p(C_i,T)\). Radiation-induced defects can shorten carrier lifetimes through \(1/\tau_n=1/\tau_{n0}+\sum_i\alpha_{n,i}C_i\) and an analogous expression for holes. Temperature from Module 4 can also modify mobilities, diffusivities, and recombination rates. Thus Module 5 is where electrostatic field changes and defect-assisted carrier loss become electrical degradation observables.
+\end{scriptbox}
+
+\section*{Slide 15 -- Module 5: FEM weak form and carrier matrices}
+\addcontentsline{toc}{section}{Slide 15 -- Module 5: FEM weak form and carrier matrices}
+\begin{scriptbox}
+The carrier transport equation produces more matrix blocks than pure diffusion because it contains electric-field drift. For electrons, the schematic PDE is \(\partial n/\partial t=\divg(D_n\grad n+\mu_nn\E)+G_n-R_n\). Multiplying by a test function and integrating by parts gives a mass term, a diffusion term, a drift or advection term, and a source-recombination term. The electron diffusion matrix has the form \(K^e_{ab}=\int_{\Omega_e}D_n\grad N_a\cdot\grad N_b\,\dd\Omega\). The drift matrix has the form \(A^e_{ab}=-\int_{\Omega_e}\mu_nN_b\E\cdot\grad N_a\,\dd\Omega\). A recombination model linearized about a lifetime produces a recombination matrix. The resulting semi-discrete form is \(\mat{M}_n\dot{\vect{n}}+(\mat{K}_n+\mat{A}_n+\mat{R}_n)\vect{n}=\vect{g}_n\), with a corresponding hole equation using the correct sign convention.
+\end{scriptbox}
+
+\section*{Slide 16 -- Module 5: Time stepping, currents, and verification}
+\addcontentsline{toc}{section}{Slide 16 -- Module 5: Time stepping, currents, and verification}
+\begin{scriptbox}
+Module 5 advances carrier density with an implicit update similar to the defect and thermal modules. For electrons, backward Euler gives \([\mat{M}_n+\Delta t(\mat{K}_n+\mat{A}_n+\mat{R}_n)]\vect{n}^{n+1}=\mat{M}_n\vect{n}^n+\Delta t\vect{g}_n^{n+1}\). A corresponding equation advances \(\vect{p}^{n+1}\) for holes. After solving for carrier densities, the module reconstructs current densities using \(\J_n=q\mu_nn\E+qD_n\grad n\) and \(\J_p=q\mu_pp\E-qD_p\grad p\). The first verification case is uniform no-field preservation. The second is pure lifetime recombination, which should produce exponential decay. A third check is a uniform-field drift test, where the signs of electron and hole currents must match the charge convention.
+\end{scriptbox}
+
+\section*{Slide 17 -- Module 6: Coupled multiphysics state vector}
+\addcontentsline{toc}{section}{Slide 17 -- Module 6: Coupled multiphysics state vector}
+\begin{scriptbox}
+Module 6 is the integration layer that connects Modules 2 through 5 on a shared 2D FEM mesh. The coupled state vector can be written as \(\vect{u}=[\vect{C}_1,\ldots,\vect{C}_M,\vect{\Phi},\vect{T},\vect{n},\vect{p}]^T\). This includes defect concentrations, electrostatic potential, temperature, electron concentration, and hole concentration. The advantage of using the same mesh is that fields can be transferred directly between modules without interpolation error. For example, \(C_i\) fields feed the defect charge in Module 2, \(\phi\) gives \(\E\) for Module 5, and \(T\) modifies defect and carrier coefficients. Module 6 does not introduce a new physical law. Its job is to enforce a consistent numerical architecture for coupled radiation-effects simulation.
+\end{scriptbox}
+
+\section*{Slide 18 -- Module 6: Coupled block residual structure}
+\addcontentsline{toc}{section}{Slide 18 -- Module 6: Coupled block residual structure}
+\begin{scriptbox}
+The coupled problem can be expressed as a block residual system \(\vect{R}(\vect{u})=\vect{0}\). Each block corresponds to one physical subsystem: defects, electrostatics, thermal transport, electrons, and holes. The electrostatic residual has the form \(\vect{R}_\phi=\mat{K}_\phi\vect{\Phi}-\vect{b}_\rho(\vect{C}_i,\vect{n},\vect{p})\), showing that potential depends on defect and carrier charge. The defect residual contains mass, diffusion, reaction, source, and possible field-dependent terms. The thermal residual contains heat capacity, conduction, and source terms. The carrier residuals contain diffusion, drift, recombination, and generation. This residual view is useful because it can support either a fully monolithic nonlinear solve or a staggered operator-splitting solve.
+\end{scriptbox}
+
+\section*{Slide 19 -- Module 6: Staggered execution order in MATLAB}
+\addcontentsline{toc}{section}{Slide 19 -- Module 6: Staggered execution order in MATLAB}
+\begin{scriptbox}
+This slide addresses the difference between physical coupling and numerical execution order. Physically, defects reshape the field, and the field can feed back into charged-defect drift or kinetic coefficients. Numerically, MATLAB advances the fields in a chosen sequence during each time step. A reduced staggered loop first computes \(\rho^n=q(p^n-n^n+N_D^+-N_A^-)+q\sum_iz_iC_i^n\). Then Module 2 solves for \(\phi^n\) and \(\E^n\). Next, Module 3 advances the defect fields, Module 4 advances temperature, and Module 5 advances carrier densities. Finally, the updated fields are used to recompute \(\rho^{n+1}\), \(\phi^{n+1}\), and \(\E^{n+1}\), with optional inner iterations if stronger coupling consistency is needed.
+\end{scriptbox}
+
+\section*{Slide 20 -- Module 6: Transfer policy, diagnostics, and summary}
+\addcontentsline{toc}{section}{Slide 20 -- Module 6: Transfer policy, diagnostics, and summary}
+\begin{scriptbox}
+A coupled solver is only credible if field transfer and conservation diagnostics are explicit. If all modules use the same mesh, nodal fields such as \(C_i\), \(\phi\), \(T\), \(n\), and \(p\) can be passed directly. If different meshes are used in the future, the project should use interpolation or conservative \(L^2\) projection. Important diagnostics include total charge \(Q_{\mathrm{tot}}=\int_\Omega\rho\,\dd\Omega\), defect inventory \(N_{C_i}=\int_\Omega C_i\,\dd\Omega\), and thermal energy \(U_T=\int_\Omega C_TT\,\dd\Omega\). These quantities reveal whether coupling, sources, and boundary conditions are behaving consistently. The overall project logic is that Module 2 solves fields from charge, Module 3 evolves defect populations, Module 4 evolves temperature, Module 5 evolves carrier transport, and Module 6 integrates them. This is the finite-element multiphysics path from radiation deposition to device degradation.
+\end{scriptbox}
+
+\end{document}
