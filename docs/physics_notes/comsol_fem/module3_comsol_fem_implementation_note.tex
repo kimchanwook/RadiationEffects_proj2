@@ -1,0 +1,1578 @@
+
+\documentclass[11pt]{article}
+\input{../../shared/project_style.tex}
+
+\newcommand{\COMSOL}{COMSOL Multiphysics}
+\newcommand{\code}[1]{\texttt{\detokenize{#1}}}
+\newcommand{\Cfield}{C}
+\newcommand{\CV}{C_V}
+\newcommand{\CI}{C_I}
+\newcommand{\Jdef}{\mathbf{J}_C}
+\newcommand{\Ddef}{D}
+\newcommand{\kann}{k_{\mathrm{ann}}}
+\newcommand{\Tfield}{T}
+\newcommand{\Sdef}{S}
+\newcommand{\OmegaD}{\Omega}
+\newcommand{\dt}{\Delta t}
+\rhead{Module 3 COMSOL FEM Note}
+
+\begin{document}
+
+\DocTitle{Module 3 COMSOL FEM Implementation Note}{Click-by-Click Beginner Tutorial for \code{RadiationEffects\_proj2}}{Parallel COMSOL implementation of two-dimensional defect diffusion, reaction, annealing, and verification}
+
+\hrule
+\vspace{0.8em}
+
+\begin{overviewbox}
+\textbf{Purpose of this note.} This document explains, at beginner click-by-click level, how to implement the Module 3 finite-element defect-evolution model in \COMSOL{}. The main project solver remains the MATLAB FEM implementation because it exposes the mesh, element mass matrix, diffusion matrix, reaction matrix, assembly logic, and time-stepping system directly. The COMSOL model is a parallel commercial-FEM reference model. It is useful for validating the governing equation, checking mesh convergence, inspecting diffusion and annealing behavior, and building intuition before coupling Module 3 to Modules 2, 4, 5, and 6. The instructions are written in the style of a COMSOL tutorial: what to click, what to type, why each step is being done, what result to expect, and what error usually means.
+\end{overviewbox}
+
+\ProjectTOC
+
+\SymbolsAcronymsSection
+
+\renewcommand{\arraystretch}{1.25}
+\begin{longtable}{p{0.20\textwidth}p{0.56\textwidth}p{0.16\textwidth}}
+\toprule
+\textbf{Symbol} & \textbf{Meaning} & \textbf{Units} \\
+\midrule
+\endhead
+$\Cfield$ & Defect concentration field solved in Module 3. In the baseline COMSOL model this is the scalar dependent variable. & m$^{-3}$ \\
+$C_i$ & Concentration of defect species $i$, such as vacancy, self-interstitial, divacancy, vacancy-oxygen complex, or an effective charged trap family. & m$^{-3}$ \\
+$\CV$ & Vacancy concentration, used in optional multi-species examples. & m$^{-3}$ \\
+$\CI$ & Self-interstitial concentration, used in optional multi-species examples. & m$^{-3}$ \\
+$\Jdef$ & Defect flux. & m$^{-2}$ s$^{-1}$ \\
+$\Ddef$ & Defect diffusivity. & m$^2$/s \\
+$D_0$ & Arrhenius diffusion prefactor. & m$^2$/s \\
+$E_D$ & Defect migration activation energy. & J or eV \\
+$\kann$ & First-order annealing, trapping, or removal coefficient. & s$^{-1}$ \\
+$k_0$ & Annealing prefactor or attempt frequency. & s$^{-1}$ \\
+$E_{\mathrm{ann}}$ & Annealing activation energy. & J or eV \\
+$\Sdef$ & Volumetric defect source term. & m$^{-3}$ s$^{-1}$ \\
+$\Tfield$ & Temperature field. In this tutorial it is first constant, then optionally imported from Module 4. & K \\
+$\OmegaD$ & Two-dimensional silicon computational domain. & m$^2$ \\
+$\partial\OmegaD$ & Boundary of the two-dimensional computational domain. & m \\
+$\hat{\mathbf n}$ & Outward unit normal vector on the domain boundary. & 1 \\
+$L_x,L_y$ & Width and height of the 2D silicon domain. & m \\
+$h$ & Representative mesh element size. & m \\
+$N_a$ & Linear finite-element shape function associated with local node $a$. & 1 \\
+$M$ & FEM mass matrix for transient storage. & m$^2$ \\
+$K_D$ & FEM diffusion matrix. & m$^2$/s \\
+$K_R$ & FEM reaction or annealing matrix. & m$^2$/s \\
+$\dt$ & Time-step size or output-time spacing. & s \\
+\bottomrule
+\end{longtable}
+
+\section{What Module 3 does in the project}
+
+Module 3 evolves radiation-induced defect populations after energy deposition and defect creation. In the project logic, Module 1 provides an energy-deposition or damage-generation map, Module 3 turns that initial damage into a time-dependent defect concentration field, Module 2 uses the charged portion of those defects to update electrostatics, Module 4 can provide temperature-dependent diffusivity and annealing rates, and Module 5 uses the resulting fields and defect populations for carrier transport and recombination.
+
+The key physical question for Module 3 is:
+\begin{quote}
+Given an initial spatial distribution of radiation-induced defects in silicon, how does that distribution spread, anneal, react, or transform with time?
+\end{quote}
+
+The baseline one-species equation is
+\begin{equation}
+\pdv{\Cfield}{t}=\nabla\cdot\left(\Ddef\nabla \Cfield\right)-\kann \Cfield+\Sdef.
+\label{eq:strong_module3}
+\end{equation}
+Here $\Ddef$ controls defect migration, $\kann$ controls local removal or transformation, and $\Sdef$ is an optional volumetric source. If the radiation event is modeled as an initial condition, then after $t=0$ one usually sets $\Sdef=0$.
+
+The corresponding defect flux is
+\begin{equation}
+\Jdef=-\Ddef\nabla \Cfield.
+\label{eq:flux_module3}
+\end{equation}
+A default closed-domain boundary condition is zero normal flux,
+\begin{equation}
+\hat{\mathbf n}\cdot\Jdef=0,
+\qquad \text{or equivalently} \qquad
+\hat{\mathbf n}\cdot \Ddef\nabla \Cfield=0.
+\label{eq:zero_flux}
+\end{equation}
+This means that defects diffuse within the simulated silicon region but do not leave through the modeled boundaries.
+
+\begin{physicsbox}
+\textbf{Important distinction.} Module 3 does not solve electrostatic potential or electric field. It solves the material-defect concentration field. If some defect species are charged, Module 2 later maps $C_i(x,y,t)$ into defect charge density $\rho_{\mathrm{def}}=q\sum_i z_i C_i$. Thus Module 3 supplies the evolving defect populations; Module 2 translates those populations into electrostatic source terms.
+\end{physicsbox}
+
+\section{Why COMSOL is useful even though MATLAB remains the main tool}
+
+The MATLAB FEM implementation is the primary project path because it exposes the numerical method explicitly. In MATLAB, the project can show exactly how the triangular mesh is created, how each element matrix is computed, how element matrices are assembled, how boundary conditions are imposed, and how the time-dependent matrix system is solved.
+
+COMSOL is useful for a different reason. It provides a mature finite-element environment where the same PDE can be entered through a standard interface, meshed, solved, visualized, and verified rapidly. The goal is not to replace the MATLAB implementation. The goal is to build a parallel reference model.
+
+The relationship is:
+\begin{equation}
+\boxed{\text{MATLAB} = \text{main transparent solver}},
+\qquad
+\boxed{\text{COMSOL} = \text{parallel FEM reference and visualization tool}}.
+\end{equation}
+
+For interview and project-defense purposes, this is a strong position. It shows that the physics does not depend on one software package. The same continuum model can be implemented explicitly in MATLAB and independently in a commercial FEM tool.
+
+\section{Which COMSOL physics interface to use}
+
+There are two practical COMSOL routes.
+
+\subsection{Recommended route: Coefficient Form PDE}
+
+The recommended route is \textbf{Coefficient Form PDE}. It is usually found under:
+\begin{quote}
+\textbf{Mathematics} $\rightarrow$ \textbf{PDE Interfaces} $\rightarrow$ \textbf{Coefficient Form PDE}.
+\end{quote}
+
+This route is the best match to the FEM derivation because it lets the user enter the coefficients of the PDE directly. It also avoids requiring the Chemical Species Transport Module.
+
+The general COMSOL coefficient-form equation is commonly written as
+\begin{equation}
+ e_a \pdv[2]{u}{t}
+ +d_a \pdv{u}{t}
+ +\nabla\cdot\left(-c\nabla u-\alpha u+\gamma\right)
+ +\beta\cdot\nabla u
+ +a u
+ =f.
+\label{eq:comsol_coeff_general}
+\end{equation}
+For Module 3, the dependent variable is $u=C$. Rewrite Eq.~\eqref{eq:strong_module3} as
+\begin{equation}
+\pdv{C}{t}+\nabla\cdot(-D\nabla C)+k_{\mathrm{ann}}C=S.
+\label{eq:coeff_target}
+\end{equation}
+Therefore the coefficient mapping is
+\begin{equation}
+\boxed{e_a=0,\quad d_a=1,\quad c=D,\quad a=k_{\mathrm{ann}},\quad f=S,}
+\end{equation}
+with
+\begin{equation}
+\boxed{\alpha=0,\quad \beta=0,\quad \gamma=0.}
+\end{equation}
+
+\subsection{Alternative route: Transport of Diluted Species}
+
+If the COMSOL installation includes the Chemical Species Transport interfaces, one can also use \textbf{Transport of Diluted Species}. That interface is more physically named for concentration transport, but the coefficient-form PDE route is more general and closer to the FEM equations used in this project. This document therefore treats Coefficient Form PDE as the official project tutorial path and gives the diluted-species route only as an optional alternative.
+
+\begin{notebox}
+\textbf{Sign warning.} In Coefficient Form PDE, the annealing term goes on the left as $+aC$. Therefore use $a=k_{\mathrm{ann}}$, not $a=-k_{\mathrm{ann}}$. If the pure-annealing test grows instead of decays, the reaction sign is wrong.
+\end{notebox}
+
+\section{Finite-element form behind the COMSOL model}
+
+COMSOL hides the element matrices, but it is solving the same weak-form FEM system that is written explicitly in the MATLAB notes. Multiply Eq.~\eqref{eq:strong_module3} by a test function $w$ and integrate over the domain:
+\begin{equation}
+\int_{\Omega} w\pdv{C}{t}\,d\Omega
+=
+\int_{\Omega} w\nabla\cdot(D\nabla C)\,d\Omega
+-
+\int_{\Omega} w k_{\mathrm{ann}} C\,d\Omega
++
+\int_{\Omega} wS\,d\Omega.
+\end{equation}
+Integrate the diffusion term by parts:
+\begin{equation}
+\int_{\Omega} w\pdv{C}{t}\,d\Omega
++
+\int_{\Omega}D\nabla w\cdot\nabla C\,d\Omega
++
+\int_{\Omega}w k_{\mathrm{ann}}C\,d\Omega
+=
+\int_{\Omega}wS\,d\Omega
++
+\int_{\partial\Omega}wD\nabla C\cdot\hat{\mathbf n}\,d\Gamma.
+\label{eq:weak_boundary}
+\end{equation}
+For zero-flux boundaries, $D\nabla C\cdot\hat{\mathbf n}=0$, so the boundary term vanishes. The weak form is
+\begin{equation}
+\boxed{
+\int_{\Omega} w\pdv{C}{t}\,d\Omega
++
+\int_{\Omega}D\nabla w\cdot\nabla C\,d\Omega
++
+\int_{\Omega}w k_{\mathrm{ann}}C\,d\Omega
+=
+\int_{\Omega}wS\,d\Omega.
+}
+\label{eq:weak_module3}
+\end{equation}
+For a linear triangular element,
+\begin{equation}
+C^{(e)}(x,y,t)=\sum_{a=1}^{3}N_a(x,y)C_a^{(e)}(t).
+\end{equation}
+The element arrays are
+\begin{align}
+M_{ab}^{(e)}&=\int_{\Omega_e}N_aN_b\,d\Omega,\\
+K_{D,ab}^{(e)}&=\int_{\Omega_e}D\nabla N_a\cdot\nabla N_b\,d\Omega,\\
+K_{R,ab}^{(e)}&=\int_{\Omega_e}k_{\mathrm{ann}}N_aN_b\,d\Omega,\\
+f_a^{(e)}&=\int_{\Omega_e}N_aS\,d\Omega.
+\end{align}
+After global assembly,
+\begin{equation}
+M\dv{\mathbf C}{t}+(K_D+K_R)\mathbf C=\mathbf f.
+\label{eq:semidiscrete}
+\end{equation}
+A backward-Euler time step gives
+\begin{equation}
+\boxed{\left[M+\Delta t(K_D+K_R)\right]\mathbf C^{n+1}=M\mathbf C^n+\Delta t\mathbf f^{n+1}.}
+\label{eq:be}
+\end{equation}
+This is the matrix system that COMSOL assembles internally.
+
+\section{Tutorial model definition}
+
+The tutorial builds a 2D silicon rectangle with an initial Gaussian defect cloud. The cloud diffuses and anneals in time. This simple geometry is deliberate. It makes the physical behavior easy to check before using imported radiation maps or coupled fields.
+
+The demonstration values below are chosen to make the model visibly evolve over a reasonable simulation window. They are not asserted as calibrated defect constants for a specific silicon device.
+
+\begin{longtable}{p{0.23\textwidth}p{0.32\textwidth}p{0.35\textwidth}}
+\toprule
+\textbf{Parameter} & \textbf{Type exactly this} & \textbf{Meaning} \\
+\midrule
+\endhead
+\code{Lx} & \code{10[um]} & Domain width \\
+\code{Ly} & \code{5[um]} & Domain height \\
+\code{T0} & \code{300[K]} & Baseline temperature \\
+\code{kB} & \code{1.380649e-23[J/K]} & Boltzmann constant \\
+\code{eV} & \code{1.602176634e-19[J]} & Electron-volt conversion \\
+\code{D0} & \code{1e-8[m^2/s]} & Diffusion prefactor \\
+\code{ED} & \code{0.45} & Migration energy in eV as a dimensionless number \\
+\code{k0} & \code{1e6[1/s]} & Annealing prefactor \\
+\code{Eann} & \code{0.65} & Annealing energy in eV as a dimensionless number \\
+\code{Cbase} & \code{0[1/m^3]} & Uniform background defect concentration \\
+\code{Cpeak} & \code{1e21[1/m^3]} & Peak initial defect concentration \\
+\code{x0} & \code{0.5*Lx} & Initial cloud center in $x$ \\
+\code{y0} & \code{0.5*Ly} & Initial cloud center in $y$ \\
+\code{sigx} & \code{0.8[um]} & Initial cloud width in $x$ \\
+\code{sigy} & \code{0.5[um]} & Initial cloud width in $y$ \\
+\code{dtout} & \code{1e-6[s]} & Output time spacing \\
+\code{tend} & \code{1e-4[s]} & Final simulation time \\
+\bottomrule
+\end{longtable}
+
+The component variables are
+\begin{align}
+\code{Tfield} &= \code{T0},\\
+\code{Ddef} &= \code{D0*exp(-(ED*eV)/(kB*Tfield))},\\
+\code{kann} &= \code{k0*exp(-(Eann*eV)/(kB*Tfield))},\\
+\code{Cinit} &= \code{Cbase + Cpeak*exp(-((x-x0)^2/(2*sigx^2)+(y-y0)^2/(2*sigy^2)))},\\
+\code{Sdef} &= \code{0[1/(m^3*s)]}.
+\end{align}
+
+\section{Beginner click-by-click implementation}
+
+\subsection{Start COMSOL and open the Model Wizard}
+
+\begin{enumerate}[leftmargin=2em]
+\item Open \COMSOL{} from the desktop, Start menu, or application launcher.
+\item When the startup screen appears, click \textbf{Model Wizard}.
+\item If COMSOL instead opens a blank model, choose \textbf{File} $\rightarrow$ \textbf{New}; then click \textbf{Model Wizard}.
+\end{enumerate}
+
+\subsection{Choose the model dimension}
+
+\begin{enumerate}[leftmargin=2em]
+\item In \textbf{Select Space Dimension}, click \textbf{2D}.
+\item Click \textbf{Next}.
+\end{enumerate}
+
+The project model is two-dimensional because it represents lateral variation and depth variation in a silicon cross section. A 1D model can verify simple formulas, but it cannot represent laterally localized radiation damage.
+
+\subsection{Add the Coefficient Form PDE physics}
+
+\begin{enumerate}[leftmargin=2em]
+\item In \textbf{Select Physics}, expand \textbf{Mathematics}.
+\item Expand \textbf{PDE Interfaces}.
+\item Click \textbf{Coefficient Form PDE}.
+\item Click \textbf{Add}.
+\item Look at the lower part of the Model Wizard where the selected physics appears.
+\item If COMSOL displays the default dependent variable name, change it to \code{C}.
+\item If COMSOL shows a field-name box, set the field name to \code{C} as well.
+\item Click \textbf{Next}.
+\end{enumerate}
+
+\begin{physicsbox}
+\textbf{Why the dependent variable is named C.} Module 3 solves a concentration field. Naming the dependent variable \code{C} makes later expressions readable: \code{d(C,x)} means $\partial C/\partial x$, \code{d(C,y)} means $\partial C/\partial y$, and \code{C} itself is the defect concentration.
+\end{physicsbox}
+
+\subsection{Choose a time-dependent study}
+
+\begin{enumerate}[leftmargin=2em]
+\item In \textbf{Select Study}, click \textbf{Time Dependent}.
+\item Click \textbf{Done}.
+\end{enumerate}
+
+Module 3 is a transient problem because defect populations evolve with time. A stationary study would only be appropriate for a final equilibrium or steady-state limit, not for the radiation damage evolution model.
+
+\subsection{Save the model immediately}
+
+\begin{enumerate}[leftmargin=2em]
+\item Choose \textbf{File} $\rightarrow$ \textbf{Save As}.
+\item Save the model as \code{module3_defect_diffusion_reaction_baseline.mph}.
+\item Use a working folder outside Git if the file is large. For documentation purposes, the project stores only the PDF and TeX instructions.
+\end{enumerate}
+
+Saving early prevents loss of setup work and gives COMSOL a known path for later exports.
+
+\section{Set global units and parameters}
+
+\subsection{Check the unit system}
+
+\begin{enumerate}[leftmargin=2em]
+\item In the \textbf{Model Builder}, click the top model node. This may be named \textbf{Untitled.mph}, \textbf{Model 1}, or the saved filename.
+\item In the \textbf{Settings} window, find \textbf{Unit System}.
+\item Select \textbf{SI}.
+\end{enumerate}
+
+Use SI units throughout the model: meters, seconds, kelvin, joules, and number concentration in $\mathrm{m}^{-3}$.
+
+\subsection{Open the Parameters table}
+
+\begin{enumerate}[leftmargin=2em]
+\item In \textbf{Model Builder}, right-click \textbf{Global Definitions}.
+\item Click \textbf{Parameters}.
+\item A node named \textbf{Parameters 1} should appear under \textbf{Global Definitions}.
+\item Click \textbf{Parameters 1}.
+\item In the table, enter the rows below.
+\end{enumerate}
+
+\begin{longtable}{p{0.22\textwidth}p{0.34\textwidth}p{0.34\textwidth}}
+\toprule
+\textbf{Name} & \textbf{Expression} & \textbf{Description} \\
+\midrule
+\endhead
+\code{Lx} & \code{10[um]} & Silicon domain width \\
+\code{Ly} & \code{5[um]} & Silicon domain height \\
+\code{T0} & \code{300[K]} & Constant baseline temperature \\
+\code{kB} & \code{1.380649e-23[J/K]} & Boltzmann constant \\
+\code{eV} & \code{1.602176634e-19[J]} & Electron-volt in joules \\
+\code{D0} & \code{1e-8[m^2/s]} & Defect diffusion prefactor \\
+\code{ED} & \code{0.45} & Migration barrier measured in eV \\
+\code{k0} & \code{1e6[1/s]} & Annealing prefactor \\
+\code{Eann} & \code{0.65} & Annealing barrier measured in eV \\
+\code{Cbase} & \code{0[1/m^3]} & Background defect concentration \\
+\code{Cpeak} & \code{1e21[1/m^3]} & Initial Gaussian peak concentration \\
+\code{x0} & \code{0.5*Lx} & Damage center x-location \\
+\code{y0} & \code{0.5*Ly} & Damage center y-location \\
+\code{sigx} & \code{0.8[um]} & Gaussian width in x \\
+\code{sigy} & \code{0.5[um]} & Gaussian width in y \\
+\code{dtout} & \code{1e-6[s]} & Output time spacing \\
+\code{tend} & \code{1e-4[s]} & Final time \\
+\bottomrule
+\end{longtable}
+
+\subsection{Confirm parameter units}
+
+\begin{enumerate}[leftmargin=2em]
+\item After typing the parameters, check the \textbf{Value} and \textbf{Unit} columns that COMSOL computes.
+\item Confirm that \code{Lx} and \code{Ly} convert to meters.
+\item Confirm that \code{D0} has units \code{m^2/s}.
+\item Confirm that \code{k0} has units \code{1/s}.
+\item Confirm that \code{Cpeak} has units \code{1/m^3}.
+\end{enumerate}
+
+If COMSOL marks an expression orange or red, click the warning icon and read the unit message. Most errors at this stage are missing brackets, such as typing \code{10um} instead of \code{10[um]}.
+
+\section{Build the 2D silicon geometry}
+
+\subsection{Create a rectangle}
+
+\begin{enumerate}[leftmargin=2em]
+\item In \textbf{Model Builder}, expand \textbf{Component 1}.
+\item Right-click \textbf{Geometry 1}.
+\item Click \textbf{Rectangle}.
+\item In the \textbf{Settings} window for Rectangle, find \textbf{Size and Shape}.
+\item Set \textbf{Width}: \code{Lx}.
+\item Set \textbf{Height}: \code{Ly}.
+\item Find \textbf{Position}.
+\item Set \textbf{x}: \code{0}.
+\item Set \textbf{y}: \code{0}.
+\item Click \textbf{Build Selected}.
+\item If the rectangle does not appear, click \textbf{Build All}.
+\end{enumerate}
+
+The rectangle is the silicon computational domain. The lower left corner is at $(0,0)$, and the upper right corner is at $(L_x,L_y)$.
+
+\subsection{Check the geometry scale}
+
+\begin{enumerate}[leftmargin=2em]
+\item In the graphics window, click \textbf{Zoom Extents} if needed.
+\item Confirm that the rectangle is much wider than it is tall, with aspect ratio $L_x/L_y=2$.
+\item If the geometry appears empty, go back to Geometry 1 and check that the units were entered with brackets.
+\end{enumerate}
+
+\section{Define variables for coefficients, initial condition, and diagnostics}
+
+\subsection{Create domain variables}
+
+\begin{enumerate}[leftmargin=2em]
+\item In \textbf{Model Builder}, right-click \textbf{Component 1}.
+\item Click \textbf{Definitions} if it is not already visible.
+\item Right-click \textbf{Definitions}.
+\item Choose \textbf{Variables}.
+\item Click the new \textbf{Variables 1} node.
+\item In the \textbf{Settings} window, set \textbf{Geometric Entity Level} to \textbf{Domain}.
+\item Select the rectangular silicon domain in the graphics window or select domain number 1 in the selection list.
+\end{enumerate}
+
+\subsection{Type the variable definitions}
+
+Enter the following rows in the Variables table.
+
+\begin{longtable}{p{0.18\textwidth}p{0.54\textwidth}p{0.20\textwidth}}
+\toprule
+\textbf{Name} & \textbf{Expression} & \textbf{Description} \\
+\midrule
+\endhead
+\code{Tfield} & \code{T0} & Temperature used by Module 3 \\
+\code{Ddef} & \code{D0*exp(-(ED*eV)/(kB*Tfield))} & Defect diffusivity \\
+\code{kann} & \code{k0*exp(-(Eann*eV)/(kB*Tfield))} & Annealing coefficient \\
+\code{Cinit} & \code{Cbase + Cpeak*exp(-((x-x0)^2/(2*sigx^2)+(y-y0)^2/(2*sigy^2)))} & Initial Gaussian defect cloud \\
+\code{Sdef} & \code{0[1/(m^3*s)]} & Continuing source term \\
+\code{Jcx} & \code{-Ddef*d(C,x)} & x-component of defect flux \\
+\code{Jcy} & \code{-Ddef*d(C,y)} & y-component of defect flux \\
+\code{Jcmag} & \code{sqrt(Jcx^2+Jcy^2)} & Defect flux magnitude \\
+\code{Crel} & \code{C/Cpeak} & Normalized concentration \\
+\bottomrule
+\end{longtable}
+
+\begin{physicsbox}
+\textbf{Why use variables instead of typing everything directly into the PDE interface?} Variables make the model readable and less error-prone. If the diffusivity model changes later, only \code{Ddef} needs to be edited. If Module 4 supplies a temperature field later, only \code{Tfield} needs to be changed.
+\end{physicsbox}
+
+\subsection{Check the Arrhenius expressions}
+
+The diffusivity expression is
+\begin{equation}
+D=D_0\exp\left(-\frac{E_D}{k_BT}\right).
+\end{equation}
+In COMSOL, the numerator is typed as \code{ED*eV} because \code{ED} is entered as a numerical value in electron-volts. The expression
+\begin{equation}
+\code{(ED*eV)/(kB*Tfield)}
+\end{equation}
+is dimensionless. The same logic applies to \code{Eann*eV/(kB*Tfield)}.
+
+\section{Enter the Coefficient Form PDE}
+
+\subsection{Open the coefficient settings}
+
+\begin{enumerate}[leftmargin=2em]
+\item In \textbf{Model Builder}, expand \textbf{Component 1}.
+\item Expand \textbf{Coefficient Form PDE}.
+\item Click the domain equation node, often called \textbf{Coefficient Form PDE 1}.
+\item In the \textbf{Settings} window, find the coefficient fields.
+\item Make sure the rectangular domain is selected.
+\end{enumerate}
+
+\subsection{Enter the PDE coefficients}
+
+Set the coefficients exactly as below.
+
+\begin{longtable}{p{0.24\textwidth}p{0.28\textwidth}p{0.38\textwidth}}
+\toprule
+\textbf{COMSOL coefficient} & \textbf{Type this} & \textbf{Physical meaning} \\
+\midrule
+\endhead
+\code{ea} & \code{0} & No second-order time derivative \\
+\code{da} & \code{1} & Coefficient of $\partial C/\partial t$ \\
+\code{c} & \code{Ddef} & Diffusion coefficient \\
+\code{alpha} & \code{0} & No conservative drift in baseline \\
+\code{gamma} & \code{0} & No imposed conservative flux \\
+\code{beta} & \code{0} & No nonconservative advection in baseline \\
+\code{a} & \code{kann} & First-order annealing loss \\
+\code{f} & \code{Sdef} & Volumetric source \\
+\bottomrule
+\end{longtable}
+
+If COMSOL expects the diffusion coefficient \code{c} as a 2D tensor, enter
+\begin{equation}
+\code{Ddef, 0; 0, Ddef}.
+\end{equation}
+If it accepts a scalar coefficient, \code{Ddef} is sufficient and represents isotropic diffusion.
+
+\subsection{Check that the PDE matches the target equation}
+
+With these entries, COMSOL solves
+\begin{equation}
+\pdv{C}{t}+\nabla\cdot(-D_{\mathrm{def}}\nabla C)+k_{\mathrm{ann}}C=S_{\mathrm{def}}.
+\end{equation}
+Moving the diffusion and reaction terms to the right gives
+\begin{equation}
+\pdv{C}{t}=\nabla\cdot(D_{\mathrm{def}}\nabla C)-k_{\mathrm{ann}}C+S_{\mathrm{def}},
+\end{equation}
+which is exactly the Module 3 baseline equation.
+
+\section{Set initial and boundary conditions}
+
+\subsection{Set the initial defect concentration}
+
+\begin{enumerate}[leftmargin=2em]
+\item Under \textbf{Coefficient Form PDE}, click \textbf{Initial Values}.
+\item In the \textbf{Settings} window, find the field for the initial value of \code{C}.
+\item Type \code{Cinit}.
+\end{enumerate}
+
+The simulation now starts from a localized radiation-damage cloud. At early time, the maximum concentration is near $(x_0,y_0)$. As time evolves, the cloud spreads and decays.
+
+\subsection{Use zero-flux boundaries}
+
+For Coefficient Form PDE, homogeneous natural flux is usually the default. To make the model explicit:
+
+\begin{enumerate}[leftmargin=2em]
+\item Expand \textbf{Coefficient Form PDE}.
+\item Look for a boundary node named \textbf{Zero Flux}, \textbf{Flux/Source}, or \textbf{Default Boundary Condition}. The exact label depends on the COMSOL version.
+\item Click that boundary-condition node.
+\item Select all four outer boundaries of the rectangle.
+\item If the node is \textbf{Zero Flux}, leave it unchanged.
+\item If the node is \textbf{Flux/Source}, set the flux/source entry to \code{0}.
+\end{enumerate}
+
+The intended condition is
+\begin{equation}
+\hat{\mathbf n}\cdot(-D\nabla C)=0.
+\end{equation}
+This prevents defects from crossing the boundary. It is the correct default for the pure diffusion inventory-conservation test.
+
+\subsection{Optional absorbing surface boundary}
+
+Do not use this in the default tutorial. It is an optional variant.
+
+\begin{enumerate}[leftmargin=2em]
+\item Right-click \textbf{Coefficient Form PDE}.
+\item Choose \textbf{Dirichlet Boundary Condition}.
+\item Select the boundary that acts as a perfect sink, for example the top boundary.
+\item Set \code{C} to \code{0[1/m^3]}.
+\end{enumerate}
+
+This represents an ideal surface that removes defects. It will intentionally destroy total inventory conservation.
+
+\section{Mesh the domain}
+
+\subsection{Create a triangular mesh}
+
+\begin{enumerate}[leftmargin=2em]
+\item In \textbf{Model Builder}, right-click \textbf{Mesh 1}.
+\item Choose \textbf{Free Triangular}.
+\item Right-click \textbf{Mesh 1} again.
+\item Choose \textbf{Size}.
+\item Click the \textbf{Size} node.
+\item In \textbf{Element Size}, choose \textbf{Custom}.
+\item Enter \textbf{Maximum element size}: \code{min(Lx,Ly)/40}.
+\item Enter \textbf{Minimum element size}: \code{min(Lx,Ly)/200}.
+\item Enter \textbf{Maximum element growth rate}: \code{1.3}.
+\item Enter \textbf{Curvature factor}: \code{0.3}.
+\item Enter \textbf{Resolution of narrow regions}: \code{1}.
+\item Click \textbf{Build All}.
+\end{enumerate}
+
+\subsection{Why mesh resolution matters}
+
+The mesh must resolve the initial Gaussian cloud. A rough criterion is that several elements should fit across $\sigma_x$ and $\sigma_y$. If the cloud width is $0.5~\mu\mathrm{m}$ and the largest element is comparable to that width, the initial condition is under-resolved. Under-resolved initial damage maps produce artificial numerical diffusion.
+
+\subsection{Perform a first visual mesh check}
+
+\begin{enumerate}[leftmargin=2em]
+\item After clicking \textbf{Build All}, inspect the mesh in the graphics window.
+\item Confirm that the triangles are reasonably uniform.
+\item Confirm that the domain contains enough elements near the Gaussian cloud center.
+\item If the mesh is too coarse, reduce the maximum element size to \code{min(Lx,Ly)/80} and rebuild.
+\end{enumerate}
+
+\section{Set the time-dependent study and solver}
+
+\subsection{Set output times}
+
+\begin{enumerate}[leftmargin=2em]
+\item In \textbf{Model Builder}, expand \textbf{Study 1}.
+\item Click \textbf{Step 1: Time Dependent}.
+\item In the \textbf{Settings} window, find \textbf{Study Settings}.
+\item In the \textbf{Times} box, type \code{range(0,dtout,tend)}.
+\end{enumerate}
+
+This stores the solution at times $0,\Delta t_{\mathrm{out}},2\Delta t_{\mathrm{out}},\ldots,t_{\mathrm{end}}$.
+
+\subsection{Inspect time-solver settings}
+
+\begin{enumerate}[leftmargin=2em]
+\item Expand \textbf{Study 1}.
+\item Expand \textbf{Solver Configurations}.
+\item Expand \textbf{Solution 1}.
+\item Click \textbf{Time-Dependent Solver}.
+\item If a \textbf{Time Stepping} method is visible, choose \textbf{BDF}.
+\item Set \textbf{Relative tolerance} to \code{1e-3} for the first run.
+\item For verification runs, later tighten the relative tolerance to \code{1e-5}.
+\end{enumerate}
+
+Diffusion-reaction equations can be stiff, especially when annealing is fast or the mesh is fine. An implicit BDF time integrator is appropriate for this class of problem.
+
+\subsection{Compute the solution}
+
+\begin{enumerate}[leftmargin=2em]
+\item Click the \textbf{Study 1} node.
+\item Click \textbf{Compute}.
+\item Wait for the solver to finish.
+\item If COMSOL reports a unit warning, read it before ignoring it.
+\item If the solver fails, check the coefficient signs, units in the exponentials, and mesh size.
+\end{enumerate}
+
+\section{Plot and interpret the results}
+
+\subsection{Surface plot of defect concentration}
+
+\begin{enumerate}[leftmargin=2em]
+\item Right-click \textbf{Results}.
+\item Choose \textbf{2D Plot Group}.
+\item Rename the plot group \textbf{Defect concentration}.
+\item Right-click \textbf{Defect concentration}.
+\item Choose \textbf{Surface}.
+\item Click the \textbf{Surface} node.
+\item In \textbf{Expression}, type \code{C}.
+\item In \textbf{Unit}, use \code{1/m^3} if needed.
+\item Click \textbf{Plot}.
+\item Use the time selector to compare $t=0$ and later times.
+\end{enumerate}
+
+Expected behavior: the Gaussian concentration peak decreases, the profile broadens, and the total inventory decays only if annealing is active.
+
+\subsection{Normalized concentration plot}
+
+\begin{enumerate}[leftmargin=2em]
+\item Right-click \textbf{Results}.
+\item Choose \textbf{2D Plot Group}.
+\item Rename it \textbf{Normalized concentration}.
+\item Add a \textbf{Surface} plot.
+\item Set \textbf{Expression}: \code{Crel}.
+\item Click \textbf{Plot}.
+\end{enumerate}
+
+This plot is useful when the absolute concentration values are very large. It shows the spatial shape independent of the initial scale.
+
+\subsection{Defect flux arrow plot}
+
+\begin{enumerate}[leftmargin=2em]
+\item Right-click \textbf{Results}.
+\item Choose \textbf{2D Plot Group}.
+\item Rename it \textbf{Defect flux arrows}.
+\item Right-click the plot group.
+\item Choose \textbf{Arrow Surface}.
+\item For the x-component, type \code{Jcx}.
+\item For the y-component, type \code{Jcy}.
+\item Click \textbf{Plot}.
+\end{enumerate}
+
+The arrows should point from high concentration toward low concentration. For a centered Gaussian cloud, the arrows should point outward early in time.
+
+\subsection{Flux magnitude plot}
+
+\begin{enumerate}[leftmargin=2em]
+\item Create another \textbf{2D Plot Group}.
+\item Rename it \textbf{Defect flux magnitude}.
+\item Add a \textbf{Surface} plot.
+\item Set \textbf{Expression}: \code{Jcmag}.
+\item Click \textbf{Plot}.
+\end{enumerate}
+
+The flux magnitude is largest on the sides of the concentration peak, not exactly at the peak. At the peak, $\nabla C\approx 0$, so the diffusive flux is small there.
+
+\subsection{Line plot through the damage cloud}
+
+\begin{enumerate}[leftmargin=2em]
+\item Right-click \textbf{Results}.
+\item Choose \textbf{1D Plot Group}.
+\item Rename it \textbf{Centerline concentration}.
+\item Right-click the plot group.
+\item Choose \textbf{Line Graph}.
+\item In the \textbf{Data} section, choose a cut line dataset if available. If not, create one using the next steps.
+\item To create a cut line, right-click \textbf{Results} $\rightarrow$ \textbf{Datasets}.
+\item Choose \textbf{Cut Line 2D}.
+\item Set \textbf{Point 1}: \code{0}, \code{y0}.
+\item Set \textbf{Point 2}: \code{Lx}, \code{y0}.
+\item Return to the \textbf{Line Graph} and select this cut line dataset.
+\item Set \textbf{Expression}: \code{C}.
+\item Click \textbf{Plot}.
+\end{enumerate}
+
+This plot makes the diffusion broadening easy to see quantitatively.
+
+\section{Derived values and quantitative diagnostics}
+
+\subsection{Total defect inventory}
+
+\begin{enumerate}[leftmargin=2em]
+\item Right-click \textbf{Results}.
+\item Choose \textbf{Derived Values} $\rightarrow$ \textbf{Surface Integration}.
+\item Select the rectangular domain.
+\item Set \textbf{Expression}: \code{C}.
+\item Make sure the dataset is the time-dependent solution.
+\item Click \textbf{Evaluate}.
+\end{enumerate}
+
+The quantity is
+\begin{equation}
+M_C(t)=\int_{\Omega}C(x,y,t)\,d\Omega.
+\end{equation}
+Because this is a 2D cross-sectional model, the value has units of defects per meter out-of-plane thickness if $C$ is volumetric concentration.
+
+\subsection{Peak concentration}
+
+\begin{enumerate}[leftmargin=2em]
+\item Right-click \textbf{Results}.
+\item Choose \textbf{Derived Values} $\rightarrow$ \textbf{Maximum} $\rightarrow$ \textbf{Surface Maximum} if available.
+\item Select the domain.
+\item Set \textbf{Expression}: \code{C}.
+\item Click \textbf{Evaluate}.
+\end{enumerate}
+
+The peak concentration should decrease with time because diffusion spreads the cloud and annealing removes defects.
+
+\subsection{Mean-square spread}
+
+For a more advanced diagnostic, define approximate spatial moments. Create derived values using surface integration of:
+\begin{align}
+\code{C} &\quad \text{for inventory},\\
+\code{x*C} &\quad \text{for first moment in x},\\
+\code{y*C} &\quad \text{for first moment in y},\\
+\code{(x-x0)^2*C} &\quad \text{for spread in x},\\
+\code{(y-y0)^2*C} &\quad \text{for spread in y}.
+\end{align}
+Pure diffusion should increase the spread while preserving inventory under zero-flux boundaries.
+
+\section{Export data for MATLAB comparison}
+
+\subsection{Export solution data on the mesh}
+
+\begin{enumerate}[leftmargin=2em]
+\item Right-click \textbf{Results}.
+\item Choose \textbf{Export} $\rightarrow$ \textbf{Data}.
+\item Click the new \textbf{Data} export node.
+\item Select the time-dependent dataset.
+\item In \textbf{Expressions}, add \code{C}, \code{Jcx}, \code{Jcy}, and \code{Jcmag}.
+\item In \textbf{Filename}, type \code{module3_comsol_defect_solution.csv}.
+\item Click \textbf{Export}.
+\end{enumerate}
+
+\subsection{Compare with MATLAB}
+
+A fair comparison should use either common derived quantities or interpolation onto a shared grid. Recommended quantities are:
+\begin{itemize}[leftmargin=2em]
+\item total defect inventory $\int C\,d\Omega$,
+\item peak concentration $\max(C)$,
+\item centerline profile $C(x,y_0,t)$,
+\item mean-square spread,
+\item late-time exponential decay rate when annealing dominates.
+\end{itemize}
+
+Do not compare raw nodal values unless the MATLAB and COMSOL meshes are identical or one solution has been interpolated consistently onto the other mesh.
+
+\section{Verification tutorials}
+
+\subsection{Verification 1: uniform-state preservation}
+
+Purpose: verify that the solver does not create artificial spatial structure.
+
+\begin{enumerate}[leftmargin=2em]
+\item Go to \textbf{Global Definitions} $\rightarrow$ \textbf{Parameters 1}.
+\item Set \code{Cpeak} to \code{0[1/m^3]}.
+\item Set \code{Cbase} to \code{1e20[1/m^3]}.
+\item Set \code{k0} to \code{0[1/s]}.
+\item Click \textbf{Compute}.
+\item Plot \code{C}.
+\item Use \textbf{Surface Maximum} and \textbf{Surface Minimum} for \code{C}.
+\end{enumerate}
+
+Expected result:
+\begin{equation}
+C(x,y,t)=C_0.
+\end{equation}
+The maximum and minimum should be nearly identical.
+
+\subsection{Verification 2: pure diffusion inventory conservation}
+
+Purpose: verify the diffusion operator and zero-flux boundary condition.
+
+\begin{enumerate}[leftmargin=2em]
+\item Set \code{Cpeak} back to \code{1e21[1/m^3]}.
+\item Set \code{Cbase} to \code{0[1/m^3]}.
+\item Set \code{k0} to \code{0[1/s]}.
+\item Keep all boundaries as zero flux.
+\item Click \textbf{Compute}.
+\item Evaluate \code{intop1(C)} if you created an integration operator, or use \textbf{Surface Integration} of \code{C} at all times.
+\end{enumerate}
+
+Expected result:
+\begin{equation}
+\frac{d}{dt}\int_{\Omega}C\,d\Omega=0.
+\end{equation}
+The cloud spreads, but total inventory stays constant to numerical tolerance.
+
+\subsection{Verification 3: pure annealing}
+
+Purpose: verify the sign and magnitude of the reaction term.
+
+\begin{enumerate}[leftmargin=2em]
+\item Set \code{D0} to \code{0[m^2/s]}.
+\item Set \code{Cpeak} to \code{0[1/m^3]}.
+\item Set \code{Cbase} to \code{1e20[1/m^3]}.
+\item Set \code{k0} to \code{1e6[1/s]}.
+\item Click \textbf{Compute}.
+\item Plot or evaluate the domain average of \code{C} versus time.
+\end{enumerate}
+
+The exact solution is
+\begin{equation}
+C(t)=C(0)\exp(-k_{\mathrm{ann}}t).
+\end{equation}
+If concentration increases, the sign of \code{a} is wrong.
+
+\subsection{Verification 4: diffusion plus annealing}
+
+Purpose: verify that diffusion spreads the profile while annealing removes inventory.
+
+\begin{enumerate}[leftmargin=2em]
+\item Restore \code{D0} to \code{1e-8[m^2/s]}.
+\item Use the Gaussian initial condition.
+\item Use nonzero \code{k0}.
+\item Compute.
+\item Plot \code{C} at early, middle, and final times.
+\item Evaluate total inventory versus time.
+\end{enumerate}
+
+Expected result: the concentration cloud broadens and total inventory decreases. If $k_{\mathrm{ann}}$ is spatially uniform and boundaries are zero flux, total inventory should decay approximately as
+\begin{equation}
+M_C(t)=M_C(0)\exp(-k_{\mathrm{ann}}t).
+\end{equation}
+
+\subsection{Verification 5: mesh refinement}
+
+Purpose: confirm that the result is not a mesh artifact.
+
+\begin{enumerate}[leftmargin=2em]
+\item Run the baseline model with maximum element size \code{min(Lx,Ly)/40}.
+\item Record total inventory, peak concentration, and centerline profile at final time.
+\item Change maximum element size to \code{min(Lx,Ly)/80}.
+\item Rebuild the mesh and recompute.
+\item Repeat with \code{min(Lx,Ly)/120} if needed.
+\item Compare the metrics.
+\end{enumerate}
+
+A trustworthy model should change less as the mesh is refined. For interview explanation, say that mesh refinement checks spatial discretization error.
+
+\section{Adding integration operators for easier diagnostics}
+
+\begin{enumerate}[leftmargin=2em]
+\item In \textbf{Model Builder}, right-click \textbf{Definitions} under \textbf{Component 1}.
+\item Choose \textbf{Component Couplings} $\rightarrow$ \textbf{Integration}.
+\item Rename the operator \code{intopC}.
+\item Select the rectangular domain.
+\item In \textbf{Results}, use expressions such as \code{intopC(C)}, \code{intopC(x*C)}, and \code{intopC((x-x0)^2*C)}.
+\end{enumerate}
+
+This makes it easier to track conservation and diffusion spread without repeatedly creating surface integration nodes.
+
+\section{Optional extension: spatially varying temperature from Module 4}
+
+\subsection{Analytic temperature field test}
+
+Before importing actual Module 4 data, test spatially varying temperature analytically.
+
+\begin{enumerate}[leftmargin=2em]
+\item Go to \textbf{Definitions} $\rightarrow$ \textbf{Variables 1}.
+\item Replace \code{Tfield=T0} with:
+\begin{equation}
+\code{T0 + 50[K]*exp(-((x-x0)^2/(2*sigx^2)+(y-y0)^2/(2*sigy^2)))}.
+\end{equation}
+\item Keep \code{Ddef} and \code{kann} unchanged.
+\item Recompute.
+\end{enumerate}
+
+Because $D$ and $k_{\mathrm{ann}}$ are Arrhenius functions, warmer regions can have faster diffusion and stronger annealing. This mimics one-way coupling from Module 4.
+
+\subsection{Import a temperature map}
+
+\begin{enumerate}[leftmargin=2em]
+\item Right-click \textbf{Global Definitions}.
+\item Choose \textbf{Functions} $\rightarrow$ \textbf{Interpolation}.
+\item Rename the function \code{Tmod4}.
+\item In \textbf{Settings}, choose the data source: \textbf{File}.
+\item Browse to a CSV file containing columns such as \code{x}, \code{y}, and \code{T}.
+\item Set the number of arguments to 2 if the file is spatial only.
+\item Set argument units to \code{m} and \code{m}.
+\item Set function unit to \code{K}.
+\item Click \textbf{Import} or \textbf{Plot} to check the function.
+\item In \textbf{Variables 1}, set \code{Tfield=Tmod4(x,y)}.
+\item Recompute.
+\end{enumerate}
+
+This implements a one-way Module 4 $\rightarrow$ Module 3 coupling.
+
+\section{Optional extension: imported radiation damage map}
+
+The Gaussian initial condition is a verification-friendly stand-in for a radiation damage map. For project realism, Module 1 or a damage conversion step can provide an imported initial condition.
+
+\begin{enumerate}[leftmargin=2em]
+\item Prepare a CSV file with columns \code{x}, \code{y}, and \code{Cinit_map}.
+\item Right-click \textbf{Global Definitions}.
+\item Choose \textbf{Functions} $\rightarrow$ \textbf{Interpolation}.
+\item Rename the function \code{Cmap}.
+\item Set the file as the data source.
+\item Set argument units to \code{m}, \code{m}.
+\item Set function unit to \code{1/m^3}.
+\item In \textbf{Variables 1}, set \code{Cinit=Cmap(x,y)}.
+\item Recompute.
+\end{enumerate}
+
+When using imported maps, always plot the initial condition before time stepping. If the imported map is shifted, transposed, or unit-scaled incorrectly, the simulation may run but represent the wrong physics.
+
+\section{Optional extension: charged-defect drift from Module 2}
+
+The baseline Module 3 model is diffusion plus reaction. If charged-defect drift under an electric field is included, the flux can be written as
+\begin{equation}
+\mathbf J_C=-D\nabla C+\mu_d z_d q C\mathbf E.
+\end{equation}
+Using the Einstein relation for a dilute charged species,
+\begin{equation}
+\mu_d=\frac{D}{k_BT},
+\end{equation}
+where the force is $z_d q\mathbf E$.
+
+In COMSOL Coefficient Form PDE, the conservative flux is
+\begin{equation}
+-c\nabla u-\alpha u+\gamma.
+\end{equation}
+To represent drift velocity $\mathbf v_d=\mu_d z_d q\mathbf E$, use
+\begin{equation}
+\mathbf J=-D\nabla C+\mathbf v_d C.
+\end{equation}
+Since COMSOL's flux form is $-D\nabla C-\alpha C$, set
+\begin{equation}
+\alpha=-\mathbf v_d.
+\end{equation}
+This extension should be added only after the baseline diffusion-reaction model passes all verification tests.
+
+\section{Optional multi-species implementation}
+
+A more complete Module 3 can evolve multiple defect species:
+\begin{align}
+\pdv{C_V}{t}&=\nabla\cdot(D_V\nabla C_V)+G_V-R_V,\\
+\pdv{C_I}{t}&=\nabla\cdot(D_I\nabla C_I)+G_I-R_I.
+\end{align}
+For example, vacancy-interstitial recombination can use
+\begin{equation}
+R_{VI}=k_{VI}C_V C_I.
+\end{equation}
+Then
+\begin{align}
+\pdv{C_V}{t}&=\nabla\cdot(D_V\nabla C_V)-R_{VI},\\
+\pdv{C_I}{t}&=\nabla\cdot(D_I\nabla C_I)-R_{VI}.
+\end{align}
+
+In COMSOL:
+\begin{enumerate}[leftmargin=2em]
+\item In the Model Wizard, when adding Coefficient Form PDE, set the number of dependent variables to 2 if the interface asks.
+\item Name the variables \code{CV} and \code{CI}.
+\item Define variables \code{DV}, \code{DI}, and \code{RVI}.
+\item For the \code{CV} equation, set \code{c=DV}, \code{a=0}, and \code{f=-RVI} if using the left-side coefficient convention carefully.
+\item For the \code{CI} equation, set \code{c=DI}, \code{a=0}, and \code{f=-RVI}.
+\item Check signs by verifying that recombination decreases both species.
+\end{enumerate}
+
+Because multi-species coefficient entry can vary by COMSOL version, the recommended project path is to validate the scalar equation first, then add a second equation only after the one-species model is fully understood.
+
+\section{Alternative implementation using Transport of Diluted Species}
+
+If available, the \textbf{Transport of Diluted Species} interface can implement the same scalar equation.
+
+\begin{enumerate}[leftmargin=2em]
+\item Choose \textbf{Model Wizard}.
+\item Select \textbf{2D}.
+\item Expand \textbf{Chemical Species Transport}.
+\item Select \textbf{Transport of Diluted Species}.
+\item Choose \textbf{Time Dependent}.
+\item Build the same rectangle.
+\item Define the same parameters and variables.
+\item Set the diffusion coefficient to \code{Ddef}.
+\item Add a reaction term with expression \code{-kann*C + Sdef}, adapting \code{C} to the interface's default concentration variable name if needed.
+\item Set initial concentration to \code{Cinit}.
+\item Use no-flux boundaries on all sides.
+\item Mesh, solve, plot, and verify as above.
+\end{enumerate}
+
+This interface is more intuitive for species transport, but Coefficient Form PDE is preferred for transparent mapping to the FEM weak form.
+
+
+\section{Beginner workflow checks before moving to advanced variants}
+
+\subsection{Expected Model Builder tree}
+
+After the baseline model is built, the Model Builder should contain the following essential structure:
+\begin{verbatim}
+Global Definitions
+  Parameters 1
+Component 1
+  Definitions
+    Variables 1
+  Geometry 1
+    Rectangle 1
+  Coefficient Form PDE
+    Coefficient Form PDE 1
+    Initial Values
+    Zero Flux or Flux/Source boundary node
+  Mesh 1
+    Free Triangular 1
+    Size 1
+Study 1
+  Step 1: Time Dependent
+Results
+  Defect concentration
+  Defect flux arrows
+  Defect flux magnitude
+\end{verbatim}
+If your model tree looks very different, the model can still be valid, but you should understand why. For a beginner workflow, this tree is a useful checklist because it ties every physics decision to a visible COMSOL node.
+
+\subsection{Save a clean baseline model before modifying it}
+
+\begin{enumerate}[leftmargin=2em]
+\item Choose \textbf{File} $\rightarrow$ \textbf{Save As}.
+\item Save the verified baseline as \code{module3_comsol_baseline_verified.mph}.
+\item Before adding temperature coupling, imported maps, drift, or multiple species, choose \textbf{File} $\rightarrow$ \textbf{Save As} again.
+\item Use a new filename such as \code{module3_comsol_temperature_variant.mph}.
+\end{enumerate}
+
+This prevents a common beginner problem: a working baseline model is overwritten by an experimental coupled model, and later it is unclear which change introduced an error.
+
+\subsection{Create a simple animation of concentration spreading}
+
+\begin{enumerate}[leftmargin=2em]
+\item Make sure the \textbf{Defect concentration} plot group exists and plots \code{C}.
+\item In the top ribbon or Results toolbar, look for \textbf{Animation}.
+\item If not visible, right-click \textbf{Results} and look for an \textbf{Animation} option.
+\item Choose a player or file animation depending on the COMSOL version.
+\item Set the plot group to \textbf{Defect concentration}.
+\item Set the frames to use the stored time-dependent solution times.
+\item Play the animation.
+\item Check that the defect cloud spreads smoothly and does not jump, oscillate, or develop nonphysical negative regions.
+\end{enumerate}
+
+The animation is not only for presentation. It is a diagnostic. A physically reasonable diffusion-reaction model should evolve smoothly. Sudden jumps often indicate a time-stepping, parameter, or source-term problem.
+
+\subsection{Export a plot image for documentation}
+
+\begin{enumerate}[leftmargin=2em]
+\item Right-click \textbf{Results}.
+\item Choose \textbf{Export} $\rightarrow$ \textbf{Image}.
+\item Select the plot group, for example \textbf{Defect concentration}.
+\item Choose a filename such as \code{module3_comsol_C_final.png}.
+\item Set the resolution high enough for documentation, for example 300 dpi if the option is available.
+\item Click \textbf{Export}.
+\end{enumerate}
+
+This step is optional for the project package because the present note intentionally avoids embedding images. Still, exporting images is useful when comparing COMSOL results against MATLAB plots during development.
+
+\section{Parameter sweep tutorial for sensitivity checks}
+
+A simple parameter sweep helps determine whether the model responds physically to changes in diffusion and annealing parameters.
+
+\subsection{Sweep the annealing prefactor}
+
+\begin{enumerate}[leftmargin=2em]
+\item In \textbf{Study 1}, right-click the study node.
+\item Choose \textbf{Parametric Sweep}.
+\item Click the new \textbf{Parametric Sweep} node.
+\item In \textbf{Parameter name}, choose or type \code{k0}.
+\item In \textbf{Parameter value list}, type \code{1e4[1/s] 1e5[1/s] 1e6[1/s]}.
+\item Keep the time-dependent step active.
+\item Click \textbf{Compute}.
+\item Plot total inventory or peak concentration for each parameter value.
+\end{enumerate}
+
+Expected behavior: larger \code{k0} increases \code{kann}, causing faster defect removal and faster decay of total inventory.
+
+\subsection{Sweep the diffusion prefactor}
+
+\begin{enumerate}[leftmargin=2em]
+\item In the \textbf{Parametric Sweep} settings, replace the parameter with \code{D0}.
+\item Use values such as \code{1e-10[m^2/s] 1e-9[m^2/s] 1e-8[m^2/s]}.
+\item Compute again.
+\item Compare the final concentration profiles.
+\end{enumerate}
+
+Expected behavior: larger \code{D0} produces faster spreading. If the peak decays but the spatial width does not change, then annealing is dominating over diffusion or the diffusion coefficient is too small for the chosen time window.
+
+\section{Creating a short COMSOL report for your own records}
+
+Some COMSOL installations include a report-generation feature. If available:
+\begin{enumerate}[leftmargin=2em]
+\item In the top menu, choose \textbf{File} $\rightarrow$ \textbf{Report} or right-click \textbf{Reports} if the Reports branch is visible.
+\item Choose a brief model report rather than a full exhaustive report.
+\item Include parameters, geometry, physics settings, mesh statistics, solver settings, and selected plots.
+\item Export the report as PDF or HTML for your own notes.
+\end{enumerate}
+
+The project repository should still keep the hand-written LaTeX note as the authoritative explanation, because it includes the physics reasoning and exact project interpretation. The COMSOL report is a useful audit trail of the software settings.
+
+\section{Common mistakes and diagnostic checks}
+
+\begin{longtable}{p{0.31\textwidth}p{0.57\textwidth}}
+\toprule
+\textbf{Symptom} & \textbf{Likely cause and correction} \\
+\midrule
+\endhead
+Concentration grows during pure annealing & Reaction sign is wrong. Use \code{a=kann} in Coefficient Form PDE. \\
+Total inventory changes during pure diffusion with zero-flux boundaries & Boundary is not zero flux, or integration is not over the full domain. Check boundary nodes and use surface integration of \code{C}. \\
+Initial Gaussian looks blocky & Mesh is too coarse compared with \code{sigx} and \code{sigy}. Refine the mesh. \\
+Solution changes strongly under mesh refinement & Spatial discretization error is still significant. Refine until inventory, peak value, and centerline profile converge. \\
+Unit warning in exponential & Confirm that \code{ED*eV/(kB*Tfield)} and \code{Eann*eV/(kB*Tfield)} are dimensionless. \\
+Negative concentration appears & Time tolerance may be loose, mesh may be coarse, or source/reaction signs may be wrong. Tighten tolerance and check signs. \\
+Flux arrows point toward the peak & Flux sign is wrong. Use \code{Jcx=-Ddef*d(C,x)} and \code{Jcy=-Ddef*d(C,y)}. \\
+No visible diffusion & The Arrhenius coefficient may be extremely small. Evaluate \code{Ddef} numerically and adjust demonstration parameters if needed. \\
+Everything decays to zero too fast & \code{kann} is too large for the chosen time window. Check \code{kann*tend}. \\
+COMSOL cannot parse \code{d(C,x)} & The dependent variable may not be named \code{C}. Check the PDE dependent-variable name. \\
+\bottomrule
+\end{longtable}
+
+\section{Final checklist before trusting the model}
+
+Before using the COMSOL result as a reference for MATLAB, check all items below.
+
+\begin{enumerate}[leftmargin=2em]
+\item The model dimension is 2D.
+\item The physics interface is Coefficient Form PDE.
+\item The dependent variable is \code{C}.
+\item The PDE coefficients are \code{da=1}, \code{c=Ddef}, \code{a=kann}, and \code{f=Sdef}.
+\item The reaction sign passes the pure-annealing test.
+\item The boundary condition is zero flux for conservation tests.
+\item The mesh resolves the initial damage cloud.
+\item The time-dependent study uses \code{range(0,dtout,tend)}.
+\item Pure diffusion conserves total inventory.
+\item Pure annealing matches exponential decay.
+\item The flux arrows point down the concentration gradient.
+\item Exported quantities are compared to MATLAB using integral metrics or interpolation onto a common grid.
+\end{enumerate}
+
+\section{How to explain this COMSOL model in an interview}
+
+A concise explanation is:
+
+\begin{quote}
+Module 3 solves a time-dependent defect diffusion-reaction equation. In COMSOL I implement it through the Coefficient Form PDE interface by writing the equation as $\partial C/\partial t+\nabla\cdot(-D\nabla C)+k_{\mathrm{ann}}C=S$. The coefficient entries are $d_a=1$, $c=D$, $a=k_{\mathrm{ann}}$, and $f=S$. The zero-flux boundary condition represents a closed silicon region and is essential for checking inventory conservation in the pure diffusion limit. COMSOL then performs the same finite-element operations as the MATLAB code: it meshes the 2D domain, interpolates $C$ with shape functions, assembles the mass, diffusion, and reaction matrices, and advances the transient system with an implicit solver. I verify the model using uniform-state preservation, pure diffusion conservation, pure annealing exponential decay, and mesh refinement.
+\end{quote}
+
+
+\section{Expanded beginner tutorial layer: exact COMSOL reproduction workflow}
+
+This section raises the Module 3 COMSOL note to the same tutorial density as the Module 4 heat-transfer note. The goal is not merely to state the governing equation. The goal is to let a beginner reproduce the model by following the text line by line.
+
+\begin{overviewbox}
+\textbf{How to use this section.} Build only the one-species defect diffusion and annealing model first. Do not begin with multiple defect species, temperature maps, radiation maps, or electric-field drift. Those extensions are meaningful only after the baseline transient diffusion-reaction model passes the inventory, annealing, and diffusion verification tests.
+\end{overviewbox}
+
+\subsection{First model variant to build}
+
+The first COMSOL model should solve
+\begin{equation}
+\pdv{C}{t}=\nabla\cdot(D\nabla C)-k_{\mathrm{ann}}C+S,
+\end{equation}
+with constant $D$, constant $k_{\mathrm{ann}}$, optional source $S$, and zero-flux boundaries. The recommended first file name is \code{module3_defect_diffusion_baseline.mph}.
+
+In this baseline version, $C$ may be interpreted as one effective defect concentration, for example a vacancy concentration $C_V$, but the mathematics is kept single-species.
+
+\subsection{Detailed Model Wizard sequence}
+
+\begin{enumerate}[leftmargin=2em]
+\item Open \COMSOL{}.
+\item Click \textbf{Model Wizard}.
+\item Under \textbf{Select Space Dimension}, choose \textbf{2D}.
+\item Click \textbf{Next}.
+\item In the physics search box, type \code{Coefficient Form PDE}.
+\item Select \textbf{Mathematics $>$ PDE Interfaces $>$ Coefficient Form PDE (c)}.
+\item Click \textbf{Add}.
+\item In the dependent-variable field, set the dependent variable name to \code{C}. If COMSOL initially uses \code{u}, replace it with \code{C}.
+\item Click \textbf{Study}.
+\item Choose \textbf{Time Dependent}.
+\item Click \textbf{Done}.
+\item Save the model as \code{module3_defect_diffusion_baseline.mph}.
+\end{enumerate}
+
+\begin{physicsbox}
+\textbf{Why Coefficient Form PDE?} Module 3 is a generic diffusion-reaction equation for a defect concentration, not heat transfer and not electrostatics. The Coefficient Form PDE interface lets us type the mass coefficient, diffusion coefficient, reaction coefficient, source term, initial condition, and flux boundary condition directly. This is closest to the MATLAB FEM form.
+\end{physicsbox}
+
+\subsection{Expected Model Builder tree}
+
+After the Model Wizard, check that the Model Builder contains:
+\begin{itemize}[leftmargin=2em]
+\item \textbf{Global Definitions}
+\item \textbf{Component 1 (comp1)}
+\begin{itemize}[leftmargin=1.5em]
+\item \textbf{Definitions}
+\item \textbf{Geometry 1}
+\item \textbf{Coefficient Form PDE (c)}
+\item \textbf{Mesh 1}
+\end{itemize}
+\item \textbf{Study 1}
+\item \textbf{Results}
+\end{itemize}
+If the dependent variable is not \code{C}, change it before building the rest of the model. Consistent variable naming avoids confusion when exporting results to MATLAB.
+
+\subsection{Global parameter table: exact entries}
+
+Right-click \textbf{Global Definitions} and choose \textbf{Parameters}. Enter the following table.
+
+\begin{longtable}{p{0.24\textwidth}p{0.34\textwidth}p{0.34\textwidth}}
+\toprule
+\textbf{Name} & \textbf{Expression} & \textbf{Description} \\
+\midrule
+\endhead
+\code{Lx} & \code{10[um]} & Domain width. \\
+\code{Ly} & \code{5[um]} & Domain height. \\
+\code{Ddef} & \code{1e-14[m^2/s]} & Baseline defect diffusivity. \\
+\code{kann} & \code{1e3[1/s]} & Baseline first-order annealing rate. \\
+\code{Cbg} & \code{0[1/m^3]} & Background defect concentration. \\
+\code{Cpeak} & \code{1e22[1/m^3]} & Peak initial defect concentration. \\
+\code{x0c} & \code{0.5*Lx} & Initial hotspot center in $x$. \\
+\code{y0c} & \code{0.5*Ly} & Initial hotspot center in $y$. \\
+\code{sigx} & \code{0.7[um]} & Initial Gaussian width in $x$. \\
+\code{sigy} & \code{0.7[um]} & Initial Gaussian width in $y$. \\
+\code{S0} & \code{0[1/(m^3*s)]} & Volumetric defect source after $t=0$. \\
+\code{tend} & \code{5e-6[s]} & Final simulation time. \\
+\code{dtout} & \code{1e-7[s]} & Output time spacing. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Geometry: exact rectangle steps}
+
+\begin{enumerate}[leftmargin=2em]
+\item Click \textbf{Component 1 $>$ Geometry 1}.
+\item Set \textbf{Length unit} to \code{um}.
+\item Right-click \textbf{Geometry 1}.
+\item Choose \textbf{Rectangle}.
+\item For \textbf{Width}, type \code{Lx}.
+\item For \textbf{Height}, type \code{Ly}.
+\item For position, use \code{x=0} and \code{y=0}.
+\item Click \textbf{Build Selected}.
+\item Click \textbf{Zoom Extents}.
+\end{enumerate}
+
+The rectangle is the reduced 2D silicon domain. Zero-flux boundary conditions on this rectangle mean that defects remain inside the modeled region unless an absorbing or reactive boundary is intentionally added later.
+
+\subsection{Definitions and variables: exact entries}
+
+Right-click \textbf{Component 1 $>$ Definitions} and choose \textbf{Variables}. Rename the node \code{var_defect_model}. Type the following rows.
+
+\begin{longtable}{p{0.26\textwidth}p{0.44\textwidth}p{0.22\textwidth}}
+\toprule
+\textbf{Name} & \textbf{Expression} & \textbf{Description} \\
+\midrule
+\endhead
+\code{Cinit} & \code{Cbg+Cpeak*exp(-((x-x0c)^2/(2*sigx^2)+(y-y0c)^2/(2*sigy^2)))} & Gaussian initial defect cloud. \\
+\code{Duse} & \code{Ddef} & Diffusivity used in PDE. \\
+\code{kuse} & \code{kann} & Annealing rate used in PDE. \\
+\code{Suse} & \code{S0} & Source term used in PDE. \\
+\code{Jx_def} & \code{-Duse*Cx} & Defect flux in $x$ if COMSOL exposes \code{Cx}. \\
+\code{Jy_def} & \code{-Duse*Cy} & Defect flux in $y$ if COMSOL exposes \code{Cy}. \\
+\bottomrule
+\end{longtable}
+
+If \code{Cx} and \code{Cy} are not recognized in your COMSOL version, use \code{d(C,x)} and \code{d(C,y)} instead. The flux definitions then become \code{-Duse*d(C,x)} and \code{-Duse*d(C,y)}.
+
+\subsection{Coefficient Form PDE: exact coefficient entries}
+
+Click \textbf{Coefficient Form PDE (c)}. Then click its main domain equation node, often named \textbf{Coefficient Form PDE 1}. Make sure \textbf{Domain 1} is selected.
+
+COMSOL's coefficient form may appear as
+\begin{equation}
+e_a \pdv[2]{u}{t}+d_a\pdv{u}{t}+\nabla\cdot(-c\nabla u-\alpha u+\gamma)+\beta\cdot\nabla u+a u=f.
+\end{equation}
+For the Module 3 baseline, set the coefficients as follows.
+
+\begin{longtable}{p{0.18\textwidth}p{0.26\textwidth}p{0.48\textwidth}}
+\toprule
+\textbf{Coefficient} & \textbf{Type this} & \textbf{Meaning} \\
+\midrule
+\endhead
+\code{ea} & \code{0} & No second time derivative. \\
+\code{da} & \code{1} & Storage term $\partial C/\partial t$. \\
+\code{c} & \code{Duse} & Diffusive coefficient. \\
+\code{alpha} & \code{0} & No conservative advection in baseline. \\
+\code{gamma} & \code{0} & No imposed flux source in baseline. \\
+\code{beta} & \code{0} & No nonconservative advection in baseline. \\
+\code{a} & \code{kuse} & First-order removal term. \\
+\code{f} & \code{Suse} & Volumetric generation source. \\
+\bottomrule
+\end{longtable}
+
+With these entries, COMSOL solves
+\begin{equation}
+\pdv{C}{t}+\nabla\cdot(-D\nabla C)+kC=S,
+\end{equation}
+which is equivalent to
+\begin{equation}
+\pdv{C}{t}=\nabla\cdot(D\nabla C)-kC+S.
+\end{equation}
+
+\begin{notebox}
+\textbf{Sign check.} The annealing term should reduce $C$. Therefore the coefficient \code{a} should be positive for decay. If you put \code{-kuse} in \code{a}, the solution will grow exponentially rather than anneal.
+\end{notebox}
+
+\subsection{Initial values: exact clicks}
+
+\begin{enumerate}[leftmargin=2em]
+\item Under \textbf{Coefficient Form PDE (c)}, click \textbf{Initial Values 1}.
+\item In the field for \code{C}, type \code{Cinit}.
+\item Confirm that \textbf{Domain 1} is selected.
+\end{enumerate}
+
+The initial defect distribution is now a Gaussian cloud superimposed on optional background concentration.
+
+\subsection{Boundary conditions: exact zero-flux setup}
+
+Coefficient Form PDE usually gives a default zero-flux boundary if no boundary source is added. To verify:
+
+\begin{enumerate}[leftmargin=2em]
+\item Expand \textbf{Coefficient Form PDE (c)}.
+\item Look for the default boundary node. It may be named \textbf{Flux/Source 1} or similar.
+\item Select all four boundaries.
+\item Set the boundary flux/source term to \code{0}.
+\end{enumerate}
+
+The target boundary condition is
+\begin{equation}
+\hat{\mathbf n}\cdot(-D\nabla C)=0,
+\end{equation}
+meaning no defect inventory leaves the computational domain through the boundary.
+
+\subsection{Mesh: exact steps and physical meaning}
+
+\begin{enumerate}[leftmargin=2em]
+\item Click \textbf{Mesh 1}.
+\item Change \textbf{Sequence type} to \textbf{User-controlled mesh} if available.
+\item Right-click \textbf{Mesh 1}.
+\item Choose \textbf{Free Triangular}.
+\item Right-click \textbf{Mesh 1} and choose \textbf{Size}.
+\item Choose \textbf{Custom}.
+\item Set \textbf{Maximum element size} to \code{min(sigx,sigy)/4}.
+\item Set \textbf{Minimum element size} to \code{min(sigx,sigy)/20}.
+\item Click \textbf{Build All}.
+\end{enumerate}
+
+For diffusion problems, the mesh must resolve the initial spatial gradients. If the Gaussian damage cloud is much narrower than the element size, COMSOL will smear or underresolve the initial concentration.
+
+\subsection{Time-dependent study: exact entries}
+
+\begin{enumerate}[leftmargin=2em]
+\item Click \textbf{Study 1 $>$ Step 1: Time Dependent}.
+\item In \textbf{Times}, type \code{range(0,dtout,tend)}.
+\item Expand \textbf{Study Settings} if needed.
+\item Confirm that \textbf{Coefficient Form PDE (c)} is selected.
+\item Click \textbf{Study 1}.
+\item Click \textbf{Compute}.
+\item Save after a successful solve.
+\end{enumerate}
+
+If the solver fails, reduce \code{dtout}, reduce \code{Ddef}, refine the mesh, or inspect whether the coefficient signs have accidentally made the solution unstable.
+
+\section{Expanded postprocessing and diagnostics for Module 3}
+
+\subsection{Surface plot of concentration}
+
+\begin{enumerate}[leftmargin=2em]
+\item Right-click \textbf{Results}.
+\item Choose \textbf{2D Plot Group}.
+\item Rename it \code{Defect_concentration_C}.
+\item Right-click the plot group and choose \textbf{Surface}.
+\item In \textbf{Expression}, type \code{C}.
+\item In the plot group settings, choose a later time from the \textbf{Time} list.
+\item Click \textbf{Plot}.
+\end{enumerate}
+
+The concentration cloud should broaden with time if diffusion is active. The peak should decrease if either diffusion spreads the cloud or annealing removes defects.
+
+\subsection{Line plot through the defect cloud}
+
+\begin{enumerate}[leftmargin=2em]
+\item Right-click \textbf{Results $>$ Data Sets}.
+\item Choose \textbf{Cut Line 2D}.
+\item Set the first point to \code{(0,Ly/2)}.
+\item Set the second point to \code{(Lx,Ly/2)}.
+\item Right-click \textbf{Results} and choose \textbf{1D Plot Group}.
+\item Right-click the plot group and choose \textbf{Line Graph}.
+\item Use the cut-line data set.
+\item Set expression to \code{C}.
+\item Plot several times to observe broadening and decay.
+\end{enumerate}
+
+\subsection{Total defect inventory using an integration operator}
+
+Create a domain integration operator.
+
+\begin{enumerate}[leftmargin=2em]
+\item Right-click \textbf{Component 1 $>$ Definitions}.
+\item Choose \textbf{Component Couplings $>$ Integration}.
+\item Rename it \code{intop_dom}.
+\item Select \textbf{Domain 1}.
+\end{enumerate}
+
+Then evaluate the total 2D inventory proxy
+\begin{equation}
+N_C(t)=\int_{\Omega}C(x,y,t)\,d\Omega.
+\end{equation}
+In COMSOL:
+\begin{enumerate}[leftmargin=2em]
+\item Right-click \textbf{Results $>$ Derived Values}.
+\item Choose \textbf{Global Evaluation}.
+\item In \textbf{Expression}, type \code{intop_dom(C)}.
+\item Click \textbf{Evaluate}.
+\end{enumerate}
+
+For zero-flux boundaries and no annealing or source, this quantity should remain nearly constant. If it changes strongly, the boundary condition or coefficient signs are likely wrong.
+
+\subsection{Peak concentration}
+
+Use \textbf{Results $>$ Derived Values $>$ Maximum $>$ Surface Maximum}. Set expression to \code{C}. Evaluate at all stored times. The maximum should decrease for a freely diffusing Gaussian even without annealing because the same inventory spreads over a broader area.
+
+\section{Expanded verification worksheets for Module 3}
+
+\subsection{Worksheet 1: pure annealing, no diffusion}
+
+Set
+\begin{equation}
+D=0,
+\qquad S=0,
+\qquad k=k_{\mathrm{ann}}>0.
+\end{equation}
+In the Parameters table set \code{Ddef=0[m^2/s]}, \code{S0=0[1/(m^3*s)]}, and \code{kann=1e3[1/s]}. The exact solution at each point is
+\begin{equation}
+C(x,y,t)=C(x,y,0)e^{-kt}.
+\end{equation}
+Create a line plot of $C/C_{\mathrm{init}}$ at the hotspot center and verify exponential decay.
+
+\subsection{Worksheet 2: pure diffusion with zero-flux boundaries}
+
+Set \code{kann=0[1/s]} and \code{S0=0[1/(m^3*s)]}. Keep \code{Ddef} positive. The concentration should spread out, the peak should decrease, and the total inventory \code{intop_dom(C)} should remain nearly constant.
+
+\subsection{Worksheet 3: uniform concentration preservation}
+
+Set \code{Cinit=Cpeak} by temporarily changing the initial value to a constant. With \code{kann=0} and \code{S0=0}, a uniform concentration should remain uniform. Any spatial structure in this test indicates an accidental boundary or source term.
+
+\subsection{Worksheet 4: source-only growth}
+
+Set \code{Ddef=0[m^2/s]}, \code{kann=0[1/s]}, and \code{S0=1e25[1/(m^3*s)]}. Start from \code{Cinit=0[1/m^3]}. The expected solution is
+\begin{equation}
+C(t)=S_0t.
+\end{equation}
+This checks the sign and units of the source term.
+
+\section{Expanded imported radiation-map workflow}
+
+After the baseline tests, import an initial defect map from Geant4 or MATLAB. The safest file has three columns:
+\begin{equation}
+x,\quad y,\quad C_{\mathrm{init}}.
+\end{equation}
+
+\begin{enumerate}[leftmargin=2em]
+\item Right-click \textbf{Global Definitions}.
+\item Choose \textbf{Functions $>$ Interpolation}.
+\item Rename the function \code{CinitMap}.
+\item Select \textbf{File} as the data source.
+\item Browse to the map file, for example \code{module3_initial_defect_map.csv}.
+\item Set the number of arguments to \textbf{2}.
+\item Confirm that the columns are interpreted as $x$, $y$, and function value.
+\item Use \textbf{Linear} interpolation for the first test.
+\item In \textbf{Initial Values 1}, change the initial value from \code{Cinit} to \code{CinitMap(x,y)}.
+\item Plot \code{CinitMap(x,y)} before solving.
+\item Solve only after the imported map appears at the correct location and magnitude.
+\end{enumerate}
+
+\begin{notebox}
+\textbf{Unit warning.} If MATLAB exports $x$ and $y$ in micrometers but COMSOL interprets them as meters, the defect cloud will appear in the wrong place or outside the domain. Either export coordinates in meters or set the interpolation argument units carefully.
+\end{notebox}
+
+\section{Expanded mesh and time-step convergence tutorial}
+
+Diffusion-reaction problems require both spatial and temporal convergence checks.
+
+\subsection{Mesh convergence}
+
+Run the same pure-diffusion case using three meshes:
+\begin{longtable}{p{0.24\textwidth}p{0.30\textwidth}p{0.38\textwidth}}
+\toprule
+\textbf{Mesh} & \textbf{Maximum element size} & \textbf{Record} \\
+\midrule
+\endhead
+Coarse & \code{min(sigx,sigy)/3} & Peak $C$, inventory, hotspot width. \\
+Medium & \code{min(sigx,sigy)/5} & Same quantities. \\
+Fine & \code{min(sigx,sigy)/8} & Same quantities. \\
+\bottomrule
+\end{longtable}
+The solution is sufficiently resolved when the medium-to-fine change is acceptably small for the intended project demonstration.
+
+\subsection{Time-step check}
+
+Use three output spacings:
+\begin{equation}
+\Delta t_{\mathrm{out}},\qquad \frac{1}{2}\Delta t_{\mathrm{out}},\qquad \frac{1}{4}\Delta t_{\mathrm{out}}.
+\end{equation}
+Even though COMSOL uses adaptive internal time stepping, the requested output times influence what you inspect and export. If sharp early-time evolution is missed, decrease \code{dtout}.
+
+\section{Expanded export workflow for MATLAB comparison}
+
+\begin{enumerate}[leftmargin=2em]
+\item Right-click \textbf{Results $>$ Export}.
+\item Choose \textbf{Data}.
+\item Select the solution data set.
+\item Add expressions \code{C}, \code{Duse}, \code{kuse}, and optionally \code{intop_dom(C)} through Derived Values.
+\item Set the time list to the times you want to compare with MATLAB.
+\item Save as \code{module3_comsol_C_export.csv}.
+\item Click \textbf{Export}.
+\end{enumerate}
+
+In MATLAB, compare the COMSOL concentration field with the MATLAB FEM concentration field at the same physical time and spatial coordinates. For inventory comparison, integrate over the domain in both tools and compare the total value rather than relying only on color plots.
+
+\section{Expanded standalone checklist for Module 3}
+
+Before trusting the Module 3 COMSOL model, verify the following.
+\begin{enumerate}[leftmargin=2em]
+\item The dependent variable is named \code{C} and has units of concentration.
+\item The coefficient \code{da} is \code{1}.
+\item The diffusion coefficient \code{c} is positive and has units of m$^2$/s.
+\item The reaction coefficient \code{a} is positive for annealing/removal.
+\item The source coefficient \code{f} has units of m$^{-3}$s$^{-1}$.
+\item The initial value is the intended Gaussian, constant, or imported map.
+\item The boundaries are zero flux unless a surface sink is intentionally added.
+\item The pure annealing case matches exponential decay.
+\item The pure diffusion case conserves total inventory under zero-flux boundaries.
+\item The uniform concentration case stays uniform.
+\item The source-only case grows linearly in time.
+\item Mesh refinement does not materially change the reported peak and inventory.
+\item Exported COMSOL fields can be compared to MATLAB on a common grid or common set of coordinates.
+\end{enumerate}
+
+
+\section{Summary}
+
+The Module 3 COMSOL implementation is a click-by-click reference model for the same FEM defect-evolution equation used in MATLAB. The governing equation is
+\begin{equation}
+\pdv{C}{t}=\nabla\cdot(D\nabla C)-k_{\mathrm{ann}}C+S.
+\end{equation}
+In Coefficient Form PDE, it is entered as
+\begin{equation}
+\pdv{C}{t}+\nabla\cdot(-D\nabla C)+k_{\mathrm{ann}}C=S.
+\end{equation}
+The essential COMSOL entries are
+\begin{equation}
+\boxed{d_a=1,\qquad c=D,\qquad a=k_{\mathrm{ann}},\qquad f=S.}
+\end{equation}
+The default verification boundary is zero flux. The most important verification checks are uniform-state preservation, pure diffusion inventory conservation, pure annealing exponential decay, and mesh convergence. Once those pass, imported radiation maps, temperature-dependent coefficients, charged-defect drift, and multi-species reactions can be added in a controlled way.
+
+\section{References}
+\begin{sloppypar}
+\begin{enumerate}[label={[
+\arabic*]}]
+\item J. Crank, \emph{The Mathematics of Diffusion}, 2nd ed., Oxford University Press (1975).
+\item P. M. Fahey, P. B. Griffin, and J. D. Plummer, ``Point defects and dopant diffusion in silicon,'' \emph{Reviews of Modern Physics} \textbf{61}, 289--384 (1989).
+\item G. D. Watkins, ``Intrinsic defects in silicon,'' in \emph{Deep Centers in Semiconductors}, 2nd ed., Gordon and Breach (1999).
+\item O. C. Zienkiewicz, R. L. Taylor, and J. Z. Zhu, \emph{The Finite Element Method: Its Basis and Fundamentals}, 7th ed., Elsevier (2013).
+\item COMSOL AB, \emph{COMSOL Multiphysics Reference Manual}, current installed version.
+\end{enumerate}
+\end{sloppypar}
+
+\end{document}

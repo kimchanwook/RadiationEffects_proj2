@@ -1,0 +1,110 @@
+\contentsline {section}{Symbols and acronyms used in this document}{5}{Doc-Start}%
+\contentsline {section}{\numberline {1}What Module 3 does in the project}{7}{section.1}%
+\contentsline {section}{\numberline {2}Why COMSOL is useful even though MATLAB remains the main tool}{8}{section.2}%
+\contentsline {section}{\numberline {3}Which COMSOL physics interface to use}{8}{section.3}%
+\contentsline {subsection}{\numberline {3.1}Recommended route: Coefficient Form PDE}{8}{subsection.3.1}%
+\contentsline {subsection}{\numberline {3.2}Alternative route: Transport of Diluted Species}{9}{subsection.3.2}%
+\contentsline {section}{\numberline {4}Finite-element form behind the COMSOL model}{9}{section.4}%
+\contentsline {section}{\numberline {5}Tutorial model definition}{10}{section.5}%
+\contentsline {section}{\numberline {6}Beginner click-by-click implementation}{11}{section.6}%
+\contentsline {subsection}{\numberline {6.1}Start COMSOL and open the Model Wizard}{11}{subsection.6.1}%
+\contentsline {subsection}{\numberline {6.2}Choose the model dimension}{11}{subsection.6.2}%
+\contentsline {subsection}{\numberline {6.3}Add the Coefficient Form PDE physics}{12}{subsection.6.3}%
+\contentsline {subsection}{\numberline {6.4}Choose a time-dependent study}{12}{subsection.6.4}%
+\contentsline {subsection}{\numberline {6.5}Save the model immediately}{12}{subsection.6.5}%
+\contentsline {section}{\numberline {7}Set global units and parameters}{13}{section.7}%
+\contentsline {subsection}{\numberline {7.1}Check the unit system}{13}{subsection.7.1}%
+\contentsline {subsection}{\numberline {7.2}Open the Parameters table}{13}{subsection.7.2}%
+\contentsline {subsection}{\numberline {7.3}Confirm parameter units}{14}{subsection.7.3}%
+\contentsline {section}{\numberline {8}Build the 2D silicon geometry}{14}{section.8}%
+\contentsline {subsection}{\numberline {8.1}Create a rectangle}{14}{subsection.8.1}%
+\contentsline {subsection}{\numberline {8.2}Check the geometry scale}{15}{subsection.8.2}%
+\contentsline {section}{\numberline {9}Define variables for coefficients, initial condition, and diagnostics}{15}{section.9}%
+\contentsline {subsection}{\numberline {9.1}Create domain variables}{15}{subsection.9.1}%
+\contentsline {subsection}{\numberline {9.2}Type the variable definitions}{16}{subsection.9.2}%
+\contentsline {subsection}{\numberline {9.3}Check the Arrhenius expressions}{16}{subsection.9.3}%
+\contentsline {section}{\numberline {10}Enter the Coefficient Form PDE}{17}{section.10}%
+\contentsline {subsection}{\numberline {10.1}Open the coefficient settings}{17}{subsection.10.1}%
+\contentsline {subsection}{\numberline {10.2}Enter the PDE coefficients}{17}{subsection.10.2}%
+\contentsline {subsection}{\numberline {10.3}Check that the PDE matches the target equation}{18}{subsection.10.3}%
+\contentsline {section}{\numberline {11}Set initial and boundary conditions}{18}{section.11}%
+\contentsline {subsection}{\numberline {11.1}Set the initial defect concentration}{18}{subsection.11.1}%
+\contentsline {subsection}{\numberline {11.2}Use zero-flux boundaries}{18}{subsection.11.2}%
+\contentsline {subsection}{\numberline {11.3}Optional absorbing surface boundary}{19}{subsection.11.3}%
+\contentsline {section}{\numberline {12}Mesh the domain}{19}{section.12}%
+\contentsline {subsection}{\numberline {12.1}Create a triangular mesh}{19}{subsection.12.1}%
+\contentsline {subsection}{\numberline {12.2}Why mesh resolution matters}{20}{subsection.12.2}%
+\contentsline {subsection}{\numberline {12.3}Perform a first visual mesh check}{20}{subsection.12.3}%
+\contentsline {section}{\numberline {13}Set the time-dependent study and solver}{20}{section.13}%
+\contentsline {subsection}{\numberline {13.1}Set output times}{20}{subsection.13.1}%
+\contentsline {subsection}{\numberline {13.2}Inspect time-solver settings}{20}{subsection.13.2}%
+\contentsline {subsection}{\numberline {13.3}Compute the solution}{21}{subsection.13.3}%
+\contentsline {section}{\numberline {14}Plot and interpret the results}{21}{section.14}%
+\contentsline {subsection}{\numberline {14.1}Surface plot of defect concentration}{21}{subsection.14.1}%
+\contentsline {subsection}{\numberline {14.2}Normalized concentration plot}{22}{subsection.14.2}%
+\contentsline {subsection}{\numberline {14.3}Defect flux arrow plot}{22}{subsection.14.3}%
+\contentsline {subsection}{\numberline {14.4}Flux magnitude plot}{22}{subsection.14.4}%
+\contentsline {subsection}{\numberline {14.5}Line plot through the damage cloud}{23}{subsection.14.5}%
+\contentsline {section}{\numberline {15}Derived values and quantitative diagnostics}{23}{section.15}%
+\contentsline {subsection}{\numberline {15.1}Total defect inventory}{23}{subsection.15.1}%
+\contentsline {subsection}{\numberline {15.2}Peak concentration}{24}{subsection.15.2}%
+\contentsline {subsection}{\numberline {15.3}Mean-square spread}{24}{subsection.15.3}%
+\contentsline {section}{\numberline {16}Export data for MATLAB comparison}{25}{section.16}%
+\contentsline {subsection}{\numberline {16.1}Export solution data on the mesh}{25}{subsection.16.1}%
+\contentsline {subsection}{\numberline {16.2}Compare with MATLAB}{25}{subsection.16.2}%
+\contentsline {section}{\numberline {17}Verification tutorials}{25}{section.17}%
+\contentsline {subsection}{\numberline {17.1}Verification 1: uniform-state preservation}{25}{subsection.17.1}%
+\contentsline {subsection}{\numberline {17.2}Verification 2: pure diffusion inventory conservation}{26}{subsection.17.2}%
+\contentsline {subsection}{\numberline {17.3}Verification 3: pure annealing}{26}{subsection.17.3}%
+\contentsline {subsection}{\numberline {17.4}Verification 4: diffusion plus annealing}{27}{subsection.17.4}%
+\contentsline {subsection}{\numberline {17.5}Verification 5: mesh refinement}{27}{subsection.17.5}%
+\contentsline {section}{\numberline {18}Adding integration operators for easier diagnostics}{28}{section.18}%
+\contentsline {section}{\numberline {19}Optional extension: spatially varying temperature from Module 4}{28}{section.19}%
+\contentsline {subsection}{\numberline {19.1}Analytic temperature field test}{28}{subsection.19.1}%
+\contentsline {subsection}{\numberline {19.2}Import a temperature map}{29}{subsection.19.2}%
+\contentsline {section}{\numberline {20}Optional extension: imported radiation damage map}{29}{section.20}%
+\contentsline {section}{\numberline {21}Optional extension: charged-defect drift from Module 2}{30}{section.21}%
+\contentsline {section}{\numberline {22}Optional multi-species implementation}{30}{section.22}%
+\contentsline {section}{\numberline {23}Alternative implementation using Transport of Diluted Species}{31}{section.23}%
+\contentsline {section}{\numberline {24}Beginner workflow checks before moving to advanced variants}{32}{section.24}%
+\contentsline {subsection}{\numberline {24.1}Expected Model Builder tree}{32}{subsection.24.1}%
+\contentsline {subsection}{\numberline {24.2}Save a clean baseline model before modifying it}{33}{subsection.24.2}%
+\contentsline {subsection}{\numberline {24.3}Create a simple animation of concentration spreading}{33}{subsection.24.3}%
+\contentsline {subsection}{\numberline {24.4}Export a plot image for documentation}{34}{subsection.24.4}%
+\contentsline {section}{\numberline {25}Parameter sweep tutorial for sensitivity checks}{34}{section.25}%
+\contentsline {subsection}{\numberline {25.1}Sweep the annealing prefactor}{34}{subsection.25.1}%
+\contentsline {subsection}{\numberline {25.2}Sweep the diffusion prefactor}{35}{subsection.25.2}%
+\contentsline {section}{\numberline {26}Creating a short COMSOL report for your own records}{35}{section.26}%
+\contentsline {section}{\numberline {27}Common mistakes and diagnostic checks}{35}{section.27}%
+\contentsline {section}{\numberline {28}Final checklist before trusting the model}{36}{section.28}%
+\contentsline {section}{\numberline {29}How to explain this COMSOL model in an interview}{37}{section.29}%
+\contentsline {section}{\numberline {30}Expanded beginner tutorial layer: exact COMSOL reproduction workflow}{37}{section.30}%
+\contentsline {subsection}{\numberline {30.1}First model variant to build}{38}{subsection.30.1}%
+\contentsline {subsection}{\numberline {30.2}Detailed Model Wizard sequence}{38}{subsection.30.2}%
+\contentsline {subsection}{\numberline {30.3}Expected Model Builder tree}{39}{subsection.30.3}%
+\contentsline {subsection}{\numberline {30.4}Global parameter table: exact entries}{39}{subsection.30.4}%
+\contentsline {subsection}{\numberline {30.5}Geometry: exact rectangle steps}{40}{subsection.30.5}%
+\contentsline {subsection}{\numberline {30.6}Definitions and variables: exact entries}{40}{subsection.30.6}%
+\contentsline {subsection}{\numberline {30.7}Coefficient Form PDE: exact coefficient entries}{41}{subsection.30.7}%
+\contentsline {subsection}{\numberline {30.8}Initial values: exact clicks}{42}{subsection.30.8}%
+\contentsline {subsection}{\numberline {30.9}Boundary conditions: exact zero-flux setup}{42}{subsection.30.9}%
+\contentsline {subsection}{\numberline {30.10}Mesh: exact steps and physical meaning}{42}{subsection.30.10}%
+\contentsline {subsection}{\numberline {30.11}Time-dependent study: exact entries}{43}{subsection.30.11}%
+\contentsline {section}{\numberline {31}Expanded postprocessing and diagnostics for Module 3}{43}{section.31}%
+\contentsline {subsection}{\numberline {31.1}Surface plot of concentration}{43}{subsection.31.1}%
+\contentsline {subsection}{\numberline {31.2}Line plot through the defect cloud}{44}{subsection.31.2}%
+\contentsline {subsection}{\numberline {31.3}Total defect inventory using an integration operator}{44}{subsection.31.3}%
+\contentsline {subsection}{\numberline {31.4}Peak concentration}{45}{subsection.31.4}%
+\contentsline {section}{\numberline {32}Expanded verification worksheets for Module 3}{45}{section.32}%
+\contentsline {subsection}{\numberline {32.1}Worksheet 1: pure annealing, no diffusion}{45}{subsection.32.1}%
+\contentsline {subsection}{\numberline {32.2}Worksheet 2: pure diffusion with zero-flux boundaries}{45}{subsection.32.2}%
+\contentsline {subsection}{\numberline {32.3}Worksheet 3: uniform concentration preservation}{45}{subsection.32.3}%
+\contentsline {subsection}{\numberline {32.4}Worksheet 4: source-only growth}{46}{subsection.32.4}%
+\contentsline {section}{\numberline {33}Expanded imported radiation-map workflow}{46}{section.33}%
+\contentsline {section}{\numberline {34}Expanded mesh and time-step convergence tutorial}{46}{section.34}%
+\contentsline {subsection}{\numberline {34.1}Mesh convergence}{47}{subsection.34.1}%
+\contentsline {subsection}{\numberline {34.2}Time-step check}{47}{subsection.34.2}%
+\contentsline {section}{\numberline {35}Expanded export workflow for MATLAB comparison}{47}{section.35}%
+\contentsline {section}{\numberline {36}Expanded standalone checklist for Module 3}{48}{section.36}%
+\contentsline {section}{\numberline {37}Summary}{48}{section.37}%
+\contentsline {section}{\numberline {38}References}{49}{section.38}%

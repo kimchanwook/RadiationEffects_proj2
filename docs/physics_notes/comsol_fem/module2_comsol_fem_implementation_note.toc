@@ -1,0 +1,130 @@
+\contentsline {section}{Symbols and acronyms used in this document}{6}{Doc-Start}%
+\contentsline {section}{\numberline {1}What the COMSOL model should reproduce}{7}{section.1}%
+\contentsline {section}{\numberline {2}Why the Electrostatics interface is the right starting point}{8}{section.2}%
+\contentsline {subsection}{\numberline {2.1}Built-in Electrostatics versus Weak Form PDE}{8}{subsection.2.1}%
+\contentsline {section}{\numberline {3}FEM form being implemented behind the COMSOL model}{9}{section.3}%
+\contentsline {section}{\numberline {4}Recommended COMSOL model: high-level workflow}{10}{section.4}%
+\contentsline {section}{\numberline {5}Step 1: start a new 2D electrostatics model}{10}{section.5}%
+\contentsline {subsection}{\numberline {5.1}Model Wizard clicks}{10}{subsection.5.1}%
+\contentsline {subsection}{\numberline {5.2}Physics meaning of this choice}{11}{subsection.5.2}%
+\contentsline {section}{\numberline {6}Step 2: define global parameters}{11}{section.6}%
+\contentsline {subsection}{\numberline {6.1}Open the Parameters table}{11}{subsection.6.1}%
+\contentsline {subsection}{\numberline {6.2}Parameters to type}{12}{subsection.6.2}%
+\contentsline {section}{\numberline {7}Step 3: build the 2D silicon rectangle}{13}{section.7}%
+\contentsline {subsection}{\numberline {7.1}Geometry clicks}{13}{subsection.7.1}%
+\contentsline {subsection}{\numberline {7.2}Physics meaning}{14}{subsection.7.2}%
+\contentsline {section}{\numberline {8}Step 4: assign silicon permittivity}{14}{section.8}%
+\contentsline {subsection}{\numberline {8.1}Using a blank material}{14}{subsection.8.1}%
+\contentsline {subsection}{\numberline {8.2}Physics meaning}{14}{subsection.8.2}%
+\contentsline {section}{\numberline {9}Step 5: define carrier, dopant, and defect charge variables}{15}{section.9}%
+\contentsline {subsection}{\numberline {9.1}Open a Variables node}{15}{subsection.9.1}%
+\contentsline {subsection}{\numberline {9.2}Variables to type}{15}{subsection.9.2}%
+\contentsline {subsection}{\numberline {9.3}Physics meaning}{16}{subsection.9.3}%
+\contentsline {section}{\numberline {10}Step 6: insert the space-charge density into Electrostatics}{16}{section.10}%
+\contentsline {subsection}{\numberline {10.1}Charge Conservation settings}{16}{subsection.10.1}%
+\contentsline {subsection}{\numberline {10.2}Add a Space Charge Density domain feature}{16}{subsection.10.2}%
+\contentsline {subsection}{\numberline {10.3}Sign check}{17}{subsection.10.3}%
+\contentsline {section}{\numberline {11}Step 7: impose contact potentials and insulating boundaries}{17}{section.11}%
+\contentsline {subsection}{\numberline {11.1}Identify boundaries}{17}{subsection.11.1}%
+\contentsline {subsection}{\numberline {11.2}Left contact: Electric Potential}{18}{subsection.11.2}%
+\contentsline {subsection}{\numberline {11.3}Right contact: Electric Potential}{18}{subsection.11.3}%
+\contentsline {subsection}{\numberline {11.4}Top and bottom boundaries: Zero Charge or symmetry}{18}{subsection.11.4}%
+\contentsline {subsection}{\numberline {11.5}Physics meaning}{19}{subsection.11.5}%
+\contentsline {section}{\numberline {12}Step 8: choose FEM discretization order}{19}{section.12}%
+\contentsline {subsection}{\numberline {12.1}Enable advanced settings if needed}{19}{subsection.12.1}%
+\contentsline {subsection}{\numberline {12.2}Set potential discretization}{19}{subsection.12.2}%
+\contentsline {subsection}{\numberline {12.3}Physics meaning}{20}{subsection.12.3}%
+\contentsline {section}{\numberline {13}Step 9: build a triangular mesh}{20}{section.13}%
+\contentsline {subsection}{\numberline {13.1}Basic mesh clicks}{20}{subsection.13.1}%
+\contentsline {subsection}{\numberline {13.2}Mesh refinement near a localized defect}{21}{subsection.13.2}%
+\contentsline {subsection}{\numberline {13.3}Physics meaning}{21}{subsection.13.3}%
+\contentsline {section}{\numberline {14}Step 10: solve the stationary model}{21}{section.14}%
+\contentsline {subsection}{\numberline {14.1}Study clicks}{21}{subsection.14.1}%
+\contentsline {subsection}{\numberline {14.2}What the solver is doing}{22}{subsection.14.2}%
+\contentsline {section}{\numberline {15}Step 11: plot potential and electric field}{22}{section.15}%
+\contentsline {subsection}{\numberline {15.1}Potential surface plot}{22}{subsection.15.1}%
+\contentsline {subsection}{\numberline {15.2}Electric-field magnitude plot}{23}{subsection.15.2}%
+\contentsline {subsection}{\numberline {15.3}Electric-field arrows}{23}{subsection.15.3}%
+\contentsline {subsection}{\numberline {15.4}Physics meaning}{23}{subsection.15.4}%
+\contentsline {section}{\numberline {16}Step 12: perform the basic verification cases}{24}{section.16}%
+\contentsline {subsection}{\numberline {16.1}Verification case 1: zero charge, equal contacts}{24}{subsection.16.1}%
+\contentsline {subsection}{\numberline {16.2}Verification case 2: zero charge, different contacts}{24}{subsection.16.2}%
+\contentsline {subsection}{\numberline {16.3}Verification case 3: uniform space charge}{25}{subsection.16.3}%
+\contentsline {subsection}{\numberline {16.4}Verification case 4: localized defect perturbation}{25}{subsection.16.4}%
+\contentsline {section}{\numberline {17}Step 13: mesh-convergence study}{25}{section.17}%
+\contentsline {subsection}{\numberline {17.1}Manual mesh refinement}{25}{subsection.17.1}%
+\contentsline {subsection}{\numberline {17.2}Derived values for maximum and minimum}{26}{subsection.17.2}%
+\contentsline {subsection}{\numberline {17.3}Physics meaning}{26}{subsection.17.3}%
+\contentsline {section}{\numberline {18}Step 14: integrate total defect charge}{26}{section.18}%
+\contentsline {subsection}{\numberline {18.1}Why integrated charge matters}{26}{subsection.18.1}%
+\contentsline {subsection}{\numberline {18.2}COMSOL integration steps}{26}{subsection.18.2}%
+\contentsline {section}{\numberline {19}Step 15: line plots for comparison with MATLAB}{27}{section.19}%
+\contentsline {subsection}{\numberline {19.1}Create a cut line}{27}{subsection.19.1}%
+\contentsline {subsection}{\numberline {19.2}Plot potential on the cut line}{27}{subsection.19.2}%
+\contentsline {subsection}{\numberline {19.3}Plot electric-field component on the cut line}{28}{subsection.19.3}%
+\contentsline {section}{\numberline {20}Step 16: export data for MATLAB comparison}{28}{section.20}%
+\contentsline {subsection}{\numberline {20.1}Export potential and field on the mesh or grid}{28}{subsection.20.1}%
+\contentsline {subsection}{\numberline {20.2}What to compare in MATLAB}{29}{subsection.20.2}%
+\contentsline {section}{\numberline {21}Step 17: optional parametric sweep over defect charge factor}{29}{section.21}%
+\contentsline {subsection}{\numberline {21.1}Create a parametric sweep}{29}{subsection.21.1}%
+\contentsline {subsection}{\numberline {21.2}Physics meaning}{29}{subsection.21.2}%
+\contentsline {section}{\numberline {22}Step 18: optional parametric sweep over defect dose amplitude}{30}{section.22}%
+\contentsline {subsection}{\numberline {22.1}Sweep defect concentration amplitude}{30}{subsection.22.1}%
+\contentsline {subsection}{\numberline {22.2}Expected trend}{30}{subsection.22.2}%
+\contentsline {section}{\numberline {23}Step 19: using imported defect fields from MATLAB}{30}{section.23}%
+\contentsline {subsection}{\numberline {23.1}Why import fields}{30}{subsection.23.1}%
+\contentsline {subsection}{\numberline {23.2}Prepare a MATLAB export file}{30}{subsection.23.2}%
+\contentsline {subsection}{\numberline {23.3}Import interpolation functions in COMSOL}{31}{subsection.23.3}%
+\contentsline {subsection}{\numberline {23.4}Physics meaning}{31}{subsection.23.4}%
+\contentsline {section}{\numberline {24}Step 20: stationary snapshot versus transient coupled solve}{31}{section.24}%
+\contentsline {section}{\numberline {25}Weak Form PDE fallback implementation}{32}{section.25}%
+\contentsline {subsection}{\numberline {25.1}Model Wizard}{32}{subsection.25.1}%
+\contentsline {subsection}{\numberline {25.2}Weak expression}{32}{subsection.25.2}%
+\contentsline {subsection}{\numberline {25.3}Boundary conditions in Weak Form PDE}{33}{subsection.25.3}%
+\contentsline {subsection}{\numberline {25.4}When to use this route}{33}{subsection.25.4}%
+\contentsline {section}{\numberline {26}Common mistakes and diagnostic checks}{33}{section.26}%
+\contentsline {subsection}{\numberline {26.1}Mistake 1: using electron charge with the wrong sign}{34}{subsection.26.1}%
+\contentsline {subsection}{\numberline {26.2}Mistake 2: confusing a vacancy with a hole}{34}{subsection.26.2}%
+\contentsline {subsection}{\numberline {26.3}Mistake 3: under-resolving localized charge}{34}{subsection.26.3}%
+\contentsline {subsection}{\numberline {26.4}Mistake 4: comparing quadratic COMSOL elements to linear MATLAB elements}{34}{subsection.26.4}%
+\contentsline {subsection}{\numberline {26.5}Mistake 5: imposing inconsistent boundary conditions}{34}{subsection.26.5}%
+\contentsline {section}{\numberline {27}Recommended file organization for COMSOL work}{34}{section.27}%
+\contentsline {section}{\numberline {28}Suggested COMSOL model variants}{35}{section.28}%
+\contentsline {subsection}{\numberline {28.1}Variant A: pure Laplace contact test}{35}{subsection.28.1}%
+\contentsline {subsection}{\numberline {28.2}Variant B: uniform dopant charge}{35}{subsection.28.2}%
+\contentsline {subsection}{\numberline {28.3}Variant C: localized charged vacancy population}{35}{subsection.28.3}%
+\contentsline {subsection}{\numberline {28.4}Variant D: imported MATLAB defect map}{35}{subsection.28.4}%
+\contentsline {section}{\numberline {29}Connection back to the MATLAB FEM implementation}{35}{section.29}%
+\contentsline {section}{\numberline {30}Checklist before trusting results}{36}{section.30}%
+\contentsline {section}{\numberline {31}Expanded beginner tutorial layer: exact COMSOL reproduction workflow}{36}{section.31}%
+\contentsline {subsection}{\numberline {31.1}Before opening COMSOL: decide the first model variant}{37}{subsection.31.1}%
+\contentsline {subsection}{\numberline {31.2}Detailed Model Wizard sequence}{37}{subsection.31.2}%
+\contentsline {subsection}{\numberline {31.3}Model Builder tree that should appear}{38}{subsection.31.3}%
+\contentsline {subsection}{\numberline {31.4}Global parameters: exact table to type}{38}{subsection.31.4}%
+\contentsline {subsection}{\numberline {31.5}Geometry: exact clicks for the silicon rectangle}{39}{subsection.31.5}%
+\contentsline {subsection}{\numberline {31.6}Optional selections: name the four boundaries}{40}{subsection.31.6}%
+\contentsline {subsection}{\numberline {31.7}Material and permittivity: exact clicks}{40}{subsection.31.7}%
+\contentsline {subsection}{\numberline {31.8}Variables: exact expressions for charge density}{41}{subsection.31.8}%
+\contentsline {subsection}{\numberline {31.9}Electrostatics settings: exact domain and source steps}{42}{subsection.31.9}%
+\contentsline {subsection}{\numberline {31.10}Boundary conditions: exact clicks}{42}{subsection.31.10}%
+\contentsline {subsubsection}{\numberline {31.10.1}Left contact}{42}{subsubsection.31.10.1}%
+\contentsline {subsubsection}{\numberline {31.10.2}Right contact}{43}{subsubsection.31.10.2}%
+\contentsline {subsubsection}{\numberline {31.10.3}Top and bottom}{43}{subsubsection.31.10.3}%
+\contentsline {subsection}{\numberline {31.11}Mesh: exact beginner workflow}{43}{subsection.31.11}%
+\contentsline {subsection}{\numberline {31.12}Stationary study: exact clicks}{44}{subsection.31.12}%
+\contentsline {subsection}{\numberline {31.13}Result plots: exact click sequence}{44}{subsection.31.13}%
+\contentsline {subsubsection}{\numberline {31.13.1}Potential surface plot}{44}{subsubsection.31.13.1}%
+\contentsline {subsubsection}{\numberline {31.13.2}Electric-field magnitude plot}{45}{subsubsection.31.13.2}%
+\contentsline {subsubsection}{\numberline {31.13.3}Electric-field arrows}{45}{subsubsection.31.13.3}%
+\contentsline {subsection}{\numberline {31.14}Four verification worksheets to run before using the model}{45}{subsection.31.14}%
+\contentsline {subsubsection}{\numberline {31.14.1}Worksheet 1: constant potential}{45}{subsubsection.31.14.1}%
+\contentsline {subsubsection}{\numberline {31.14.2}Worksheet 2: linear potential}{45}{subsubsection.31.14.2}%
+\contentsline {subsubsection}{\numberline {31.14.3}Worksheet 3: uniform positive space charge}{46}{subsubsection.31.14.3}%
+\contentsline {subsubsection}{\numberline {31.14.4}Worksheet 4: localized defect charge}{46}{subsubsection.31.14.4}%
+\contentsline {section}{\numberline {32}Expanded imported-defect-map tutorial}{46}{section.32}%
+\contentsline {subsection}{\numberline {32.1}Plot the imported concentration before solving}{47}{subsection.32.1}%
+\contentsline {section}{\numberline {33}Expanded mesh-convergence tutorial for Module 2}{47}{section.33}%
+\contentsline {section}{\numberline {34}Expanded export workflow for MATLAB comparison}{48}{section.34}%
+\contentsline {section}{\numberline {35}Expanded standalone checklist for Module 2}{48}{section.35}%
+\contentsline {section}{\numberline {36}Summary}{49}{section.36}%
+\contentsline {section}{\numberline {37}References and COMSOL documentation pointers}{49}{section.37}%

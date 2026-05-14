@@ -1,0 +1,1535 @@
+\documentclass[11pt]{article}
+\input{../../shared/project_style.tex}
+\newcommand{\Evec}{\mathbf{E}}
+\newcommand{\Dvec}{\mathbf{D}}
+\newcommand{\epss}{\varepsilon_{\mathrm{Si}}}
+\newcommand{\rhodef}{\rho_{\mathrm{def}}}
+\newcommand{\rhotot}{\rho_{\mathrm{tot}}}
+\newcommand{\test}{w}
+\newcommand{\COMSOL}{COMSOL Multiphysics}
+\newcommand{\code}[1]{\texttt{\detokenize{#1}}}
+\rhead{Module 2 COMSOL FEM Note}
+
+\begin{document}
+
+\DocTitle{Module 2 COMSOL FEM Implementation Note}{Detailed How-To Guide for \code{RadiationEffects\_proj2}}{Parallel COMSOL implementation of two-dimensional electrostatics with defect-dependent space charge}
+
+\hrule
+\vspace{0.8em}
+
+\begin{overviewbox}
+\textbf{Purpose of this note.} This document explains how to build the Module 2 finite-element electrostatics model in \COMSOL{}. The primary project implementation remains the MATLAB finite-element method (FEM) path. The COMSOL model is intended as a parallel reference implementation, a verification tool, and a convenient way to inspect the same physics with a commercial FEM environment. The instructions are deliberately written in a click-by-click style, similar in spirit to official introductory COMSOL tutorials, while also explaining the physics behind each modeling action.
+\end{overviewbox}
+
+\ProjectTOC
+
+\SymbolsAcronymsSection
+
+\renewcommand{\arraystretch}{1.25}
+\begin{longtable}{p{0.20\textwidth}p{0.56\textwidth}p{0.16\textwidth}}
+\toprule
+\textbf{Symbol} & \textbf{Meaning} & \textbf{Units} \\
+\midrule
+\endhead
+$\phi$ or $V$ & Electrostatic potential. COMSOL commonly names the dependent variable \code{V}. & V \\
+$\Evec$ & Electric field, $\Evec=-\nabla \phi$. & V/m \\
+$\Dvec$ & Electric displacement field, $\Dvec=\varepsilon\Evec$. & C/m$^2$ \\
+$\rho$ or $\rhotot$ & Total space-charge density entering Poisson's equation. & C/m$^3$ \\
+$\rho_{\mathrm{car}}$ & Carrier and dopant charge contribution, $q(p-n+N_D^+-N_A^-)$. & C/m$^3$ \\
+$\rhodef$ & Defect charge contribution. & C/m$^3$ \\
+$q$ & Elementary charge magnitude. & C \\
+$p$ & Hole concentration. & m$^{-3}$ \\
+$n$ & Electron concentration. & m$^{-3}$ \\
+$N_D^+$ & Ionized donor concentration. & m$^{-3}$ \\
+$N_A^-$ & Ionized acceptor concentration. & m$^{-3}$ \\
+$C_i$ & Concentration of radiation-induced defect species $i$. & m$^{-3}$ \\
+$z_i$ & Effective dimensionless charge number of defect species $i$. & 1 \\
+$C_V$ & Vacancy concentration. & m$^{-3}$ \\
+$C_I$ & Self-interstitial concentration. & m$^{-3}$ \\
+$C_{V_2}$ & Divacancy concentration. & m$^{-3}$ \\
+$C_{VO}$ & Vacancy-oxygen complex concentration. & m$^{-3}$ \\
+$\varepsilon_0$ & Vacuum permittivity. & F/m \\
+$\varepsilon_r$ & Relative permittivity. For silicon, approximately $11.7$ near room temperature in the reduced model. & 1 \\
+$\epss$ & Silicon permittivity, $\epss=\varepsilon_0\varepsilon_r$. & F/m \\
+$L_x,L_y$ & Width and height of the 2D silicon domain. & m \\
+$V_{\mathrm{left}},V_{\mathrm{right}}$ & Contact potentials used as Dirichlet boundary conditions. & V \\
+$h$ & Representative mesh element size. & m \\
+$K$ & Global FEM stiffness matrix. & problem dependent \\
+$b$ & Global FEM source vector. & problem dependent \\
+\bottomrule
+\end{longtable}
+
+\section{What the COMSOL model should reproduce}
+
+Module 2 solves the electrostatic bridge between defect populations and carrier transport. Radiation-induced defects, ionized dopants, electrons, and holes combine to create a total space-charge density. The electrostatic field is then computed from Poisson's equation.
+
+The project equation is
+\begin{equation}
+\nabla\cdot\left(\epss\nabla\phi\right)=-\rhotot,
+\label{eq:poisson_project}
+\end{equation}
+with
+\begin{equation}
+\rhotot=q\left(p-n+N_D^+-N_A^-\right)+\rhodef,
+\label{eq:rho_total}
+\end{equation}
+and
+\begin{equation}
+\rhodef=q\sum_i z_i C_i.
+\label{eq:rho_def_general}
+\end{equation}
+For a reduced four-defect example, this becomes
+\begin{equation}
+\rhodef=q\left(z_V C_V+z_I C_I+z_{V_2}C_{V_2}+z_{VO}C_{VO}\right).
+\label{eq:rho_def_four}
+\end{equation}
+Once $\phi$ is computed, the electric field is
+\begin{equation}
+\Evec=-\nabla\phi.
+\label{eq:E_from_phi}
+\end{equation}
+
+\begin{physicsbox}
+\textbf{Physical interpretation.} COMSOL is not being used here to invent a new physics model. It is being used to solve the same weak-form finite-element problem that the MATLAB solver implements. MATLAB is the primary project solver because it exposes every matrix and coupling step. COMSOL is the parallel reference solver because it supplies a mature FEM environment, geometry builder, mesh generator, linear solver, and postprocessor.
+\end{physicsbox}
+
+\section{Why the Electrostatics interface is the right starting point}
+
+The COMSOL Electrostatics interface solves Gauss's law for the scalar electric potential. That is the correct built-in interface for this reduced Module 2 model because the unknown is the electrostatic potential, not the time-dependent electromagnetic wave field. In the module's electrostatic approximation,
+\begin{equation}
+\nabla\times\Evec\approx 0,\qquad \Evec=-\nabla\phi.
+\end{equation}
+The field source is the charge density, not magnetic induction. Therefore the correct equation class is Poisson/Laplace electrostatics.
+
+\subsection{Built-in Electrostatics versus Weak Form PDE}
+
+There are two good ways to implement this model in COMSOL.
+
+\begin{enumerate}[leftmargin=2em]
+\item \textbf{Preferred route: built-in Electrostatics interface.} Use this if the AC/DC Module or an installation containing the Electrostatics interface is available. You define silicon permittivity, add a space-charge density, impose electric potentials on contacts, mesh the geometry, and solve a Stationary study.
+\item \textbf{Fallback route: Weak Form PDE interface.} Use this if you want explicit control of the weak form or if the dedicated Electrostatics interface is unavailable. You directly type the weak expression corresponding to Eq.~\eqref{eq:poisson_project}.
+\end{enumerate}
+
+This document describes the built-in Electrostatics route first, then gives the Weak Form PDE route as a cross-check and fallback.
+
+\section{FEM form being implemented behind the COMSOL model}
+
+Before clicking through the GUI, it is useful to know what equation COMSOL is discretizing. Start from
+\begin{equation}
+\nabla\cdot(\epss\nabla\phi)=-\rhotot.
+\end{equation}
+Multiply by a test function $\test$ and integrate over the 2D silicon domain $\Omega$:
+\begin{equation}
+\int_{\Omega}\test\,\nabla\cdot(\epss\nabla\phi)\,d\Omega=-\int_{\Omega}\test\,\rhotot\,d\Omega.
+\end{equation}
+Integrating the left side by parts gives
+\begin{equation}
+-\int_{\Omega}\epss\nabla\test\cdot\nabla\phi\,d\Omega+\int_{\partial\Omega}\test\,\epss\nabla\phi\cdot\nvec\,d\Gamma=-\int_{\Omega}\test\,\rhotot\,d\Omega.
+\end{equation}
+Equivalently,
+\begin{equation}
+\int_{\Omega}\epss\nabla\test\cdot\nabla\phi\,d\Omega=\int_{\Omega}\test\,\rhotot\,d\Omega+\int_{\partial\Omega}\test\,\epss\nabla\phi\cdot\nvec\,d\Gamma.
+\label{eq:weak_module2}
+\end{equation}
+For zero normal electric displacement or symmetry boundaries, the natural boundary contribution is zero. For prescribed-potential contacts, the boundary value of $\phi$ is fixed directly.
+
+For a linear triangular element with shape functions $N_a$, the local approximation is
+\begin{equation}
+\phi^e(x,y)=\sum_{a=1}^3 N_a(x,y)\Phi_a^e.
+\end{equation}
+The element stiffness entries are
+\begin{equation}
+K^e_{ab}=\int_{\Omega_e}\epss\nabla N_a\cdot\nabla N_b\,d\Omega,
+\label{eq:ke_comsol}
+\end{equation}
+and the element charge-source vector is
+\begin{equation}
+b^e_a=\int_{\Omega_e}N_a\rhotot\,d\Omega.
+\label{eq:be_comsol}
+\end{equation}
+After assembly,
+\begin{equation}
+K\Phi=b,
+\end{equation}
+subject to Dirichlet and natural boundary conditions.
+
+\begin{notebox}
+\textbf{What COMSOL hides and what it does not hide.} COMSOL hides the explicit element-by-element matrix assembly, but it does not bypass FEM. The mesh, shape functions, numerical quadrature, weak-form assembly, boundary condition insertion, and linear solve are still the numerical operations under the hood. The MATLAB implementation exposes these steps explicitly; COMSOL performs them through the physics interface and solver sequence.
+\end{notebox}
+
+\section{Recommended COMSOL model: high-level workflow}
+
+The practical workflow is:
+\begin{enumerate}[leftmargin=2em]
+\item Start a 2D COMSOL model.
+\item Add the Electrostatics physics interface.
+\item Add a Stationary study.
+\item Define parameters for geometry, charge densities, defect concentrations, and boundary potentials.
+\item Build a rectangular silicon domain.
+\item Assign silicon permittivity.
+\item Define variables for carrier charge, dopant charge, defect charge, and total charge density.
+\item Add the total space-charge density to the Electrostatics interface.
+\item Apply Dirichlet potential boundaries at contacts.
+\item Keep zero-charge/symmetry boundaries on insulating or symmetry edges.
+\item Build a triangular mesh.
+\item Compute the stationary solution.
+\item Plot potential, field magnitude, and field components.
+\item Run verification cases.
+\item Export potential and electric-field data for comparison against MATLAB.
+\end{enumerate}
+
+\section{Step 1: start a new 2D electrostatics model}
+
+\subsection{Model Wizard clicks}
+
+Open COMSOL Multiphysics. Then perform the following actions.
+
+\begin{enumerate}[leftmargin=2em]
+\item In the startup window, click \textbf{Model Wizard}.
+\item Under \textbf{Select Space Dimension}, click \textbf{2D}.
+\item Click \textbf{Next}.
+\item In \textbf{Select Physics}, expand \textbf{AC/DC}.
+\item Select \textbf{Electrostatics (es)}.
+\item Click \textbf{Add}.
+\item Click \textbf{Next}.
+\item In \textbf{Select Study}, choose \textbf{Stationary}.
+\item Click \textbf{Done}.
+\end{enumerate}
+
+The Model Builder should now contain a component similar to:
+\begin{verbatim}
+Component 1 (comp1)
+  Definitions
+  Geometry 1
+  Materials
+  Electrostatics (es)
+  Mesh 1
+Study 1
+Results
+\end{verbatim}
+
+\subsection{Physics meaning of this choice}
+
+Selecting \textbf{2D} means the domain represents a planar cross section of the silicon device. Selecting \textbf{Electrostatics} means COMSOL will solve a scalar-potential Gauss-law problem. Selecting \textbf{Stationary} means we are computing the field for a frozen charge distribution at a particular time step. That is exactly what Module 2 does inside a coupled time-marching workflow: for the current defect and carrier charge distribution, solve the instantaneous electrostatic potential.
+
+\section{Step 2: define global parameters}
+
+\subsection{Open the Parameters table}
+
+In the Model Builder:
+\begin{enumerate}[leftmargin=2em]
+\item Right-click \textbf{Global Definitions}.
+\item Choose \textbf{Parameters}.
+\item Click the new \textbf{Parameters 1} node.
+\item In the table, type the parameters below.
+\end{enumerate}
+
+\subsection{Parameters to type}
+
+Use SI units. A useful starting table is:
+
+\begin{longtable}{p{0.22\textwidth}p{0.24\textwidth}p{0.44\textwidth}}
+\toprule
+\textbf{Name} & \textbf{Expression} & \textbf{Description} \\
+\midrule
+\endhead
+\code{Lx} & \code{10[um]} & Device width in the 2D model. \\
+\code{Ly} & \code{5[um]} & Device height in the 2D model. \\
+\code{q0} & \code{1.602176634e-19[C]} & Elementary charge magnitude. \\
+\code{epsrSi} & \code{11.7} & Relative permittivity of silicon in the reduced model. \\
+\code{Vleft} & \code{0[V]} & Left contact potential. \\
+\code{Vright} & \code{5[V]} & Right contact potential. Change sign/magnitude for bias studies. \\
+\code{n0} & \code{1e16[1/m^3]} & Reduced electron concentration. \\
+\code{p0} & \code{1e10[1/m^3]} & Reduced hole concentration. \\
+\code{NDp} & \code{1e21[1/m^3]} & Ionized donor concentration. \\
+\code{NAm} & \code{0[1/m^3]} & Ionized acceptor concentration. \\
+\code{C0def} & \code{1e20[1/m^3]} & Peak localized defect concentration. \\
+\code{xdef} & \code{0.5*Lx} & Center of localized defect distribution in $x$. \\
+\code{ydef} & \code{0.5*Ly} & Center of localized defect distribution in $y$. \\
+\code{sigdef} & \code{0.75[um]} & Width of localized defect distribution. \\
+\code{zV} & \code{-1} & Effective charge number for vacancy-like defects. \\
+\code{zI} & \code{0} & Effective charge number for interstitial-like defects. \\
+\code{zV2} & \code{-2} & Effective charge number for divacancy-like defects. \\
+\code{zVO} & \code{-1} & Effective charge number for vacancy-oxygen-like defects. \\
+\bottomrule
+\end{longtable}
+
+\begin{physicsbox}
+\textbf{Physics note on signs.} The parameter \code{q0} is positive by definition. Electrons enter with a minus sign through $-qn$, holes enter with a plus sign through $+qp$, ionized donors enter with a plus sign through $+qN_D^+$, and ionized acceptors enter with a minus sign through $-qN_A^-$. Defects enter through $qz_iC_i$, where the sign is controlled by $z_i$.
+\end{physicsbox}
+
+\section{Step 3: build the 2D silicon rectangle}
+
+\subsection{Geometry clicks}
+
+In the Model Builder:
+\begin{enumerate}[leftmargin=2em]
+\item Click \textbf{Component 1 $>$ Geometry 1}.
+\item In the Settings window, set \textbf{Length unit} to \textbf{$\mu$m} if desired. This only affects geometry entry; COMSOL still tracks units.
+\item Right-click \textbf{Geometry 1}.
+\item Choose \textbf{Rectangle}.
+\item Click \textbf{Rectangle 1}.
+\item In the Settings window, under \textbf{Size and Shape}, type:
+\begin{itemize}
+\item \textbf{Width}: \code{Lx}
+\item \textbf{Height}: \code{Ly}
+\end{itemize}
+\item Under \textbf{Position}, type:
+\begin{itemize}
+\item \textbf{x}: \code{0}
+\item \textbf{y}: \code{0}
+\end{itemize}
+\item Click \textbf{Build Selected} or \textbf{Build All}.
+\end{enumerate}
+
+\subsection{Physics meaning}
+
+The rectangle is the 2D computational silicon domain $\Omega$. The left and right sides will represent biased contacts. The top and bottom sides will initially represent insulating or symmetry boundaries. This simple geometry is deliberately chosen for verification. More complex geometries can be added later, but the rectangular model makes it easy to compare COMSOL to the MATLAB FEM solver.
+
+\section{Step 4: assign silicon permittivity}
+
+\subsection{Using a blank material}
+
+If a built-in silicon material is available, it can be used. For maximum reproducibility, it is often cleaner to create a blank material with the relative permittivity explicitly entered.
+
+In the Model Builder:
+\begin{enumerate}[leftmargin=2em]
+\item Right-click \textbf{Materials}.
+\item Choose \textbf{Blank Material}.
+\item Rename the material to \textbf{Silicon reduced electrostatic material}.
+\item In the Settings window, find the material property table.
+\item Add or edit the property \textbf{Relative permittivity}.
+\item Set the relative permittivity to \code{epsrSi}.
+\item Make sure the material is applied to \textbf{Domain 1}, the rectangle.
+\end{enumerate}
+
+If COMSOL shows a tensor entry for relative permittivity, enter an isotropic diagonal value:
+\begin{equation}
+\varepsilon_r=\begin{bmatrix} \code{epsrSi} & 0 & 0 \\ 0 & \code{epsrSi} & 0 \\ 0 & 0 & \code{epsrSi}\end{bmatrix}.
+\end{equation}
+In a 2D in-plane model, COMSOL uses the appropriate in-plane components.
+
+\subsection{Physics meaning}
+
+The constitutive relation is
+\begin{equation}
+\Dvec=\varepsilon_0\varepsilon_r\Evec.
+\end{equation}
+For the present reduced silicon model,
+\begin{equation}
+\epss=\varepsilon_0\varepsilon_{r,\mathrm{Si}}.
+\end{equation}
+This converts electric field into electric displacement and sets the strength of the potential curvature produced by a given charge density.
+
+\section{Step 5: define carrier, dopant, and defect charge variables}
+
+\subsection{Open a Variables node}
+
+In the Model Builder:
+\begin{enumerate}[leftmargin=2em]
+\item Right-click \textbf{Component 1 $>$ Definitions}.
+\item Choose \textbf{Variables}.
+\item Rename the node to \textbf{Space charge variables}.
+\item In the \textbf{Geometric entity selection}, select \textbf{Domain} and choose \textbf{Domain 1}.
+\item In the variables table, type the following definitions.
+\end{enumerate}
+
+\subsection{Variables to type}
+
+Use the following table. COMSOL variables can include spatial coordinates \code{x} and \code{y} directly.
+
+\begin{longtable}{p{0.26\textwidth}p{0.42\textwidth}p{0.24\textwidth}}
+\toprule
+\textbf{Name} & \textbf{Expression} & \textbf{Description} \\
+\midrule
+\endhead
+\code{CV} & \code{C0def*exp(-((x-xdef)^2+(y-ydef)^2)/(2*sigdef^2))} & Local vacancy-like defect concentration. \\
+\code{CI} & \code{0[1/m^3]} & Interstitial-like concentration. \\
+\code{CV2} & \code{0[1/m^3]} & Divacancy-like concentration. \\
+\code{CVO} & \code{0[1/m^3]} & Vacancy-oxygen-like concentration. \\
+\code{rho\_car} & \code{q0*(p0-n0+NDp-NAm)} & Carrier plus dopant charge density. \\
+\code{rho\_def} & \code{q0*(zV*CV+zI*CI+zV2*CV2+zVO*CVO)} & Defect charge density. \\
+\code{rho\_tot} & \code{rho\_car+rho\_def} & Total space-charge density. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Physics meaning}
+
+The variable \code{rho\_car} implements
+\begin{equation}
+\rho_{\mathrm{car}}=q(p-n+N_D^+-N_A^-).
+\end{equation}
+The variable \code{rho\_def} implements
+\begin{equation}
+\rho_{\mathrm{def}}=q(z_VC_V+z_IC_I+z_{V_2}C_{V_2}+z_{VO}C_{VO}).
+\end{equation}
+The variable \code{rho\_tot} is the charge density inserted into Poisson's equation.
+
+\begin{notebox}
+\textbf{Important distinction.} The defect variables \code{CV}, \code{CI}, \code{CV2}, and \code{CVO} are not electrons, holes, donors, or acceptors. They are radiation-induced material-defect populations. They enter electrostatics only after being multiplied by their effective charge-state numbers. A vacancy is not automatically a $+q$ object; its charge depends on localized defect-state occupancy, dangling bonds, local lattice relaxation, Fermi level, temperature, and carrier environment.
+\end{notebox}
+
+\section{Step 6: insert the space-charge density into Electrostatics}
+
+\subsection{Charge Conservation settings}
+
+Click \textbf{Electrostatics (es) $>$ Charge Conservation 1}. In the Settings window, confirm that the material model uses the relative permittivity from the material. The governing equation is Gauss's law in scalar-potential form. In many COMSOL versions, the Charge Conservation node is the main domain equation for the Electrostatics interface.
+
+\subsection{Add a Space Charge Density domain feature}
+
+In the Model Builder:
+\begin{enumerate}[leftmargin=2em]
+\item Right-click \textbf{Electrostatics (es)}.
+\item Look for a domain feature named \textbf{Space Charge Density}.
+\item If available, click \textbf{Space Charge Density}.
+\item Select \textbf{Domain 1}.
+\item In the field for space charge density, type:
+\begin{verbatim}
+rho_tot
+\end{verbatim}
+\item Check that the unit shown by COMSOL is compatible with \code{C/m^3}.
+\end{enumerate}
+
+If your COMSOL version instead places the volume charge density field inside \textbf{Charge Conservation 1}, enter \code{rho\_tot} there. The key physical action is the same: the right-hand side of Gauss's law receives the spatial charge density.
+
+\subsection{Sign check}
+
+The Module 2 equation is
+\begin{equation}
+\nabla\cdot(\epss\nabla\phi)=-\rho.
+\end{equation}
+COMSOL's Electrostatics interface convention is normally based on
+\begin{equation}
+\nabla\cdot\Dvec=\rho,\qquad \Evec=-\nabla V,\qquad \Dvec=\varepsilon\Evec.
+\end{equation}
+Therefore
+\begin{equation}
+\nabla\cdot(-\varepsilon\nabla V)=\rho,
+\end{equation}
+or
+\begin{equation}
+\nabla\cdot(\varepsilon\nabla V)=-\rho.
+\end{equation}
+This matches the project sign convention when \code{rho\_tot} is entered as the physical charge density.
+
+\section{Step 7: impose contact potentials and insulating boundaries}
+
+\subsection{Identify boundaries}
+
+For the rectangle from $(0,0)$ to $(L_x,L_y)$:
+\begin{itemize}[leftmargin=2em]
+\item left boundary: $x=0$,
+\item right boundary: $x=L_x$,
+\item bottom boundary: $y=0$,
+\item top boundary: $y=L_y$.
+\end{itemize}
+Use the Graphics window boundary numbers to confirm which boundary is which. If boundary numbers are not visible, click the \textbf{Labels} button in the Graphics toolbar and enable boundary labels.
+
+\subsection{Left contact: Electric Potential}
+
+In the Model Builder:
+\begin{enumerate}[leftmargin=2em]
+\item Right-click \textbf{Electrostatics (es)}.
+\item Choose \textbf{Electric Potential}.
+\item Select the left boundary, $x=0$.
+\item In the Settings window, set \textbf{Electric potential} to:
+\begin{verbatim}
+Vleft
+\end{verbatim}
+\end{enumerate}
+
+\subsection{Right contact: Electric Potential}
+
+Again:
+\begin{enumerate}[leftmargin=2em]
+\item Right-click \textbf{Electrostatics (es)}.
+\item Choose \textbf{Electric Potential}.
+\item Select the right boundary, $x=L_x$.
+\item Set \textbf{Electric potential} to:
+\begin{verbatim}
+Vright
+\end{verbatim}
+\end{enumerate}
+
+\subsection{Top and bottom boundaries: Zero Charge or symmetry}
+
+The Electrostatics interface usually includes a default \textbf{Zero Charge} condition. For the top and bottom boundaries, keep or apply a zero normal displacement boundary:
+\begin{equation}
+\nvec\cdot\Dvec=0.
+\end{equation}
+In terms of potential for constant permittivity, this is equivalent to
+\begin{equation}
+\pdv{\phi}{n}=0.
+\end{equation}
+
+In the Model Builder:
+\begin{enumerate}[leftmargin=2em]
+\item Click the existing \textbf{Zero Charge} node under \textbf{Electrostatics (es)}.
+\item Confirm that the top and bottom boundaries are included.
+\item If they are not included, select them manually.
+\end{enumerate}
+
+\subsection{Physics meaning}
+
+The left and right boundaries act like ideal contacts held at prescribed voltages. These are Dirichlet boundary conditions. The top and bottom boundaries are insulating or symmetry boundaries. They are natural Neumann conditions in the weak form and state that no normal electric displacement leaves the computational window through those edges.
+
+\section{Step 8: choose FEM discretization order}
+
+COMSOL may use quadratic elements by default for some physics interfaces. For direct comparison with the simple MATLAB triangular FEM implementation, it is useful to run at least one case with first-order Lagrange elements.
+
+\subsection{Enable advanced settings if needed}
+
+If the discretization settings are not visible:
+\begin{enumerate}[leftmargin=2em]
+\item In the top ribbon or main menu, click \textbf{File $>$ Preferences}, or click \textbf{Show More Options} if available.
+\item Enable options related to \textbf{Advanced Physics Options} or \textbf{Equation View}. The exact name can vary by COMSOL version.
+\item Return to the Model Builder.
+\end{enumerate}
+
+\subsection{Set potential discretization}
+
+In the Model Builder:
+\begin{enumerate}[leftmargin=2em]
+\item Click \textbf{Electrostatics (es)}.
+\item In the Settings window, find \textbf{Discretization}.
+\item Set the electric potential element order to \textbf{Linear} for MATLAB-like comparison.
+\item For production accuracy studies, repeat with \textbf{Quadratic} and compare convergence.
+\end{enumerate}
+
+\subsection{Physics meaning}
+
+Linear triangular FEM means the potential is approximated as a plane over each triangle:
+\begin{equation}
+\phi^e(x,y)=N_1\Phi_1+N_2\Phi_2+N_3\Phi_3.
+\end{equation}
+The electric field is therefore constant inside each linear triangle:
+\begin{equation}
+\Evec^e=-\nabla\phi^e.
+\end{equation}
+Quadratic elements give smoother field recovery but do not match the simplest MATLAB formulation one-to-one. For debugging, use linear. For final accuracy, compare linear and quadratic.
+
+\section{Step 9: build a triangular mesh}
+
+\subsection{Basic mesh clicks}
+
+In the Model Builder:
+\begin{enumerate}[leftmargin=2em]
+\item Right-click \textbf{Mesh 1}.
+\item Choose \textbf{Free Triangular}.
+\item Click \textbf{Size} under \textbf{Mesh 1}.
+\item In the Settings window, select \textbf{Custom}.
+\item Set \textbf{Maximum element size} to something like:
+\begin{verbatim}
+0.5[um]
+\end{verbatim}
+\item Set \textbf{Minimum element size} to something like:
+\begin{verbatim}
+0.05[um]
+\end{verbatim}
+\item Set \textbf{Curvature factor} and \textbf{Resolution of narrow regions} to default values for the rectangular verification case.
+\item Click \textbf{Build All}.
+\end{enumerate}
+
+\subsection{Mesh refinement near a localized defect}
+
+If the defect density is localized with width \code{sigdef}, the mesh size should resolve that width. As a rule of thumb, use at least 5 to 10 elements across the Gaussian width:
+\begin{equation}
+h\lesssim \frac{\sigma_{\mathrm{def}}}{5}.
+\end{equation}
+For \code{sigdef = 0.75[um]}, a maximum element size of \code{0.15[um]} gives a better local resolution than \code{0.5[um]}.
+
+To add stronger refinement:
+\begin{enumerate}[leftmargin=2em]
+\item Right-click \textbf{Mesh 1}.
+\item Add another \textbf{Size} feature if desired.
+\item Select the domain or boundaries near the defect region if using local selections.
+\item Use a smaller maximum element size in that selected region.
+\end{enumerate}
+
+\subsection{Physics meaning}
+
+Meshing is not cosmetic. The source term $\rho_{\mathrm{def}}(x,y)$ may vary sharply. If the mesh is too coarse, the FEM source vector will under-resolve the charge distribution, and the computed field perturbation will be inaccurate. A defect patch narrower than the element size is numerically smeared or missed.
+
+\section{Step 10: solve the stationary model}
+
+\subsection{Study clicks}
+
+In the Model Builder:
+\begin{enumerate}[leftmargin=2em]
+\item Click \textbf{Study 1}.
+\item Click \textbf{Step 1: Stationary}.
+\item Confirm that the Electrostatics interface is included in the study.
+\item Click \textbf{Compute} in the ribbon or right-click \textbf{Study 1} and choose \textbf{Compute}.
+\end{enumerate}
+
+\subsection{What the solver is doing}
+
+The stationary solver assembles the FEM system for the fixed charge distribution and solves for nodal values of $\phi$. The mathematical system is the discrete form of
+\begin{equation}
+\nabla\cdot(\epss\nabla\phi)=-\rho_{\mathrm{tot}}.
+\end{equation}
+For a linear problem with fixed $\rho_{\mathrm{tot}}$, the solve should be a single linear electrostatic solve. If $\rho_{\mathrm{tot}}$ later depends on $\phi$ through carrier statistics or defect charge occupancy, the problem becomes nonlinear and requires iterative solution.
+
+\section{Step 11: plot potential and electric field}
+
+\subsection{Potential surface plot}
+
+After computation, COMSOL usually creates a default potential plot. If not:
+\begin{enumerate}[leftmargin=2em]
+\item Right-click \textbf{Results}.
+\item Choose \textbf{2D Plot Group}.
+\item Rename it \textbf{Electric potential}.
+\item Right-click the plot group.
+\item Choose \textbf{Surface}.
+\item In the Settings window, set \textbf{Expression} to the electrostatic potential. Common expressions are:
+\begin{verbatim}
+es.V
+\end{verbatim}
+or simply
+\begin{verbatim}
+V
+\end{verbatim}
+depending on the COMSOL version and naming.
+\item Click \textbf{Plot}.
+\end{enumerate}
+
+\subsection{Electric-field magnitude plot}
+
+Create another plot:
+\begin{enumerate}[leftmargin=2em]
+\item Right-click \textbf{Results}.
+\item Choose \textbf{2D Plot Group}.
+\item Rename it \textbf{Electric field magnitude}.
+\item Add a \textbf{Surface} plot.
+\item Set the expression to the electric-field norm. Common expressions are:
+\begin{verbatim}
+es.normE
+\end{verbatim}
+or, if needed,
+\begin{verbatim}
+sqrt(es.Ex^2+es.Ey^2)
+\end{verbatim}
+\item Click \textbf{Plot}.
+\end{enumerate}
+
+\subsection{Electric-field arrows}
+
+To visualize direction:
+\begin{enumerate}[leftmargin=2em]
+\item Right-click the electric-field plot group.
+\item Choose \textbf{Arrow Surface}.
+\item For the $x$ component, type:
+\begin{verbatim}
+es.Ex
+\end{verbatim}
+\item For the $y$ component, type:
+\begin{verbatim}
+es.Ey
+\end{verbatim}
+\item Click \textbf{Plot}.
+\end{enumerate}
+
+\subsection{Physics meaning}
+
+The potential plot shows how charge and contacts shape $\phi(x,y)$. The field-magnitude plot shows where carriers would experience the strongest drift force. The arrow plot shows field direction. In the carrier-transport module, electrons and holes respond differently to the same field because they have opposite charge signs.
+
+\section{Step 12: perform the basic verification cases}
+
+The COMSOL model should not be trusted until it passes simple tests. These tests should match the MATLAB verification cases.
+
+\subsection{Verification case 1: zero charge, equal contacts}
+
+Set:
+\begin{verbatim}
+Vleft = 0[V]
+Vright = 0[V]
+NDp = 0[1/m^3]
+NAm = 0[1/m^3]
+n0 = 0[1/m^3]
+p0 = 0[1/m^3]
+C0def = 0[1/m^3]
+\end{verbatim}
+Then compute.
+
+Expected result:
+\begin{equation}
+\phi(x,y)=0,\qquad \Evec(x,y)=\mathbf{0}.
+\end{equation}
+Any nonzero field should be at numerical roundoff level.
+
+\subsection{Verification case 2: zero charge, different contacts}
+
+Set:
+\begin{verbatim}
+Vleft = 0[V]
+Vright = 5[V]
+rho_tot = 0[C/m^3]
+\end{verbatim}
+Practically, set all charge-density inputs to zero.
+
+Expected result for the simple rectangle with zero top/bottom normal flux:
+\begin{equation}
+\phi(x)=V_{\mathrm{left}}+\frac{V_{\mathrm{right}}-V_{\mathrm{left}}}{L_x}x,
+\end{equation}
+and
+\begin{equation}
+E_x=-\frac{V_{\mathrm{right}}-V_{\mathrm{left}}}{L_x},\qquad E_y\approx 0.
+\end{equation}
+This confirms that the boundary conditions and sign convention are correct.
+
+\subsection{Verification case 3: uniform space charge}
+
+Set equal contacts or a simple bias and impose a spatially uniform charge density. For example:
+\begin{verbatim}
+C0def = 0[1/m^3]
+NDp = 1e21[1/m^3]
+NAm = 0[1/m^3]
+n0 = 0[1/m^3]
+p0 = 0[1/m^3]
+\end{verbatim}
+Then
+\begin{equation}
+\rho=qN_D^+.
+\end{equation}
+In a one-dimensional reduction, the equation is
+\begin{equation}
+\frac{d^2\phi}{dx^2}=-\frac{\rho}{\epss}.
+\end{equation}
+The potential should show quadratic curvature and the electric field should vary linearly with $x$.
+
+\subsection{Verification case 4: localized defect perturbation}
+
+Set a Gaussian defect density:
+\begin{verbatim}
+C0def = 1e20[1/m^3]
+zV = -1
+\end{verbatim}
+with other charge contributions small or controlled. The potential should show a local perturbation around $(x_{\mathrm{def}},y_{\mathrm{def}})$. If \code{zV} is changed from \code{-1} to \code{+1}, the sign of the perturbation should reverse.
+
+\section{Step 13: mesh-convergence study}
+
+\subsection{Manual mesh refinement}
+
+Run the same model for several mesh sizes:
+\begin{equation}
+h=0.5~\mu\mathrm{m},\quad 0.25~\mu\mathrm{m},\quad 0.125~\mu\mathrm{m}.
+\end{equation}
+For each solve, record:
+\begin{itemize}[leftmargin=2em]
+\item maximum potential $\max(\phi)$,
+\item minimum potential $\min(\phi)$,
+\item maximum field magnitude $\max(|\Evec|)$,
+\item potential at selected probe points,
+\item total integrated charge.
+\end{itemize}
+
+\subsection{Derived values for maximum and minimum}
+
+In COMSOL:
+\begin{enumerate}[leftmargin=2em]
+\item Right-click \textbf{Results $>$ Derived Values}.
+\item Choose \textbf{Maximum $>$ Surface Maximum}.
+\item Select \textbf{Domain 1}.
+\item Set expression to \code{es.V} or \code{V}.
+\item Click \textbf{Evaluate}.
+\item Repeat for \textbf{Surface Minimum} and for \code{es.normE}.
+\end{enumerate}
+
+\subsection{Physics meaning}
+
+A physically meaningful FEM solution should converge as the mesh is refined. If field maxima keep increasing without convergence near sharp discontinuities, the model may contain a singularity or an under-resolved charge jump. Smooth Gaussian defect profiles are useful first tests because they avoid artificial singularities.
+
+\section{Step 14: integrate total defect charge}
+
+\subsection{Why integrated charge matters}
+
+The total defect charge is
+\begin{equation}
+Q_{\mathrm{def}}=\int_{\Omega}\rho_{\mathrm{def}}\,d\Omega,
+\end{equation}
+for the 2D cross-sectional model. Depending on whether the 2D model is interpreted as unit depth or a cross section of a 3D device, this may be charge per unit out-of-plane length.
+
+\subsection{COMSOL integration steps}
+
+In the Model Builder:
+\begin{enumerate}[leftmargin=2em]
+\item Right-click \textbf{Results $>$ Derived Values}.
+\item Choose \textbf{Integration $>$ Surface Integration}.
+\item Select \textbf{Domain 1}.
+\item Set \textbf{Expression} to:
+\begin{verbatim}
+rho_def
+\end{verbatim}
+\item Click \textbf{Evaluate}.
+\item Repeat with:
+\begin{verbatim}
+rho_tot
+\end{verbatim}
+\end{enumerate}
+
+This reports the total defect charge and total space charge represented by the current 2D model.
+
+\section{Step 15: line plots for comparison with MATLAB}
+
+\subsection{Create a cut line}
+
+To compare potential profiles along the device midline:
+\begin{enumerate}[leftmargin=2em]
+\item Right-click \textbf{Results $>$ Datasets}.
+\item Choose \textbf{Cut Line 2D}.
+\item Set \textbf{Point 1} to:
+\begin{verbatim}
+0, Ly/2
+\end{verbatim}
+\item Set \textbf{Point 2} to:
+\begin{verbatim}
+Lx, Ly/2
+\end{verbatim}
+\item Click \textbf{Plot} or proceed to create a plot group.
+\end{enumerate}
+
+\subsection{Plot potential on the cut line}
+
+\begin{enumerate}[leftmargin=2em]
+\item Right-click \textbf{Results}.
+\item Choose \textbf{1D Plot Group}.
+\item Set the dataset to the new \textbf{Cut Line 2D}.
+\item Right-click the plot group and choose \textbf{Line Graph}.
+\item Set expression to \code{es.V} or \code{V}.
+\item Click \textbf{Plot}.
+\end{enumerate}
+
+\subsection{Plot electric-field component on the cut line}
+
+Repeat with expression:
+\begin{verbatim}
+es.Ex
+\end{verbatim}
+and then:
+\begin{verbatim}
+es.Ey
+\end{verbatim}
+
+The linear-potential verification case should produce constant \code{es.Ex} and near-zero \code{es.Ey} along the midline.
+
+\section{Step 16: export data for MATLAB comparison}
+
+\subsection{Export potential and field on the mesh or grid}
+
+In the Model Builder:
+\begin{enumerate}[leftmargin=2em]
+\item Right-click \textbf{Results $>$ Export}.
+\item Choose \textbf{Data}.
+\item In the Settings window, choose the dataset. For full-domain output, use \textbf{Study 1/Solution 1}. For midline output, use the cut-line dataset.
+\item Add expressions:
+\begin{verbatim}
+es.V
+es.Ex
+es.Ey
+rho_tot
+rho_def
+\end{verbatim}
+\item Set the filename, for example:
+\begin{verbatim}
+module2_comsol_export.csv
+\end{verbatim}
+\item Set the format to \textbf{CSV} or \textbf{Spreadsheet}.
+\item Click \textbf{Export}.
+\end{enumerate}
+
+\subsection{What to compare in MATLAB}
+
+Compare:
+\begin{itemize}[leftmargin=2em]
+\item potential along the midline,
+\item electric-field components along the midline,
+\item maximum and minimum potential,
+\item maximum field magnitude,
+\item integrated charge,
+\item sign reversal when $z_i$ is reversed,
+\item mesh-convergence trends.
+\end{itemize}
+
+\section{Step 17: optional parametric sweep over defect charge factor}
+
+\subsection{Create a parametric sweep}
+
+To see how the field changes with defect charge state:
+\begin{enumerate}[leftmargin=2em]
+\item Click \textbf{Study 1}.
+\item Right-click \textbf{Study 1}.
+\item Choose \textbf{Parametric Sweep}.
+\item In \textbf{Parameter name}, choose \code{zV}.
+\item In \textbf{Parameter value list}, type:
+\begin{verbatim}
+-2 -1 0 1
+\end{verbatim}
+\item Click \textbf{Compute}.
+\end{enumerate}
+
+\subsection{Physics meaning}
+
+This sweep makes explicit that the same structural defect concentration can have different electrostatic consequences depending on its electronic charge state. A neutral vacancy-like population with $z_V=0$ can still matter for recombination and scattering in other modules, but it contributes no direct space charge in Module 2. A negative vacancy-like population with $z_V<0$ adds negative charge density and changes the curvature of the electrostatic potential in the opposite direction from a positive defect population.
+
+\section{Step 18: optional parametric sweep over defect dose amplitude}
+
+\subsection{Sweep defect concentration amplitude}
+
+To emulate increasing radiation damage amplitude:
+\begin{enumerate}[leftmargin=2em]
+\item Add or edit a \textbf{Parametric Sweep}.
+\item Choose parameter \code{C0def}.
+\item Use values such as:
+\begin{verbatim}
+0 1e19[1/m^3] 1e20[1/m^3] 1e21[1/m^3]
+\end{verbatim}
+\item Compute.
+\end{enumerate}
+
+\subsection{Expected trend}
+
+For fixed $z_V$, the defect charge density scales linearly with \code{C0def}:
+\begin{equation}
+\rho_{\mathrm{def}}\propto z_V C_{0,\mathrm{def}}.
+\end{equation}
+The electrostatic perturbation should increase approximately linearly in weak perturbation regimes. If the model is later extended so that carrier densities depend nonlinearly on potential, this linearity will no longer be exact.
+
+\section{Step 19: using imported defect fields from MATLAB}
+
+\subsection{Why import fields}
+
+The most useful COMSOL comparison is not just a synthetic Gaussian defect field. Eventually, Module 3 in MATLAB produces $C_i(x,y,t)$ on its mesh. To use COMSOL as a parallel field solver, those defect fields should be imported into COMSOL as interpolation functions.
+
+\subsection{Prepare a MATLAB export file}
+
+From MATLAB, export a table with columns such as:
+\begin{verbatim}
+x, y, CV, CI, CV2, CVO
+\end{verbatim}
+where $x$ and $y$ are in meters or in a clearly specified unit. A CSV file might be named:
+\begin{verbatim}
+module3_defect_fields_t0005.csv
+\end{verbatim}
+
+\subsection{Import interpolation functions in COMSOL}
+
+In COMSOL:
+\begin{enumerate}[leftmargin=2em]
+\item Right-click \textbf{Global Definitions} or \textbf{Component 1 $>$ Definitions}.
+\item Choose \textbf{Functions $>$ Interpolation}.
+\item Rename it \textbf{CVfun}.
+\item Set \textbf{Data source} to \textbf{File}.
+\item Browse to the CSV file.
+\item Specify the argument columns as \code{x} and \code{y}.
+\item Specify the function value column as \code{CV}.
+\item Set units carefully, for example arguments in \code{m} and function value in \code{1/m^3}.
+\item Repeat for \textbf{CIfun}, \textbf{CV2fun}, and \textbf{CVOfun}.
+\end{enumerate}
+
+Then replace the analytic variables with:
+\begin{verbatim}
+CV  = CVfun(x,y)
+CI  = CIfun(x,y)
+CV2 = CV2fun(x,y)
+CVO = CVOfun(x,y)
+\end{verbatim}
+
+\subsection{Physics meaning}
+
+This is the COMSOL analog of the project coupling
+\begin{equation}
+\text{Module 3 defect fields}\rightarrow \rho_{\mathrm{def}}\rightarrow \text{Module 2 electrostatic solve}.
+\end{equation}
+The electrostatic solve remains stationary for each imported snapshot, but the snapshots can represent different times in the defect-evolution simulation.
+
+\section{Step 20: stationary snapshot versus transient coupled solve}
+
+The COMSOL model described so far is a stationary electrostatic snapshot. This is intentional. Module 2 itself is not a transient electromagnetic solver. It solves the electrostatic constraint for whatever charge distribution is currently supplied.
+
+In a coupled time-marching project workflow, one would do:
+\begin{equation}
+C_i^n \rightarrow \rho_{\mathrm{def}}^n \rightarrow \phi^n \rightarrow \Evec^n.
+\end{equation}
+Then Module 3 or Module 5 advances to the next time step using the current field. After the charge fields change, Module 2 is solved again.
+
+A COMSOL-only version could be built as a multiphysics time-dependent model, but that is not the goal of this note. The goal is to reproduce the Module 2 FEM electrostatic subproblem in COMSOL.
+
+\section{Weak Form PDE fallback implementation}
+
+If the Electrostatics interface is unavailable or if explicit weak-form control is desired, use the Weak Form PDE interface.
+
+\subsection{Model Wizard}
+
+Start a new model:
+\begin{enumerate}[leftmargin=2em]
+\item Click \textbf{Model Wizard}.
+\item Select \textbf{2D}.
+\item In \textbf{Select Physics}, expand \textbf{Mathematics $>$ PDE Interfaces}.
+\item Select \textbf{Weak Form PDE}.
+\item Click \textbf{Add}.
+\item In the dependent variable field, use \code{V}.
+\item Add a \textbf{Stationary} study.
+\item Click \textbf{Done}.
+\end{enumerate}
+
+Build the same rectangle, parameters, variables, and mesh as before.
+
+\subsection{Weak expression}
+
+The weak form Eq.~\eqref{eq:weak_module2} can be entered in COMSOL weak-form syntax. For one dependent variable \code{V}, the test function is written as \code{test(V)} and derivatives as \code{Vx}, \code{Vy}, \code{test(Vx)}, and \code{test(Vy)}.
+
+A suitable domain weak expression is:
+\begin{verbatim}
+epsilon0_const*epsrSi*(test(Vx)*Vx + test(Vy)*Vy) - test(V)*rho_tot
+\end{verbatim}
+Depending on COMSOL's predefined constants in your installation, the vacuum permittivity may be available as \code{epsilon0\_const}. If not, define a parameter:
+\begin{verbatim}
+eps0 = 8.8541878128e-12[F/m]
+\end{verbatim}
+and type:
+\begin{verbatim}
+eps0*epsrSi*(test(Vx)*Vx + test(Vy)*Vy) - test(V)*rho_tot
+\end{verbatim}
+
+This expression corresponds to setting the residual
+\begin{equation}
+\int_{\Omega}\epss\nabla w\cdot\nabla V\,d\Omega-\int_{\Omega}w\rho_{\mathrm{tot}}\,d\Omega=0.
+\end{equation}
+
+\subsection{Boundary conditions in Weak Form PDE}
+
+For contacts, add Dirichlet constraints:
+\begin{enumerate}[leftmargin=2em]
+\item Right-click \textbf{Weak Form PDE}.
+\item Choose \textbf{Dirichlet Boundary Condition} or \textbf{Constraint}, depending on version.
+\item Select the left boundary.
+\item Set \code{V = Vleft}.
+\item Add another one on the right boundary with \code{V = Vright}.
+\end{enumerate}
+
+For top and bottom boundaries, do nothing if the desired condition is natural zero flux. In weak form, zero natural flux is already the default boundary condition.
+
+\subsection{When to use this route}
+
+Use the Weak Form PDE route when you want to see the exact weak residual or when the built-in Electrostatics interface is not available. Use the Electrostatics interface for normal COMSOL workflows because it provides more automatic postprocessing variables, such as electric field components and displacement field components.
+
+\section{Common mistakes and diagnostic checks}
+
+\subsection{Mistake 1: using electron charge with the wrong sign}
+
+Do not define \code{q0} as negative. Define it as a positive magnitude and put the electron sign in the charge-density expression:
+\begin{equation}
+\rho=q(p-n+N_D^+-N_A^-)+q\sum_i z_iC_i.
+\end{equation}
+
+\subsection{Mistake 2: confusing a vacancy with a hole}
+
+A hole is a missing valence-band electron and belongs to $p$. A vacancy is a missing lattice atom and belongs to the defect population $C_V$. A vacancy may be positive, neutral, or negative depending on electronic occupancy of defect states. Therefore it is represented by $z_VC_V$, not by $p$.
+
+\subsection{Mistake 3: under-resolving localized charge}
+
+If the localized defect width is \code{sigdef}, the mesh must resolve it. If the mesh is too coarse, potential perturbations are artificially weak, smeared, or noisy.
+
+\subsection{Mistake 4: comparing quadratic COMSOL elements to linear MATLAB elements}
+
+If COMSOL uses quadratic elements and MATLAB uses linear triangles, numerical results should agree qualitatively but not node-by-node. For direct debugging, set COMSOL to linear discretization or upgrade the MATLAB solver to quadratic elements.
+
+\subsection{Mistake 5: imposing inconsistent boundary conditions}
+
+If every boundary is given zero normal flux and the domain has net nonzero charge, the electrostatic problem may be ill-posed because no reference potential or charge-balancing boundary exists. At least one potential reference is needed for uniqueness, and realistic device contacts should be represented as Dirichlet boundaries.
+
+\section{Recommended file organization for COMSOL work}
+
+Although this note does not alter the main project plan, a clean local organization is:
+\begin{verbatim}
+comsol/
+  module2_electrostatics_defect_space_charge.mph
+  module2_exports/
+    module2_comsol_midline_potential.csv
+    module2_comsol_field_export.csv
+  module2_imports/
+    module3_defect_fields_t0005.csv
+\end{verbatim}
+The \code{.mph} file itself is not included in the LaTeX note. It should be treated as a parallel model artifact, not as a replacement for the MATLAB FEM implementation.
+
+\section{Suggested COMSOL model variants}
+
+\subsection{Variant A: pure Laplace contact test}
+
+Set all charge terms to zero and solve only the contact-driven potential. This tests boundary conditions and sign conventions.
+
+\subsection{Variant B: uniform dopant charge}
+
+Set uniform $N_D^+$ or $N_A^-$ and verify parabolic potential curvature in a one-dimensional limit. This tests the source term sign and magnitude.
+
+\subsection{Variant C: localized charged vacancy population}
+
+Use the Gaussian \code{CV} field and sweep $z_V$. This tests whether defect charge is being inserted correctly.
+
+\subsection{Variant D: imported MATLAB defect map}
+
+Import $C_i(x,y,t)$ from Module 3 and solve for the electrostatic field. This is the most project-relevant COMSOL model.
+
+\section{Connection back to the MATLAB FEM implementation}
+
+The MATLAB FEM solver and COMSOL model should represent the same mathematical map:
+\begin{equation}
+\{p,n,N_D^+,N_A^-,C_i,z_i\}\rightarrow \rho_{\mathrm{tot}}\rightarrow \phi\rightarrow \Evec.
+\end{equation}
+The MATLAB code explicitly constructs mesh arrays, element matrices, source vectors, and global systems. COMSOL constructs the same type of finite-element system through its physics interface. Agreement between the two is a strong verification result because the two implementations are independent.
+
+\section{Checklist before trusting results}
+
+Before accepting a COMSOL field map, check the following.
+
+\begin{enumerate}[leftmargin=2em]
+\item Are all densities in units of m$^{-3}$?
+\item Is \code{rho\_tot} in C/m$^3$?
+\item Is \code{q0} positive?
+\item Are electron, acceptor, and negative-defect signs handled explicitly?
+\item Are contact potentials applied to the intended boundaries?
+\item Are top and bottom boundaries intentionally zero normal flux?
+\item Is the localized defect region resolved by the mesh?
+\item Does the zero-charge contact test give a linear potential?
+\item Does a uniform charge density produce quadratic curvature?
+\item Does changing $z_i\rightarrow -z_i$ reverse the defect-induced potential perturbation?
+\item Does mesh refinement change the solution by an acceptably small amount?
+\item Do exported line profiles agree with MATLAB trends?
+\end{enumerate}
+
+
+\section{Expanded beginner tutorial layer: exact COMSOL reproduction workflow}
+
+This section adds a more granular beginner workflow. The earlier sections described the physics and the main COMSOL operations. The purpose here is different: it is a reproducibility checklist written so that a first-time COMSOL user can sit at the graphical user interface, follow each action, and create the same Module 2 electrostatic FEM model without having to infer hidden steps.
+
+\begin{overviewbox}
+\textbf{How to use this section.} Read this section with COMSOL open. Perform the actions in the order given. Do not begin with imported data, parameter sweeps, or nonlinear carrier statistics. First build the simplest rectangular silicon Poisson model, verify it against the zero-charge and linear-potential tests, then add dopants, then add one defect species, and only then add multiple defect species or imported maps.
+\end{overviewbox}
+
+\subsection{Before opening COMSOL: decide the first model variant}
+
+Use the following first model because it is the easiest to debug:
+\begin{equation}
+\rho=q\left(N_D^+-N_A^-+z_V C_V\right),
+\qquad n=0,
+\qquad p=0.
+\end{equation}
+This first variant deliberately suppresses mobile carriers. The purpose is not to claim that electrons and holes never matter. The purpose is to isolate the electrostatic FEM implementation of fixed dopant and fixed defect charge. Once the Poisson solve is verified, the carrier terms $p$ and $n$ can be restored as prescribed fields or later coupled to Module 5.
+
+\begin{notebox}
+\textbf{Recommended first file name.} Save the first COMSOL file as \code{module2_es_rect_baseline.mph}. After verification, duplicate it as \code{module2_es_defect_charge.mph} before adding more complicated charge maps.
+\end{notebox}
+
+\subsection{Detailed Model Wizard sequence}
+
+Start COMSOL and perform the following actions exactly.
+
+\begin{enumerate}[leftmargin=2em]
+\item Open \COMSOL{}.
+\item On the start page, click \textbf{Model Wizard}.
+\item Under \textbf{Select Space Dimension}, click \textbf{2D}.
+\item Click \textbf{Next}.
+\item In the physics search box, type \code{Electrostatics}.
+\item Select \textbf{AC/DC $>$ Electric Fields and Currents $>$ Electrostatics (es)}.
+\item Click \textbf{Add}.
+\item Confirm that \textbf{Electrostatics (es)} appears under \textbf{Added physics interfaces}.
+\item Click \textbf{Study}.
+\item Choose \textbf{Stationary}.
+\item Click \textbf{Done}.
+\item Immediately click \textbf{File $>$ Save As}.
+\item Save as \code{module2_es_rect_baseline.mph}.
+\end{enumerate}
+
+\begin{physicsbox}
+\textbf{Why Stationary?} Module 2 is an electrostatic constraint solve. At a given defect distribution $C_i(x,y,t)$, the charge density is treated as known and the potential adjusts according to Poisson's equation. Time dependence enters by repeatedly solving new stationary Poisson problems as other modules update $C_i$, $n$, $p$, or temperature.
+\end{physicsbox}
+
+\subsection{Model Builder tree that should appear}
+
+After the Model Wizard, the Model Builder should contain at least the following nodes:
+\begin{itemize}[leftmargin=2em]
+\item \textbf{Global Definitions}
+\item \textbf{Component 1 (comp1)}
+\begin{itemize}[leftmargin=1.5em]
+\item \textbf{Definitions}
+\item \textbf{Geometry 1}
+\item \textbf{Materials}
+\item \textbf{Electrostatics (es)}
+\item \textbf{Mesh 1}
+\end{itemize}
+\item \textbf{Study 1}
+\item \textbf{Results}
+\end{itemize}
+If the Electrostatics node is missing, do not continue. Return to the Model Wizard and add the Electrostatics physics interface.
+
+\subsection{Global parameters: exact table to type}
+
+In the Model Builder, right-click \textbf{Global Definitions} and choose \textbf{Parameters}. In the parameter table, type the following rows. COMSOL accepts SI units in square brackets.
+
+\begin{longtable}{p{0.24\textwidth}p{0.34\textwidth}p{0.34\textwidth}}
+\toprule
+\textbf{Name} & \textbf{Expression} & \textbf{Description} \\
+\midrule
+\endhead
+\code{Lx} & \code{10[um]} & Device width in $x$. \\
+\code{Ly} & \code{5[um]} & Device height in $y$. \\
+\code{epsrSi} & \code{11.7} & Relative permittivity of silicon. \\
+\code{q0} & \code{1.602176634e-19[C]} & Elementary charge magnitude. \\
+\code{Vleft} & \code{0[V]} & Left contact potential. \\
+\code{Vright} & \code{1[V]} & Right contact potential. \\
+\code{NDp0} & \code{1e21[1/m^3]} & Ionized donor concentration. \\
+\code{NAm0} & \code{0[1/m^3]} & Ionized acceptor concentration. \\
+\code{n0} & \code{0[1/m^3]} & Prescribed electron concentration for first test. \\
+\code{p0} & \code{0[1/m^3]} & Prescribed hole concentration for first test. \\
+\code{CV0} & \code{0[1/m^3]} & Uniform vacancy concentration for first test. \\
+\code{zV} & \code{0} & Vacancy effective charge number for first test. \\
+\code{sigx} & \code{0.8[um]} & Optional Gaussian defect width in $x$. \\
+\code{sigy} & \code{0.8[um]} & Optional Gaussian defect width in $y$. \\
+\code{x0c} & \code{0.5*Lx} & Center of optional localized defect. \\
+\code{y0c} & \code{0.5*Ly} & Center of optional localized defect. \\
+\bottomrule
+\end{longtable}
+
+Click \textbf{Build Selected} is not needed for parameters. COMSOL evaluates them automatically. If a row turns red or yellow, check for missing brackets, missing multiplication symbols, or misspelled units.
+
+\subsection{Geometry: exact clicks for the silicon rectangle}
+
+\begin{enumerate}[leftmargin=2em]
+\item In Model Builder, click \textbf{Component 1 $>$ Geometry 1}.
+\item In the settings window, set \textbf{Length unit} to \code{um}. This only changes display units; the parameter expressions are still SI-aware.
+\item Right-click \textbf{Geometry 1}.
+\item Choose \textbf{Rectangle}.
+\item In the Rectangle settings, find \textbf{Size and Shape}.
+\item For \textbf{Width}, type \code{Lx}.
+\item For \textbf{Height}, type \code{Ly}.
+\item Find \textbf{Position}.
+\item For \textbf{x}, type \code{0}.
+\item For \textbf{y}, type \code{0}.
+\item Click \textbf{Build Selected}.
+\item Click the \textbf{Zoom Extents} toolbar button to see the rectangle.
+\end{enumerate}
+
+The domain is now the two-dimensional silicon region $\Omega=[0,L_x]\times[0,L_y]$. In this reduced model, the out-of-plane thickness is not explicitly modeled. The solution is interpreted as a 2D cross-sectional potential field.
+
+\subsection{Optional selections: name the four boundaries}
+
+Named selections are not required, but they reduce mistakes. To create them:
+
+\begin{enumerate}[leftmargin=2em]
+\item Right-click \textbf{Component 1 $>$ Definitions}.
+\item Choose \textbf{Selections $>$ Explicit}.
+\item Name it \code{sel_left_contact}.
+\item In the Graphics window, switch the selection level to \textbf{Boundary}.
+\item Click the left vertical edge of the rectangle.
+\item Click \textbf{Add to Selection} if needed.
+\item Repeat for \code{sel_right_contact}, \code{sel_top_insulating}, and \code{sel_bottom_insulating}.
+\end{enumerate}
+
+If selecting the wrong entity is difficult, use the \textbf{Selection List} window. For a simple rectangle, there are four boundary numbers. Click each boundary and observe which edge is highlighted.
+
+\subsection{Material and permittivity: exact clicks}
+
+\begin{enumerate}[leftmargin=2em]
+\item Right-click \textbf{Materials}.
+\item Choose \textbf{Blank Material}.
+\item Rename the material \code{Silicon_reduced_permittivity}.
+\item In the material settings, find \textbf{Material Contents}.
+\item If \textbf{Relative permittivity} appears, enter \code{epsrSi}.
+\item If COMSOL requests tensor components, enter \code{epsrSi} on the diagonal entries and \code{0} in off-diagonal entries.
+\item Confirm that the material is assigned to \textbf{Domain 1}.
+\end{enumerate}
+
+\begin{notebox}
+\textbf{COMSOL naming caution.} Some COMSOL versions store relative permittivity in the material and use it automatically in Electrostatics. Other versions allow the permittivity to be entered directly inside the Electrostatics domain feature. The physical target is always $\Dvec=\varepsilon_0\varepsilon_r\Evec$. Verify in the Electrostatics domain settings that the relative permittivity is \code{epsrSi} or is coming from the material.
+\end{notebox}
+
+\subsection{Variables: exact expressions for charge density}
+
+Right-click \textbf{Component 1 $>$ Definitions} and choose \textbf{Variables}. Name the node \code{var_charge_density}. In the variables table, type the following rows.
+
+\begin{longtable}{p{0.26\textwidth}p{0.42\textwidth}p{0.24\textwidth}}
+\toprule
+\textbf{Name} & \textbf{Expression} & \textbf{Description} \\
+\midrule
+\endhead
+\code{n_pres} & \code{n0} & Prescribed electron concentration. \\
+\code{p_pres} & \code{p0} & Prescribed hole concentration. \\
+\code{NDp} & \code{NDp0} & Ionized donor concentration. \\
+\code{NAm} & \code{NAm0} & Ionized acceptor concentration. \\
+\code{CV_uni} & \code{CV0} & Uniform vacancy field. \\
+\code{CV_gauss} & \code{CV0*exp(-((x-x0c)^2/(2*sigx^2)+(y-y0c)^2/(2*sigy^2)))} & Localized vacancy option. \\
+\code{CV_use} & \code{CV_uni} & Active vacancy field for first tests. \\
+\code{rho_car} & \code{q0*(p_pres-n_pres+NDp-NAm)} & Carrier and dopant charge density. \\
+\code{rho_def} & \code{q0*zV*CV_use} & Defect charge density. \\
+\code{rho_tot} & \code{rho_car+rho_def} & Total charge density. \\
+\bottomrule
+\end{longtable}
+
+For the first verification tests keep \code{CV_use = CV_uni}. For the localized-defect test later, change it to \code{CV_gauss}.
+
+\begin{physicsbox}
+\textbf{Sign convention.} The total charge density is positive for holes, positive ionized donors, and positively charged defects. It is negative for electrons, ionized acceptors, and negatively charged defects. A vacancy concentration is not automatically positive charge. Its contribution is controlled by the effective dimensionless charge state \code{zV}.
+\end{physicsbox}
+
+\subsection{Electrostatics settings: exact domain and source steps}
+
+\begin{enumerate}[leftmargin=2em]
+\item Click \textbf{Electrostatics (es)}.
+\item Click the default domain feature, often named \textbf{Charge Conservation 1}.
+\item Confirm that \textbf{Domain 1} is selected.
+\item Under \textbf{Electric Displacement Field}, choose either \textbf{Relative permittivity} or \textbf{From material}, depending on the COMSOL version.
+\item If the relative permittivity field is visible, type \code{epsrSi}.
+\item Right-click \textbf{Electrostatics (es)}.
+\item Choose \textbf{Domains $>$ Space Charge Density}.
+\item Select \textbf{Domain 1}.
+\item In the field for space charge density, type \code{rho_tot}.
+\end{enumerate}
+
+After this step, COMSOL has enough information to solve
+\begin{equation}
+\nabla\cdot(\varepsilon_0\varepsilon_r\nabla V)=-\rho_{\mathrm{tot}},
+\end{equation}
+where COMSOL's electric potential variable is usually \code{V}. In this note, \code{V} and $\phi$ refer to the same physical quantity.
+
+\subsection{Boundary conditions: exact clicks}
+
+For the baseline model, set left and right contacts to fixed potential and leave top and bottom as insulating.
+
+\subsubsection{Left contact}
+\begin{enumerate}[leftmargin=2em]
+\item Right-click \textbf{Electrostatics (es)}.
+\item Choose \textbf{Boundaries $>$ Electric Potential}.
+\item Rename it \code{Left contact potential}.
+\item Select the left vertical boundary or choose \code{sel_left_contact} if you created selections.
+\item In \textbf{Electric potential}, type \code{Vleft}.
+\end{enumerate}
+
+\subsubsection{Right contact}
+\begin{enumerate}[leftmargin=2em]
+\item Right-click \textbf{Electrostatics (es)}.
+\item Choose \textbf{Boundaries $>$ Electric Potential}.
+\item Rename it \code{Right contact potential}.
+\item Select the right vertical boundary or choose \code{sel_right_contact}.
+\item In \textbf{Electric potential}, type \code{Vright}.
+\end{enumerate}
+
+\subsubsection{Top and bottom}
+For the top and bottom edges, use the default \textbf{Zero Charge} condition. In electrostatic language this means the normal electric displacement is zero:
+\begin{equation}
+\hat{\mathbf n}\cdot\Dvec=0.
+\end{equation}
+For constant permittivity, this is equivalent to zero normal derivative of the potential.
+
+\subsection{Mesh: exact beginner workflow}
+
+\begin{enumerate}[leftmargin=2em]
+\item Click \textbf{Mesh 1}.
+\item In the settings, set \textbf{Sequence type} to \textbf{User-controlled mesh} if it is available.
+\item Right-click \textbf{Mesh 1}.
+\item Choose \textbf{Free Triangular}.
+\item Click \textbf{Size} under Mesh 1 or right-click Mesh 1 and choose \textbf{Size}.
+\item Choose \textbf{Custom}.
+\item For \textbf{Maximum element size}, type \code{Lx/40}.
+\item For \textbf{Minimum element size}, type \code{Lx/200}.
+\item Click \textbf{Build All}.
+\item Inspect the mesh visually. The rectangle should be filled with triangular elements.
+\end{enumerate}
+
+For a localized defect with width $\sigma_x$ or $\sigma_y$, reduce the maximum element size near the defect so that several elements resolve the Gaussian width. A useful first rule is
+\begin{equation}
+h\lesssim \frac{\min(\sigma_x,\sigma_y)}{5}.
+\end{equation}
+
+\subsection{Stationary study: exact clicks}
+
+\begin{enumerate}[leftmargin=2em]
+\item Click \textbf{Study 1}.
+\item Click \textbf{Step 1: Stationary}.
+\item Confirm that \textbf{Electrostatics (es)} is selected in the physics list.
+\item Click \textbf{Study 1} again.
+\item Click \textbf{Compute}.
+\item If the solve succeeds, save the file.
+\item If the solve fails, first check whether both contacts have electric-potential boundary conditions. A pure Neumann electrostatic problem has an arbitrary voltage offset and can be singular.
+\end{enumerate}
+
+\subsection{Result plots: exact click sequence}
+
+After computation, create the following plots.
+
+\subsubsection{Potential surface plot}
+\begin{enumerate}[leftmargin=2em]
+\item Right-click \textbf{Results}.
+\item Choose \textbf{2D Plot Group}.
+\item Rename it \code{Potential_phi}.
+\item Right-click \code{Potential_phi}.
+\item Choose \textbf{Surface}.
+\item In \textbf{Expression}, type \code{V} or choose \textbf{Electrostatics $>$ Electric potential}.
+\item Click \textbf{Plot}.
+\end{enumerate}
+
+\subsubsection{Electric-field magnitude plot}
+\begin{enumerate}[leftmargin=2em]
+\item Right-click \textbf{Results}.
+\item Choose \textbf{2D Plot Group}.
+\item Rename it \code{Electric_field_magnitude}.
+\item Right-click the plot group and choose \textbf{Surface}.
+\item In \textbf{Expression}, type \code{sqrt(es.Ex^2+es.Ey^2)}.
+\item Click \textbf{Plot}.
+\end{enumerate}
+
+\subsubsection{Electric-field arrows}
+\begin{enumerate}[leftmargin=2em]
+\item Right-click \code{Electric_field_magnitude}.
+\item Choose \textbf{Arrow Surface}.
+\item For the $x$ component, type \code{es.Ex}.
+\item For the $y$ component, type \code{es.Ey}.
+\item Reduce the arrow density if the plot is cluttered.
+\item Click \textbf{Plot}.
+\end{enumerate}
+
+\subsection{Four verification worksheets to run before using the model}
+
+\subsubsection{Worksheet 1: constant potential}
+Set
+\begin{equation}
+V_{\mathrm{left}}=0,\qquad V_{\mathrm{right}}=0,
+\qquad \rho_{\mathrm{tot}}=0.
+\end{equation}
+In the Parameters table set \code{Vleft=0[V]}, \code{Vright=0[V]}, \code{NDp0=0[1/m^3]}, \code{NAm0=0[1/m^3]}, \code{CV0=0[1/m^3]}. Solve. The result should be $V=0$ everywhere and $|\Evec|=0$ up to numerical roundoff.
+
+\subsubsection{Worksheet 2: linear potential}
+Set
+\begin{equation}
+V_{\mathrm{left}}=0,\qquad V_{\mathrm{right}}=1~\mathrm{V},
+\qquad \rho_{\mathrm{tot}}=0.
+\end{equation}
+Solve and create a line plot along $y=L_y/2$. The potential should be nearly linear in $x$, and the electric field should be nearly uniform.
+
+\subsubsection{Worksheet 3: uniform positive space charge}
+Set \code{Vleft=0[V]}, \code{Vright=0[V]}, \code{NDp0=1e21[1/m^3]}, and all other charge terms to zero. The potential should become curved because uniform positive charge produces nonzero potential curvature. The curvature direction must be consistent with the sign convention in Poisson's equation.
+
+\subsubsection{Worksheet 4: localized defect charge}
+Set \code{NDp0=0[1/m^3]}, \code{CV0=1e22[1/m^3]}, \code{zV=1}, and change \code{CV_use} from \code{CV_uni} to \code{CV_gauss}. Solve. The potential and electric-field magnitude should show a localized perturbation around \code{(x0c,y0c)}.
+
+\section{Expanded imported-defect-map tutorial}
+
+After the analytic tests are correct, import a defect concentration map from MATLAB. The safest format is a three-column text or CSV file with columns
+\begin{equation}
+x,\quad y,\quad C_V.
+\end{equation}
+Use SI units unless the file header and COMSOL interpolation settings explicitly define another convention.
+
+\begin{enumerate}[leftmargin=2em]
+\item In Model Builder, right-click \textbf{Global Definitions}.
+\item Choose \textbf{Functions $>$ Interpolation}.
+\item Rename the function \code{CVmap}.
+\item In \textbf{Data source}, choose \textbf{File}.
+\item Browse to the MATLAB-exported file, for example \code{module3_CV_map.csv}.
+\item Set the number of arguments to \textbf{2}.
+\item Confirm that the first argument is $x$, the second argument is $y$, and the function value is $C_V$.
+\item Set interpolation to \textbf{Linear} for the first imported-map test.
+\item Set extrapolation to \textbf{Constant} or \textbf{Nearest} only if you understand what happens outside the data range. Otherwise keep the COMSOL domain inside the imported data bounds.
+\item In \textbf{Definitions $>$ Variables}, change \code{CV_use} to \code{CVmap(x,y)}.
+\item Solve the electrostatic model again.
+\end{enumerate}
+
+\begin{notebox}
+\textbf{Coordinate check.} If the imported defect map appears shifted, flipped, or rotated, the most common cause is inconsistent coordinate convention between MATLAB and COMSOL. MATLAB array row index usually corresponds visually to vertical direction, while COMSOL uses physical coordinates $x$ and $y$. Always plot the imported function alone before using it in the charge density.
+\end{notebox}
+
+\subsection{Plot the imported concentration before solving}
+
+Before solving the Poisson equation with an imported map, verify the map itself.
+\begin{enumerate}[leftmargin=2em]
+\item Right-click \textbf{Results}.
+\item Choose \textbf{2D Plot Group}.
+\item Rename it \code{Imported_CV_check}.
+\item Add a \textbf{Surface} plot.
+\item In \textbf{Expression}, type \code{CV_use}.
+\item Click \textbf{Plot}.
+\item Confirm that the defect hotspot appears where expected.
+\end{enumerate}
+Only after this plot is correct should the imported function be trusted in \code{rho_def}.
+
+\section{Expanded mesh-convergence tutorial for Module 2}
+
+A beginner mistake is to trust one mesh. For a localized charge density, the field can be sensitive to mesh size. Perform the following three-run convergence test.
+
+\begin{longtable}{p{0.24\textwidth}p{0.28\textwidth}p{0.40\textwidth}}
+\toprule
+\textbf{Run} & \textbf{Maximum element size} & \textbf{Quantity to record} \\
+\midrule
+\endhead
+Coarse & \code{Lx/25} & Maximum potential, maximum electric-field magnitude. \\
+Medium & \code{Lx/50} & Same quantities. \\
+Fine & \code{Lx/100} & Same quantities. \\
+\bottomrule
+\end{longtable}
+
+For each mesh, click \textbf{Mesh 1 $>$ Size}, change the maximum element size, click \textbf{Build All}, then click \textbf{Study 1 $>$ Compute}. Record
+\begin{equation}
+\max_\Omega V,
+\qquad
+\max_\Omega |\Evec|.
+\end{equation}
+Use \textbf{Results $>$ Derived Values $>$ Maximum $>$ Surface Maximum} to evaluate these quantities. If the change between medium and fine mesh is much smaller than between coarse and medium mesh, the solution is moving toward mesh convergence.
+
+\section{Expanded export workflow for MATLAB comparison}
+
+To compare COMSOL to MATLAB, export the potential and electric field on a grid.
+
+\begin{enumerate}[leftmargin=2em]
+\item Right-click \textbf{Results $>$ Data Sets}.
+\item Choose \textbf{Grid 2D} if available, or use the default solution data set with an export table.
+\item Set the $x$ range from \code{0} to \code{Lx} with a suitable number of points.
+\item Set the $y$ range from \code{0} to \code{Ly}.
+\item Right-click \textbf{Results $>$ Export}.
+\item Choose \textbf{Data}.
+\item In \textbf{Expressions}, add \code{V}, \code{es.Ex}, \code{es.Ey}, \code{rho_tot}, and \code{rho_def}.
+\item Choose a CSV filename such as \code{module2_comsol_phi_E_export.csv}.
+\item Click \textbf{Export}.
+\end{enumerate}
+
+In MATLAB, compare the exported COMSOL potential against the MATLAB FEM nodal potential after interpolating one solution onto the other grid. Do not compare two fields point-by-point unless they are evaluated at the same physical coordinates.
+
+\section{Expanded standalone checklist for Module 2}
+
+Before using the COMSOL Module 2 model in a report or interview, confirm each item.
+
+\begin{enumerate}[leftmargin=2em]
+\item The geometry dimensions are correct in meters or micrometers.
+\item Silicon relative permittivity is assigned to the domain.
+\item The total charge density uses \code{q0*(p-n+NDp-NAm)+rho_def} with the correct signs.
+\item Vacancy concentration is not confused with hole concentration.
+\item At least one Dirichlet voltage boundary is present; preferably both contacts are specified in the baseline test.
+\item Insulating boundaries are intentionally insulating, not accidentally left unconstrained.
+\item The zero-charge equal-contact test gives constant potential.
+\item The zero-charge unequal-contact test gives a linear potential in the simple rectangle case.
+\item The uniform-charge test gives the expected potential curvature.
+\item The localized-defect test creates a localized field perturbation.
+\item The mesh has been refined enough to resolve the defect-charge length scale.
+\item The COMSOL solution has been exported and compared qualitatively or quantitatively with MATLAB.
+\end{enumerate}
+
+
+\section{Summary}
+
+This COMSOL model implements the Module 2 electrostatic FEM problem in a parallel commercial solver. The model is built as a 2D stationary Electrostatics problem with silicon permittivity, prescribed contact potentials, zero-normal-flux insulating boundaries, and a total space-charge density built from carriers, dopants, and charged radiation-induced defects. The core equation is
+\begin{equation}
+\nabla\cdot(\epss\nabla\phi)=-\left[q(p-n+N_D^+-N_A^-)+q\sum_i z_iC_i\right].
+\end{equation}
+COMSOL solves this equation by FEM. The most important implementation choices are the definition of \code{rho\_tot}, the sign convention for charge, the boundary conditions, and mesh resolution of localized defect charge. The model should be verified using zero-charge, linear-potential, uniform-charge, and localized-defect tests before being used as a comparison tool for the MATLAB Module 2 solver.
+
+\section{References and COMSOL documentation pointers}
+
+\begin{enumerate}[leftmargin=2em]
+\item COMSOL documentation, \emph{The Electrostatics Interface}. The interface solves Gauss's law for the scalar electric potential and defines charge conservation as the main electrostatic domain equation.
+\item COMSOL documentation, \emph{Weak Form PDE}. The weak-form interface accepts weak expressions using COMSOL's test-function syntax.
+\item COMSOL Learning Center, \emph{Modeling with PDEs: Poisson's and Laplace Equations} and \emph{Using the Weak Form}. These resources are useful for understanding how COMSOL maps PDEs to FEM weak forms.
+\item COMSOL, \emph{Introduction to COMSOL Multiphysics}. The introductory tutorials show the Model Wizard, geometry, material, mesh, study, and results workflow used in this note.
+\item J. D. Jackson, \emph{Classical Electrodynamics}, 3rd ed., Wiley, 1998.
+\item S. M. Sze and K. K. Ng, \emph{Physics of Semiconductor Devices}, 3rd ed., Wiley, 2007.
+\item D. K. Schroder, \emph{Semiconductor Material and Device Characterization}, 3rd ed., Wiley, 2006.
+\end{enumerate}
+
+\end{document}

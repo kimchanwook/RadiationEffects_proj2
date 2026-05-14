@@ -1,0 +1,1517 @@
+
+\documentclass[11pt]{article}
+\input{../../shared/project_style.tex}
+\usepackage{listings}
+\lstset{basicstyle=\ttfamily\small,breaklines=true,columns=fullflexible,frame=single}
+
+\newcommand{\COMSOL}{COMSOL Multiphysics}
+\newcommand{\comsol}{\COMSOL}
+\newcommand{\code}[1]{\texttt{\detokenize{#1}}}
+\newcommand{\type}[1]{\texttt{\detokenize{#1}}}
+\newcommand{\menu}[1]{\textbf{#1}}
+\newcommand{\field}[1]{\texttt{\detokenize{#1}}}
+\newcommand{\module}{Module 4}
+\newcommand{\Tfield}{T}
+\newcommand{\Qtot}{Q_{\mathrm{tot}}}
+\newcommand{\Qdep}{Q_{\mathrm{dep}}}
+\newcommand{\Qball}{Q_{\mathrm{ball}}}
+\newcommand{\Qdef}{Q_{\mathrm{defect}}}
+\newcommand{\Qcar}{Q_{\mathrm{carrier}}}
+\newcommand{\rhoMass}{\rho_m}
+\newcommand{\CpHeat}{c_p}
+\newcommand{\kth}{k}
+\newcommand{\alphath}{\alpha_{\mathrm{th}}}
+\newcommand{\OmegaT}{\Omega}
+\newcommand{\dt}{\Delta t}
+\newcommand{\nunit}{\hat{\mathbf n}}
+\rhead{Module 4 COMSOL FEM Note}
+
+\begin{document}
+
+\DocTitle{Module 4 COMSOL FEM Implementation Note}{Click-by-Click Beginner Tutorial for \code{RadiationEffects\_proj2}}{Parallel COMSOL implementation of two-dimensional transient thermal transport with radiation heating and reduced ballistic-to-diffusive source spreading}
+
+\hrule
+\vspace{0.8em}
+
+\begin{overviewbox}
+\textbf{Purpose of this note.} This document is a standalone, beginner-level \COMSOL{} implementation guide for the finite element method (FEM) version of Module 4. The main project implementation remains MATLAB, but this note shows how to build a parallel \COMSOL{} model for the same physical problem: transient thermal transport in silicon driven by radiation energy deposition, defect-related heat sources, and optional ballistic-to-diffusive source spreading. The goal is to make the procedure reproducible by someone who has never built a \COMSOL{} model before. The instructions are written in the same spirit as official \COMSOL{} tutorials: create the model, define parameters, build geometry, assign materials, set physics, mesh, solve, plot, verify, and export. The note intentionally includes many explicit menu paths, expression tables, verification worksheets, and common-error checks.
+\end{overviewbox}
+
+\begin{physicsbox}
+\textbf{Project convention.} This \COMSOL{} model is a parallel implementation path only. It does not replace the MATLAB FEM solver. Use it as a check on the physics, boundary conditions, source normalization, mesh convergence, time-step sensitivity, and interpretation of the Module 4 heat equation.
+\end{physicsbox}
+
+\ProjectTOC
+
+\SymbolsAcronymsSection
+
+\renewcommand{\arraystretch}{1.25}
+\begin{longtable}{p{0.20\textwidth}p{0.56\textwidth}p{0.16\textwidth}}
+\toprule
+\textbf{Symbol} & \textbf{Meaning} & \textbf{Units} \\
+\midrule
+\endhead
+$\Tfield$ & Temperature field solved in Module 4. & K \\
+$\rhoMass$ & Mass density of silicon or effective simulated material. & kg/m$^3$ \\
+$c_p$ & Specific heat capacity at constant pressure. & J/(kg K) \\
+$\kth$ & Thermal conductivity. & W/(m K) \\
+$\alphath$ & Thermal diffusivity, $\alphath=\kth/(\rhoMass c_p)$. & m$^2$/s \\
+$\Qtot$ & Total volumetric heat source. & W/m$^3$ \\
+$\Qdep$ & Local radiation-deposition heat source. & W/m$^3$ \\
+$\Qball$ & Reduced ballistic-to-diffusive heat source or broadened thermalization source. & W/m$^3$ \\
+$\Qdef$ & Optional heat source or sink from defect reactions and annealing. & W/m$^3$ \\
+$\Qcar$ & Optional heat source from carrier recombination or Joule heating. & W/m$^3$ \\
+$\OmegaT$ & Two-dimensional silicon computational domain. & m$^2$ \\
+$\partial\OmegaT$ & Boundary of the two-dimensional domain. & m \\
+$\nunit$ & Outward unit normal vector on the boundary. & 1 \\
+$L_x,L_y$ & Width and height of the two-dimensional domain. & m \\
+$h$ & Representative mesh element size. & m \\
+$N_a$ & FEM shape function associated with local node $a$. & 1 \\
+$M_T$ & Heat-capacity mass matrix. & J/K per out-of-plane thickness \\
+$K_T$ & Thermal conductivity matrix. & W/K per out-of-plane thickness \\
+$F_T$ & FEM heat-source load vector. & W per out-of-plane thickness \\
+$\dt$ & Time-step size or output-time spacing. & s \\
+$\eta_{\mathrm{ball}}$ & Fraction or scaling factor assigned to the broadened ballistic source. & 1 \\
+$\sigma_{\mathrm{dep}}$ & Width of local deposition source. & m \\
+$\sigma_{\mathrm{ball}}$ & Width of broadened ballistic source. & m \\
+\bottomrule
+\end{longtable}
+
+\section{Physical problem solved by Module 4}
+
+\subsection{What Module 4 does in the project}
+\module{} connects radiation energy deposition and defect evolution to the local temperature field in silicon.  A radiation event deposits energy.  Some energy is thermalized locally, some can be represented as a broadened ballistic source before becoming diffusive heat, and some thermal response can feed back into defect evolution through temperature-dependent diffusion and annealing.
+
+At the continuum level, \module{} solves for the temperature field
+\begin{equation}
+T(x,y,t),
+\end{equation}
+where \(x\) and \(y\) are the two spatial coordinates and \(t\) is time.  The result is passed to other modules as a temperature map.
+
+\subsection{Core heat equation}
+The reduced FEM equation used in this tutorial is
+\begin{equation}
+\rho_m c_p \frac{\partial T}{\partial t}
+-
+\nabla\cdot\left(k\nabla T\right)
+=
+Q_{\mathrm{tot}}(x,y,t),
+\label{eq:heat-core}
+\end{equation}
+where \(\rho_m\) is mass density, \(c_p\) is specific heat, \(k\) is thermal conductivity, and \(Q_{\mathrm{tot}}\) is the total volumetric heat source.
+
+For this project the total source can be decomposed as
+\begin{equation}
+Q_{\mathrm{tot}}
+=
+Q_{\mathrm{dep}}
++
+Q_{\mathrm{ball}}
++
+Q_{\mathrm{defect}}
++
+Q_{\mathrm{carrier}},
+\label{eq:qtot}
+\end{equation}
+where \(Q_{\mathrm{dep}}\) is local radiation-deposition heating, \(Q_{\mathrm{ball}}\) is an optional broadened ballistic-thermalization source, \(Q_{\mathrm{defect}}\) is heat from defect reactions or annealing if included, and \(Q_{\mathrm{carrier}}\) is optional carrier recombination or Joule-related heat if later coupled.
+
+For the first \comsol{} model we use
+\begin{equation}
+Q_{\mathrm{tot}}=Q_{\mathrm{dep}}+Q_{\mathrm{ball}},
+\end{equation}
+then add the other terms as extensions.
+
+\subsection{Fourier thermal diffusivity}
+The thermal diffusivity is
+\begin{equation}
+\alpha=\frac{k}{\rho_m c_p}.
+\label{eq:alpha}
+\end{equation}
+This scale controls how fast a temperature feature spreads.  A localized hotspot of width \(\sigma_0\) spreads roughly as
+\begin{equation}
+\sigma^2(t)\sim \sigma_0^2+4\alpha t
+\end{equation}
+in two-dimensional diffusion.  This relation is useful for verifying the simulation.
+
+\subsection{What ``ballistic-diffusive'' means here}
+A full microscopic ballistic phonon model would require solving a transport equation for phonon distributions.  That is not what this first \comsol{} implementation does.  Instead, the \comsol{} model keeps a continuum heat equation but allows the radiation source to be spatially or temporally broadened to represent energy carried away from the deposition site before local thermalization.
+
+In practice, this means that the source term can be written as a sum of a narrow local deposition term and a broader source term:
+\begin{equation}
+Q_{\mathrm{dep}}(x,y,t)=Q_0 f_{\mathrm{narrow}}(x,y)g(t),
+\end{equation}
+\begin{equation}
+Q_{\mathrm{ball}}(x,y,t)=\eta_{\mathrm{ball}}Q_0 f_{\mathrm{broad}}(x,y)g(t),
+\end{equation}
+where \(f_{\mathrm{broad}}\) has a larger spatial width than \(f_{\mathrm{narrow}}\).  This is a reduced source-level representation of ballistic spreading.
+
+\section{FEM interpretation before opening COMSOL}
+
+\subsection{Weak form of the heat equation}
+Multiply Eq.~\eqref{eq:heat-core} by a test function \(w\) and integrate over the domain \(\Omega\):
+\begin{equation}
+\int_{\Omega} w\rho_m c_p \frac{\partial T}{\partial t}\,d\Omega
+-
+\int_{\Omega} w\nabla\cdot(k\nabla T)\,d\Omega
+=
+\int_{\Omega} wQ_{\mathrm{tot}}\,d\Omega.
+\end{equation}
+Integrating the diffusion term by parts gives
+\begin{equation}
+\int_{\Omega} w\rho_m c_p \frac{\partial T}{\partial t}\,d\Omega
++
+\int_{\Omega} k\nabla w\cdot\nabla T\,d\Omega
+=
+\int_{\Omega} wQ_{\mathrm{tot}}\,d\Omega
++
+\int_{\partial\Omega} w k\nabla T\cdot\mathbf{n}\,d\Gamma.
+\label{eq:weak}
+\end{equation}
+For thermally insulating boundaries,
+\begin{equation}
+-k\nabla T\cdot\mathbf{n}=0,
+\end{equation}
+so the boundary term vanishes.
+
+\subsection{Finite element matrix form}
+Approximate the temperature in each element by shape functions \(N_a\):
+\begin{equation}
+T_h(x,y,t)=\sum_a N_a(x,y)T_a(t),
+\end{equation}
+where \(T_a(t)\) is the nodal temperature.  The semidiscrete FEM system becomes
+\begin{equation}
+M\frac{d\mathbf{T}}{dt}+K\mathbf{T}=\mathbf{F},
+\label{eq:matrix}
+\end{equation}
+where
+\begin{equation}
+M_{ab}=\int_{\Omega}\rho_m c_p N_aN_b\,d\Omega,
+\end{equation}
+\begin{equation}
+K_{ab}=\int_{\Omega}k\nabla N_a\cdot\nabla N_b\,d\Omega,
+\end{equation}
+\begin{equation}
+F_a=\int_{\Omega}N_aQ_{\mathrm{tot}}\,d\Omega+	ext{boundary heat-flux terms}.
+\end{equation}
+\comsol{} constructs these FEM matrices internally.  The point of the click-by-click procedure below is to make sure the physics entries correspond to Eq.~\eqref{eq:matrix}.
+
+\section{Recommended COMSOL model route}
+
+There are two valid ways to implement \module{} in \comsol{}.
+
+\begin{enumerate}
+\item \textbf{Route A: Heat Transfer in Solids interface.} This is recommended if your \comsol{} license includes the Heat Transfer Module.  It uses the physical names \emph{density}, \emph{heat capacity}, \emph{thermal conductivity}, \emph{heat source}, and \emph{thermal insulation}.  This is easiest for beginners.
+\item \textbf{Route B: Coefficient Form PDE interface.} This works with the Mathematics interface.  It exposes the PDE coefficients directly and makes the weak-form/FEM connection clearer.
+\end{enumerate}
+
+This note gives both routes.  Start with Route A.  Use Route B if you want a closer match to the MATLAB FEM equation assembly.
+
+\section{Route A: Heat Transfer in Solids, click-by-click}
+
+\subsection{Start a new model}
+\begin{enumerate}
+\item Open \comsol{}.
+\item In the opening window, click \menu{Model Wizard}.
+\item Under \menu{Select Space Dimension}, click \menu{2D}.
+\item Click \menu{Next}.
+\item In \menu{Select Physics}, expand \menu{Heat Transfer}.
+\item Expand \menu{Heat Transfer in Solids}.
+\item Select \menu{Heat Transfer in Solids (ht)}.
+\item Click \menu{Add}.
+\item Click \menu{Study}.
+\item Under \menu{Preset Studies}, select \menu{Time Dependent}.
+\item Click \menu{Done}.
+\end{enumerate}
+
+You should now see the Model Builder tree with \menu{Global Definitions}, \menu{Component 1}, \menu{Geometry 1}, \menu{Materials}, \menu{Heat Transfer in Solids}, \menu{Mesh 1}, \menu{Study 1}, and \menu{Results}.
+
+\subsection{Save the model}
+\begin{enumerate}
+\item Click \menu{File} \(\rightarrow\) \menu{Save As}.
+\item Navigate to a project working folder, for example \type{comsol/module4/}.
+\item Save the file as \type{module4_thermal_2d_tutorial.mph}.
+\end{enumerate}
+
+\section{Define global parameters}
+
+\subsection{Open the parameter table}
+\begin{enumerate}
+\item In the Model Builder, expand \menu{Global Definitions}.
+\item Click \menu{Parameters 1}.  If it does not exist, right-click \menu{Global Definitions} and choose \menu{Parameters}.
+\item In the Settings window, find the table with columns \menu{Name}, \menu{Expression}, \menu{Value}, and \menu{Description}.
+\item Enter the parameters in Table~\ref{tab:params} exactly as written.
+\end{enumerate}
+
+\begin{longtable}{p{0.18\linewidth}p{0.28\linewidth}p{0.46\linewidth}}
+\caption{Global parameters to type in \comsol{}.}\label{tab:params}\\
+\toprule
+\textbf{Name} & \textbf{Expression} & \textbf{Description}\\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Name} & \textbf{Expression} & \textbf{Description}\\
+\midrule
+\endhead
+\type{Lx} & \type{20[um]} & Device length in the \(x\)-direction\\
+\type{Ly} & \type{10[um]} & Device height in the \(y\)-direction\\
+\type{T0} & \type{300[K]} & Initial temperature\\
+\type{Tleft} & \type{300[K]} & Optional left contact temperature\\
+\type{Tright} & \type{300[K]} & Optional right contact temperature\\
+\type{rhoSi} & \type{2330[kg/m^3]} & Silicon mass density\\
+\type{CpSi} & \type{700[J/(kg*K)]} & Silicon specific heat capacity\\
+\type{kSi} & \type{148[W/(m*K)]} & Silicon thermal conductivity near room temperature\\
+\type{alphaSi} & \type{kSi/(rhoSi*CpSi)} & Thermal diffusivity\\
+\type{Q0} & \type{1e15[W/m^3]} & Peak volumetric source strength\\
+\type{etaBall} & \type{0.3} & Fractional weight for broadened ballistic source\\
+\type{x0} & \type{0.5*Lx} & Source center in \(x\)\\
+\type{y0} & \type{0.5*Ly} & Source center in \(y\)\\
+\type{sigDep} & \type{0.6[um]} & Width of local deposition source\\
+\type{sigBall} & \type{2.5[um]} & Width of broadened ballistic source\\
+\type{tpulse} & \type{10[ns]} & Source pulse duration\\
+\type{tend} & \type{2[us]} & Final simulation time\\
+\type{dtout} & \type{10[ns]} & Output time spacing\\
+\type{hmax} & \type{0.4[um]} & Maximum mesh element size\\
+\bottomrule
+\end{longtable}
+
+\begin{physicsbox}
+\textbf{Physics meaning.} The product \(\rho_m c_p\) controls how much energy is needed to change the temperature.  The conductivity \(k\) controls how rapidly heat spreads spatially.  The source strength \(Q_0\) controls the rate at which energy is injected per unit volume.
+\end{physicsbox}
+
+\section{Build the two-dimensional silicon geometry}
+
+\subsection{Create a rectangle}
+\begin{enumerate}
+\item In Model Builder, expand \menu{Component 1}.
+\item Click \menu{Geometry 1}.
+\item In the Settings window, set \menu{Length unit} to \type{um}.
+\item Right-click \menu{Geometry 1}.
+\item Choose \menu{Rectangle}.
+\item In the Rectangle settings, set \menu{Width} to \type{Lx}.
+\item Set \menu{Height} to \type{Ly}.
+\item Under \menu{Position}, set \menu{x} to \type{0} and \menu{y} to \type{0}.
+\item Click \menu{Build Selected}.
+\end{enumerate}
+
+You should see one rectangular domain.  This represents the 2D silicon cross-section.
+
+\subsection{Name the geometry selection}
+Selections are optional but useful.
+\begin{enumerate}
+\item Right-click \menu{Definitions} under \menu{Component 1}.
+\item Choose \menu{Selections} \(\rightarrow\) \menu{Explicit}.
+\item Rename the selection \type{silicon_domain}.
+\item In the Graphics window, click the rectangular domain.
+\item Click the \menu{+} button in the Settings window to add the domain to the selection.
+\end{enumerate}
+
+\section{Define source variables}
+
+\subsection{Open component variables}
+\begin{enumerate}
+\item In Model Builder, right-click \menu{Component 1} \(\rightarrow\) \menu{Definitions}.
+\item Choose \menu{Variables}.
+\item Rename it \type{Thermal source variables} if desired.
+\item In the table, enter the variables in Table~\ref{tab:variables}.
+\end{enumerate}
+
+\begin{longtable}{p{0.22\linewidth}p{0.45\linewidth}p{0.25\linewidth}}
+\caption{Variables for local and ballistic source terms.}\label{tab:variables}\\
+\toprule
+\textbf{Name} & \textbf{Expression} & \textbf{Description}\\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Name} & \textbf{Expression} & \textbf{Description}\\
+\midrule
+\endhead
+\type{r2dep} & \type{(x-x0)^2+(y-y0)^2} & Squared distance from source center\\
+\type{fdep} & \type{exp(-r2dep/(2*sigDep^2))} & Narrow local deposition shape\\
+\type{fball} & \type{exp(-r2dep/(2*sigBall^2))} & Broadened ballistic shape\\
+\type{gtime} & \type{flc2hs(tpulse-t,0.1*tpulse)} & Smooth pulse active for \(t<tpulse\)\\
+\type{Qdep} & \type{Q0*fdep*gtime} & Local heat source\\
+\type{Qball} & \type{etaBall*Q0*fball*gtime} & Ballistic broadened source\\
+\type{Qtot} & \type{Qdep+Qball} & Total source used by heat equation\\
+\bottomrule
+\end{longtable}
+
+\begin{notebox}
+\textbf{Typing note.} \type{flc2hs(arg,scale)} is a built-in smoothed Heaviside-type function in \comsol{}.  It avoids a perfectly discontinuous time switch, which can make the transient solver work harder.  If your version does not accept \type{flc2hs}, replace \type{gtime} with \type{1} for a constant source during initial testing.
+\end{notebox}
+
+\section{Assign silicon material properties}
+
+\subsection{Create a blank material}
+\begin{enumerate}
+\item In Model Builder, right-click \menu{Materials}.
+\item Choose \menu{Blank Material}.
+\item Rename the material \type{Silicon_reduced_constant_properties}.
+\item In the Settings window, under \menu{Material Contents}, add the following properties manually if they are not already listed:
+\begin{itemize}
+\item \menu{Thermal conductivity}
+\item \menu{Density}
+\item \menu{Heat capacity at constant pressure}
+\end{itemize}
+\end{enumerate}
+
+\subsection{Enter material values}
+In the material property table, enter:
+\begin{longtable}{p{0.32\linewidth}p{0.32\linewidth}p{0.28\linewidth}}
+\toprule
+\textbf{Property} & \textbf{Expression to type} & \textbf{Meaning}\\
+\midrule
+Thermal conductivity & \type{kSi} & Fourier heat conduction coefficient\\
+Density & \type{rhoSi} & mass per volume\\
+Heat capacity at constant pressure & \type{CpSi} & energy per mass per kelvin\\
+\bottomrule
+\end{longtable}
+
+\begin{physicsbox}
+\textbf{Physics meaning.} These constant properties are sufficient for the first verification model.  Temperature-dependent silicon properties can be added later, but a constant-property model is easier to verify against analytic diffusion and energy-balance tests.
+\end{physicsbox}
+
+\section{Set up Heat Transfer in Solids}
+
+\subsection{Check the domain equation}
+\begin{enumerate}
+\item Click \menu{Heat Transfer in Solids (ht)} in the Model Builder.
+\item Click the default domain feature, usually called \menu{Solid 1}.
+\item Confirm that the selected domain is the rectangle.
+\item Under \menu{Heat Conduction}, confirm that thermal conductivity is taken from the material.
+\item Under \menu{Thermodynamics}, confirm that density and heat capacity are taken from the material.
+\end{enumerate}
+
+\subsection{Initial temperature}
+\begin{enumerate}
+\item Under \menu{Heat Transfer in Solids (ht)}, click \menu{Initial Values 1}.
+\item In the field \menu{Temperature}, type \type{T0}.
+\end{enumerate}
+
+This sets
+\begin{equation}
+T(x,y,0)=T_0.
+\end{equation}
+
+\subsection{Add a volumetric heat source}
+\begin{enumerate}
+\item Right-click \menu{Heat Transfer in Solids (ht)}.
+\item Choose \menu{Domain} \(\rightarrow\) \menu{Heat Source}.
+\item Rename it \type{Radiation and ballistic heat source}.
+\item In the Settings window, make sure the rectangular domain is selected.
+\item In the field \menu{Heat source}, type \type{Qtot}.
+\end{enumerate}
+
+This implements the right-hand side of Eq.~\eqref{eq:heat-core}.
+
+\section{Boundary conditions}
+
+\subsection{Default thermal insulation}
+In the Heat Transfer in Solids interface, exterior boundaries are usually thermally insulated by default unless another boundary condition is added.  The mathematical condition is
+\begin{equation}
+-\mathbf{n}\cdot k\nabla T=0.
+\end{equation}
+This means no heat leaves the computational domain through that boundary.
+
+\subsection{Verify the default insulation}
+\begin{enumerate}
+\item Expand \menu{Heat Transfer in Solids (ht)}.
+\item Look for \menu{Thermal Insulation 1}.  If it exists, click it.
+\item Confirm that all exterior boundaries are selected.
+\end{enumerate}
+
+\subsection{Add fixed-temperature contacts, optional}
+Use this only if you want a heat-sink boundary rather than a thermally isolated device.
+\begin{enumerate}
+\item Right-click \menu{Heat Transfer in Solids (ht)}.
+\item Choose \menu{Boundary} \(\rightarrow\) \menu{Temperature}.
+\item Rename it \type{Left heat sink}.
+\item Select the left vertical boundary of the rectangle.
+\item In \menu{Temperature}, type \type{Tleft}.
+\item Right-click \menu{Heat Transfer in Solids (ht)} again.
+\item Choose \menu{Boundary} \(\rightarrow\) \menu{Temperature}.
+\item Rename it \type{Right heat sink}.
+\item Select the right vertical boundary.
+\item In \menu{Temperature}, type \type{Tright}.
+\end{enumerate}
+
+\begin{notebox}
+\textbf{Interpretation.} Thermal insulation is useful for energy-conservation verification.  Fixed-temperature boundaries are useful for modeling ideal contacts or heat sinks.  Do not mix them accidentally: a fixed-temperature boundary can remove energy from the domain and will change the total thermal inventory.
+\end{notebox}
+
+\section{Mesh creation}
+
+\subsection{Create a controlled triangular mesh}
+\begin{enumerate}
+\item In Model Builder, click \menu{Mesh 1}.
+\item In the Settings window, set \menu{Sequence type} to \menu{User-controlled mesh} if available.
+\item Right-click \menu{Mesh 1}.
+\item Choose \menu{Free Triangular}.
+\item Right-click \menu{Mesh 1}.
+\item Choose \menu{Size}.
+\item In \menu{Maximum element size}, type \type{hmax}.
+\item In \menu{Minimum element size}, type \type{hmax/5}.
+\item In \menu{Maximum element growth rate}, type \type{1.25}.
+\item Click \menu{Build All}.
+\end{enumerate}
+
+\subsection{Mesh physics explanation}
+The temperature source has characteristic widths \(\sigma_{\mathrm{dep}}\) and \(\sigma_{\mathrm{ball}}\).  The mesh must resolve the smaller one.  A practical initial rule is
+\begin{equation}
+h_{\max}\lesssim \frac{\sigma_{\mathrm{dep}}}{2}
+\end{equation}
+near the hotspot.  For a more reliable model, use local mesh refinement near the source center.
+
+\subsection{Optional local refinement near the hotspot}
+\begin{enumerate}
+\item Right-click \menu{Geometry 1}.
+\item Choose \menu{Circle}.
+\item Set \menu{Radius} to \type{3*sigDep}.
+\item Set center \menu{x} to \type{x0} and \menu{y} to \type{y0}.
+\item Build the geometry.  If asked about forming a union, keep interior boundaries if you want a refinement region.
+\item In \menu{Mesh 1}, add a \menu{Size} node assigned to the circular region or nearby boundaries.
+\item Use maximum element size \type{sigDep/4} in the source region.
+\end{enumerate}
+
+\section{Set the time-dependent study}
+
+\subsection{Open Study 1}
+\begin{enumerate}
+\item In Model Builder, expand \menu{Study 1}.
+\item Click \menu{Step 1: Time Dependent}.
+\item In the field \menu{Times}, type
+\begin{lstlisting}
+range(0,dtout,tend)
+\end{lstlisting}
+\end{enumerate}
+
+This asks \comsol{} to output the solution from \(t=0\) to \(t=t_{\mathrm{end}}\) every \(\Delta t_{\mathrm{out}}\).  The solver may use smaller internal time steps.
+
+\subsection{Solver tolerance}
+\begin{enumerate}
+\item Click \menu{Study 1}.
+\item In the Settings window, find \menu{Study Settings} or \menu{Solver Configurations}.
+\item For a first run, keep the default time-dependent solver.
+\item For a verification run, set \menu{Relative tolerance} to \type{1e-4} or \type{1e-5}.
+\end{enumerate}
+
+\subsection{Compute}
+\begin{enumerate}
+\item Click \menu{Study 1}.
+\item Click \menu{Compute}.
+\item Wait for the progress window to finish.
+\end{enumerate}
+
+If the solver fails, first reduce \type{Q0}, increase \type{tpulse}, or use \type{gtime=1} to remove the smoothed time switch as a debugging step.
+
+\section{Postprocessing and plots}
+
+\subsection{Temperature surface plot}
+\begin{enumerate}
+\item After the solve finishes, expand \menu{Results}.
+\item A default \menu{Temperature} plot group may already exist.
+\item If not, right-click \menu{Results} and choose \menu{2D Plot Group}.
+\item Rename it \type{Temperature map}.
+\item Right-click the plot group and choose \menu{Surface}.
+\item In \menu{Expression}, type \type{T}.
+\item In \menu{Unit}, type \type{K}.
+\item Click \menu{Plot}.
+\end{enumerate}
+
+\subsection{Temperature rise plot}
+For radiation effects, the temperature rise is often more informative than absolute temperature.
+\begin{enumerate}
+\item Right-click \menu{Results} \(\rightarrow\) \menu{2D Plot Group}.
+\item Rename it \type{Temperature rise}.
+\item Right-click it and choose \menu{Surface}.
+\item In \menu{Expression}, type \type{T-T0}.
+\item In \menu{Unit}, type \type{K}.
+\item Click \menu{Plot}.
+\end{enumerate}
+
+\subsection{Line plot through the hotspot}
+\begin{enumerate}
+\item Right-click \menu{Results}.
+\item Choose \menu{1D Plot Group}.
+\item Rename it \type{Centerline temperature}.
+\item Right-click it and choose \menu{Line Graph}.
+\item For the dataset, choose the solution dataset.
+\item Set the line from \((0,Ly/2)\) to \((Lx,Ly/2)\) if the GUI provides coordinate fields.  Otherwise create a cut line dataset under \menu{Results} \(\rightarrow\) \menu{Datasets} \(\rightarrow\) \menu{Cut Line 2D}.
+\item In \menu{Expression}, type \type{T-T0}.
+\item Click \menu{Plot}.
+\end{enumerate}
+
+\section{Derived values and energy checks}
+
+\subsection{Create an integration operator}
+\begin{enumerate}
+\item In Model Builder, right-click \menu{Component 1} \(\rightarrow\) \menu{Definitions}.
+\item Choose \menu{Component Couplings} \(\rightarrow\) \menu{Integration}.
+\item Rename it \type{intop_domain}.
+\item Select the silicon rectangle domain.
+\end{enumerate}
+
+\subsection{Total excess thermal energy}
+The excess thermal energy per out-of-plane thickness is
+\begin{equation}
+E_{\mathrm{th}}(t)=\int_{\Omega}\rho_m c_p\left(T-T_0\right)d\Omega.
+\end{equation}
+In \comsol{}, evaluate it as:
+\begin{lstlisting}
+intop_domain(rhoSi*CpSi*(T-T0))
+\end{lstlisting}
+
+\subsection{Evaluate global quantities}
+\begin{enumerate}
+\item Right-click \menu{Results} \(\rightarrow\) \menu{Derived Values}.
+\item Choose \menu{Global Evaluation}.
+\item In the expression table, type \type{intop_domain(rhoSi*CpSi*(T-T0))}.
+\item Add a second expression \type{intop_domain(Qtot)}.
+\item Click \menu{Evaluate}.
+\end{enumerate}
+
+The first expression gives total excess thermal energy per out-of-plane thickness.  The second gives total input power per out-of-plane thickness.
+
+\section{Verification tutorial 1: uniform equilibrium}
+
+\subsection{Purpose}
+This test checks whether the solver preserves a constant temperature when there is no source and no heat loss.
+
+\subsection{Steps}
+\begin{enumerate}
+\item Go to \menu{Component 1} \(\rightarrow\) \menu{Definitions} \(\rightarrow\) \menu{Variables}.
+\item Temporarily change \type{Qtot} to \type{0[W/m^3]}.
+\item Keep all exterior boundaries thermally insulated.
+\item Keep \type{Initial Values 1} as \type{T0}.
+\item Click \menu{Study 1} \(\rightarrow\) \menu{Compute}.
+\item Plot \type{T-T0}.
+\end{enumerate}
+
+\subsection{Expected result}
+The temperature rise should be zero everywhere:
+\begin{equation}
+T(x,y,t)-T_0=0.
+\end{equation}
+If the model produces a nonzero temperature change, there is likely an unintended source, boundary condition, or initial-value mismatch.
+
+\section{Verification tutorial 2: uniform source in insulated domain}
+
+\subsection{Purpose}
+This test checks the heat-capacity term.  If the source is spatially uniform and boundaries are insulated, the temperature should rise uniformly as
+\begin{equation}
+T(t)=T_0+\frac{Q_{\mathrm{uniform}}}{\rho_m c_p}t.
+\end{equation}
+
+\subsection{Steps}
+\begin{enumerate}
+\item In \menu{Parameters}, add \type{Quni = 1e12[W/m^3]}.
+\item In \menu{Variables}, set \type{Qtot} to \type{Quni}.
+\item Keep all boundaries thermally insulated.
+\item Set \type{tend} to \type{100[ns]}.
+\item Compute.
+\item Use \menu{Derived Values} \(\rightarrow\) \menu{Global Evaluation} to evaluate \type{maxop1(T)} if you have a maximum operator, or plot \type{T} and inspect uniformity.
+\end{enumerate}
+
+\subsection{Expected result}
+The temperature should remain spatially uniform.  At time \(t\), compare with
+\begin{equation}
+\Delta T_{\mathrm{analytic}}=\frac{Q_{\mathrm{uni}}t}{\rho_m c_p}.
+\end{equation}
+This test is a direct check of the transient mass matrix and volumetric source term.
+
+\section{Verification tutorial 3: Gaussian diffusion}
+
+\subsection{Purpose}
+This test checks the diffusion operator.  Turn off the source after setting a Gaussian initial temperature field.  The hotspot should spread and decrease in amplitude.
+
+\subsection{Create a Gaussian initial condition}
+\begin{enumerate}
+\item In \menu{Parameters}, add \type{dT0 = 10[K]}.
+\item Add \type{sigT0 = 1[um]}.
+\item In \menu{Component 1} \(\rightarrow\) \menu{Definitions} \(\rightarrow\) \menu{Variables}, add
+\begin{lstlisting}
+Tgauss = T0 + dT0*exp(-((x-x0)^2+(y-y0)^2)/(2*sigT0^2))
+\end{lstlisting}
+\item Click \menu{Heat Transfer in Solids} \(\rightarrow\) \menu{Initial Values 1}.
+\item Set \menu{Temperature} to \type{Tgauss}.
+\item Set \type{Qtot} to \type{0[W/m^3]}.
+\item Keep boundaries insulated, or make the domain much larger than the hotspot for early-time comparison.
+\item Compute.
+\end{enumerate}
+
+\subsection{Expected result}
+The hotspot spreads with time.  In an effectively infinite domain, the width grows like
+\begin{equation}
+\sigma^2(t)=\sigma_0^2+4\alpha t.
+\end{equation}
+The total excess energy
+\begin{equation}
+\int_{\Omega}\rho_m c_p(T-T_0)d\Omega
+\end{equation}
+should remain approximately constant if boundaries are insulated.
+
+\section{Verification tutorial 4: fixed-temperature boundaries}
+
+\subsection{Purpose}
+This test checks boundary-condition enforcement.  With no source and left/right boundaries fixed at different temperatures, the steady solution should become nearly linear in \(x\).
+
+\subsection{Steps}
+\begin{enumerate}
+\item Set \type{Qtot} to \type{0[W/m^3]}.
+\item Set \type{Tleft = 310[K]} and \type{Tright = 300[K]}.
+\item Add left and right \menu{Temperature} boundary conditions as described earlier.
+\item Use a sufficiently long \type{tend}, for example \type{10[us]} or longer depending on geometry.
+\item Compute.
+\item Plot a centerline \type{T} profile from left to right.
+\end{enumerate}
+
+\subsection{Expected result}
+The temperature should approach
+\begin{equation}
+T(x)\approx T_{\mathrm{left}}+\frac{T_{\mathrm{right}}-T_{\mathrm{left}}}{L_x}x.
+\end{equation}
+This test is useful because it checks that the thermal conductivity matrix and Dirichlet boundary conditions are behaving properly.
+
+\section{Route B: Coefficient Form PDE implementation}
+
+\subsection{When to use this route}
+Use this route if you do not have the Heat Transfer Module or if you want a closer one-to-one connection to the MATLAB FEM equation.  In this case the dependent variable is still temperature \(T\), but you enter the heat equation as a generic PDE.
+
+\subsection{Create the PDE model}
+\begin{enumerate}
+\item Start a new \comsol{} model.
+\item In \menu{Model Wizard}, choose \menu{2D}.
+\item In \menu{Select Physics}, expand \menu{Mathematics}.
+\item Expand \menu{PDE Interfaces}.
+\item Select \menu{Coefficient Form PDE}.
+\item Click \menu{Add}.
+\item In the dependent variable field, change the dependent variable name to \type{T} if possible.
+\item Choose \menu{Time Dependent} study.
+\item Click \menu{Done}.
+\end{enumerate}
+
+\subsection{Coefficient form equation}
+The coefficient form PDE is commonly written in \comsol{} as
+\begin{equation}
+ e_a\frac{\partial^2 u}{\partial t^2}
++d_a\frac{\partial u}{\partial t}
++\nabla\cdot(-c\nabla u-\alpha u+\gamma)
++\beta\cdot\nabla u
++au
+=f.
+\end{equation}
+For heat diffusion with \(u=T\), use
+\begin{equation}
+d_a=\rho_m c_p,
+\quad c=k,
+\quad f=Q_{\mathrm{tot}},
+\end{equation}
+and set the remaining coefficients to zero.
+
+\subsection{Enter PDE coefficients}
+Click the main \menu{Coefficient Form PDE} domain feature and enter:
+\begin{longtable}{p{0.18\linewidth}p{0.35\linewidth}p{0.38\linewidth}}
+\toprule
+\textbf{Coefficient} & \textbf{Expression} & \textbf{Meaning}\\
+\midrule
+\type{ea} & \type{0} & no second time derivative\\
+\type{da} & \type{rhoSi*CpSi} & heat-capacity coefficient\\
+\type{c} & \type{kSi} & thermal conductivity\\
+\type{a} & \type{0} & no linear reaction/sink in base model\\
+\type{f} & \type{Qtot} & volumetric heat source\\
+\type{alpha} & \type{0} & no conservative convection-like flux\\
+\type{beta} & \type{0} & no nonconservative advection\\
+\type{gamma} & \type{0} & no prescribed internal flux\\
+\bottomrule
+\end{longtable}
+
+\subsection{Boundary condition in PDE route}
+For zero-flux boundaries, use the default no-flux condition if present.  If you need to specify it manually, set the normal flux to zero:
+\begin{equation}
+\mathbf{n}\cdot(-c\nabla T)=0.
+\end{equation}
+For fixed-temperature boundaries, add a Dirichlet boundary condition and set \(T=T_b\).
+
+\section{Adding imported radiation-deposition maps}
+
+\subsection{Why import maps}
+The analytic Gaussian source is useful for verification, but the project ultimately needs source maps from radiation transport or other preprocessing.  A map may contain deposited energy density, power density, or event-normalized heat deposition.
+
+\subsection{Prepare a text file}
+Use a plain text or CSV file with columns such as
+\begin{lstlisting}
+x,y,Q
+0.0e-6,0.0e-6,1.2e15
+0.1e-6,0.0e-6,1.1e15
+...
+\end{lstlisting}
+Use SI units if possible.
+
+\subsection{Import interpolation function}
+\begin{enumerate}
+\item Right-click \menu{Global Definitions}.
+\item Choose \menu{Functions} \(\rightarrow\) \menu{Interpolation}.
+\item Rename the function \type{Qmap}.
+\item In \menu{Source}, choose \menu{File}.
+\item Browse to the CSV or text file.
+\item Set the number of arguments to \type{2}.
+\item Set argument units to \type{m} and \type{m}.
+\item Set function unit to \type{W/m^3} if the map is a power density.
+\item Click \menu{Import} or \menu{Plot} to verify the function.
+\end{enumerate}
+
+\subsection{Use imported map in source term}
+In \menu{Variables}, set
+\begin{lstlisting}
+Qdep = Qmap(x,y)*gtime
+Qtot = Qdep + Qball
+\end{lstlisting}
+If the map already includes time-integrated energy density \(E_{\mathrm{dep}}\) in \(\mathrm{J/m^3}\), convert it to power density by dividing by a thermalization time:
+\begin{lstlisting}
+Qdep = Edep_map(x,y)/tpulse*gtime
+\end{lstlisting}
+
+\section{Adding defect-related thermal coupling}
+
+\subsection{Temperature-dependent defect kinetics}
+Even if Module 4 only solves temperature, its output is used by Module 3.  Defect diffusion and annealing often use Arrhenius forms:
+\begin{equation}
+D_i(T)=D_{i0}\exp\left(-\frac{E_{a,i}}{k_BT}\right),
+\end{equation}
+\begin{equation}
+k_i(T)=\nu_i\exp\left(-\frac{E_{m,i}}{k_BT}\right).
+\end{equation}
+The \comsol{} temperature map can be exported to MATLAB so that Module 3 can use these temperature-dependent coefficients.
+
+\subsection{Defect reaction heat source}
+If a defect reaction releases or absorbs heat, include
+\begin{equation}
+Q_{\mathrm{defect}}=\sum_r \Delta H_r R_r,
+\end{equation}
+where \(\Delta H_r\) is reaction enthalpy per reaction and \(R_r\) is reaction rate per volume.  In the first tutorial model set \(Q_{\mathrm{defect}}=0\).  Add it only after the base heat equation is verified.
+
+\section{Exporting data to MATLAB}
+
+\subsection{Export a temperature field}
+\begin{enumerate}
+\item Right-click \menu{Results}.
+\item Choose \menu{Export} \(\rightarrow\) \menu{Data}.
+\item In the Settings window, set \menu{Dataset} to the time-dependent solution.
+\item In \menu{Expression}, type \type{T} or \type{T-T0}.
+\item Choose the desired time step under \menu{Time selection}.
+\item Set \menu{Filename} to something like \type{module4_T_field.csv}.
+\item Click \menu{Export}.
+\end{enumerate}
+
+\subsection{Export centerline data}
+\begin{enumerate}
+\item Create a \menu{Cut Line 2D} dataset from \((0,Ly/2)\) to \((Lx,Ly/2)\).
+\item Right-click \menu{Results} \(\rightarrow\) \menu{Export} \(\rightarrow\) \menu{Data}.
+\item Select the cut-line dataset.
+\item Export \type{x}, \type{T}, and \type{T-T0}.
+\end{enumerate}
+
+\section{Mesh convergence workflow}
+
+\subsection{Why convergence matters}
+The FEM solution should not depend strongly on arbitrary mesh size.  If the temperature peak changes significantly when the mesh is refined, the mesh is too coarse.
+
+\subsection{Manual mesh convergence steps}
+\begin{enumerate}
+\item Run the model with \type{hmax = 0.8[um]}.
+\item Record peak \type{T-T0}, total excess energy, and centerline temperature.
+\item Change \type{hmax = 0.4[um]}.
+\item Rebuild the mesh and recompute.
+\item Change \type{hmax = 0.2[um]}.
+\item Rebuild and recompute again.
+\item Compare the results.
+\end{enumerate}
+
+A reasonable convergence indicator is
+\begin{equation}
+\epsilon_h=\frac{|T_{\max}^{(h)}-T_{\max}^{(h/2)}|}{|T_{\max}^{(h/2)}-T_0|}.
+\end{equation}
+For a demonstration model, \(\epsilon_h<5\%\) may be acceptable.  For a quantitative model, use a stricter threshold.
+
+\section{Time-step sensitivity workflow}
+
+\subsection{Why time-step checks matter}
+Even though \comsol{} uses adaptive internal time steps, the output interval and solver tolerances can affect apparent pulse dynamics.  A short pulse requires time resolution fine enough to capture its energy input.
+
+\subsection{Steps}
+\begin{enumerate}
+\item Run with \type{dtout = tpulse}.
+\item Run with \type{dtout = tpulse/2}.
+\item Run with \type{dtout = tpulse/5}.
+\item Compare peak temperature and integrated input energy.
+\item If the peak changes strongly, refine the time output and solver tolerances.
+\end{enumerate}
+
+\section{Common mistakes and fixes}
+
+\begin{longtable}{p{0.28\linewidth}p{0.34\linewidth}p{0.30\linewidth}}
+\toprule
+\textbf{Symptom} & \textbf{Likely cause} & \textbf{Fix}\\
+\midrule
+Temperature does not change & \type{Qtot} is zero or not assigned to domain & Check Heat Source domain selection and expression\\
+Temperature rise is enormous & \type{Q0} too large or units wrong & Verify \(\mathrm{W/m^3}\) vs \(\mathrm{J/m^3}\)\\
+Hotspot is blocky & mesh too coarse near source & reduce \type{hmax} or add local refinement\\
+Energy is not conserved in insulated test & hidden temperature boundary or flux condition & remove fixed-temperature boundaries\\
+Solver fails at first time step & source turns on too sharply & use smoothed \type{gtime}, reduce \type{Q0}, or increase \type{tpulse}\\
+Imported map gives wrong scale & map units inconsistent & convert deposited energy to power density carefully\\
+COMSOL expression turns red & syntax or unit mismatch & check brackets, multiplication signs, and units\\
+\bottomrule
+\end{longtable}
+
+\section{Mapping COMSOL objects to MATLAB FEM objects}
+
+\begin{longtable}{p{0.26\linewidth}p{0.30\linewidth}p{0.34\linewidth}}
+\toprule
+\textbf{Physics concept} & \textbf{COMSOL object} & \textbf{MATLAB FEM analogue}\\
+\midrule
+Domain \(\Omega\) & Rectangle geometry & node coordinates and element connectivity\\
+Shape functions \(N_a\) & selected FEM element order & basis functions inside element routines\\
+Mass matrix \(M\) & density and heat capacity in transient heat equation & assembled heat-capacity matrix\\
+Conductivity matrix \(K\) & thermal conductivity in Heat Transfer interface & assembled diffusion matrix\\
+Source vector \(F\) & Heat Source \type{Qtot} & assembled load vector\\
+Initial condition & Initial Values node & initial nodal temperature vector\\
+Boundary conditions & Temperature or Thermal Insulation nodes & Dirichlet or Neumann boundary handling\\
+Solution vector & Temperature field \type{T} & nodal temperature vector\\
+Postprocessing & Surface/line/global plots & MATLAB plotting and summary functions\\
+\bottomrule
+\end{longtable}
+
+\section{Recommended model-building order}
+
+For reliable work, build the model in this order:
+\begin{enumerate}
+\item Constant material properties.
+\item No source, insulated boundaries: verify uniform equilibrium.
+\item Uniform source, insulated boundaries: verify linear temperature rise.
+\item Gaussian initial condition, no source: verify diffusion and energy conservation.
+\item Gaussian source pulse: verify source-driven heating.
+\item Add broadened ballistic source term.
+\item Add imported radiation-deposition maps.
+\item Add thermal boundary conditions or heat sinks.
+\item Export data to MATLAB and compare.
+\end{enumerate}
+
+Do not begin with the fully coupled project model.  Build from verification cases upward.
+
+\section{Final trust checklist}
+
+Before trusting a \module{} \comsol{} result, check the following:
+\begin{itemize}
+\item The material properties use consistent SI units.
+\item The heat source has units of \(\mathrm{W/m^3}\), not \(\mathrm{J/m^3}\), unless divided by a time scale.
+\item The source region is resolved by the mesh.
+\item The chosen boundary conditions match the physical device assumption.
+\item Uniform equilibrium test passes.
+\item Uniform source test gives \(dT/dt=Q/(\rho_m c_p)\).
+\item Gaussian diffusion test conserves energy under insulated boundaries.
+\item Mesh refinement changes peak temperature by an acceptably small amount.
+\item Time-step sensitivity has been checked for pulsed sources.
+\item Exported temperature maps use the same coordinate system expected by MATLAB.
+\end{itemize}
+
+
+\section{Detailed COMSOL node tree expected after setup}
+
+After completing Route A, the Model Builder tree should have the following logical structure.  The exact labels can vary slightly by \comsol{} version, but the physical content should match.
+\begin{lstlisting}
+Global Definitions
+  Parameters 1
+Component 1
+  Definitions
+    Thermal source variables
+    intop_domain
+  Geometry 1
+    Rectangle 1
+  Materials
+    Silicon_reduced_constant_properties
+  Heat Transfer in Solids (ht)
+    Solid 1
+    Initial Values 1
+    Radiation and ballistic heat source
+    Thermal Insulation 1
+    Optional: Left heat sink
+    Optional: Right heat sink
+  Mesh 1
+    Free Triangular 1
+    Size 1
+Study 1
+  Step 1: Time Dependent
+Results
+  Temperature map
+  Temperature rise
+  Centerline temperature
+  Derived Values
+\end{lstlisting}
+
+If your tree has extra default nodes, that is acceptable.  The critical issue is that the rectangular domain must have one material, one transient heat equation, one initial condition, and the intended boundary conditions.
+
+\section{Detailed expression-entry rules in COMSOL}
+
+\subsection{Multiplication signs}
+Always type multiplication explicitly.  Use \type{rhoSi*CpSi}, not \type{rhoSi CpSi}.  \comsol{} usually marks invalid expressions in red, but dimensional mistakes can still survive if the units accidentally reduce to something plausible.
+
+\subsection{Units inside brackets}
+Use square brackets for units:
+\begin{lstlisting}
+20[um]
+1e15[W/m^3]
+300[K]
+700[J/(kg*K)]
+\end{lstlisting}
+This tells \comsol{} both the numerical value and the physical dimension.  The software internally converts to SI units when solving.
+
+\subsection{Coordinate variables}
+In a 2D model the spatial coordinates are normally \type{x} and \type{y}.  Expressions such as
+\begin{lstlisting}
+(x-x0)^2+(y-y0)^2
+\end{lstlisting}
+are evaluated pointwise at quadrature points during FEM assembly.  This is exactly how the source vector is generated from a spatial heat source.
+
+\subsection{Time variable}
+In a time-dependent study, \comsol{} uses \type{t} for time.  Therefore the expression
+\begin{lstlisting}
+gtime = flc2hs(tpulse-t,0.1*tpulse)
+\end{lstlisting}
+is time dependent.  If the study is stationary, \type{t} is not defined unless you introduce it as a parameter.
+
+\section{More detailed boundary-condition options}
+
+\subsection{Thermal insulation}
+Thermal insulation means
+\begin{equation}
+-\mathbf{n}\cdot k\nabla T=0.
+\end{equation}
+Use it when the simulation is meant to represent an isolated local volume or when you are running an energy-conservation verification test.
+
+Click-by-click:
+\begin{enumerate}
+\item Right-click \menu{Heat Transfer in Solids (ht)}.
+\item Choose \menu{Boundary} \(\rightarrow\) \menu{Thermal Insulation} if it is not already present.
+\item Select the outer boundaries that should have zero normal heat flux.
+\item Click \menu{Build Selected} is not needed for physics; just ensure the selection is active.
+\end{enumerate}
+
+\subsection{Fixed temperature}
+Fixed temperature means
+\begin{equation}
+T=T_b.
+\end{equation}
+Use it for idealized contacts or heat sinks.  This is a Dirichlet thermal boundary condition.
+
+Click-by-click:
+\begin{enumerate}
+\item Right-click \menu{Heat Transfer in Solids (ht)}.
+\item Choose \menu{Boundary} \(\rightarrow\) \menu{Temperature}.
+\item Select the boundary connected to an ideal reservoir.
+\item Type \type{Tleft}, \type{Tright}, or another parameter in the \menu{Temperature} field.
+\end{enumerate}
+
+\subsection{Prescribed heat flux}
+A heat flux boundary applies
+\begin{equation}
+-\mathbf{n}\cdot k\nabla T=q_0''.
+\end{equation}
+This is useful for a laser-like or surface-heating approximation.
+
+Click-by-click:
+\begin{enumerate}
+\item Right-click \menu{Heat Transfer in Solids (ht)}.
+\item Choose \menu{Boundary} \(\rightarrow\) \menu{Heat Flux}.
+\item Select the boundary receiving surface heat.
+\item In the inward heat flux field, type an expression such as \type{qSurf0*gtime}.
+\item Add \type{qSurf0 = 1e6[W/m^2]} in \menu{Parameters} if needed.
+\end{enumerate}
+
+\subsection{Convective cooling}
+A convective boundary approximates heat loss to an environment:
+\begin{equation}
+-\mathbf{n}\cdot k\nabla T=h(T_{\infty}-T)
+\end{equation}
+with heat-transfer coefficient \(h\).  This is not usually the first choice for a silicon microdevice cross-section unless the boundary really represents an interface to a surrounding medium.
+
+Click-by-click:
+\begin{enumerate}
+\item Right-click \menu{Heat Transfer in Solids (ht)}.
+\item Choose \menu{Boundary} \(\rightarrow\) \menu{Heat Flux}.
+\item In the Settings window, select the convective heat flux option if available.
+\item Type \type{hconv} for the heat transfer coefficient.
+\item Type \type{Text} for the external temperature.
+\item Add parameters \type{hconv = 10[W/(m^2*K)]} and \type{Text = 300[K]}.
+\end{enumerate}
+
+\section{How to create selections for boundaries}
+
+Selections make the model less fragile.  Rather than repeatedly clicking boundaries manually, define named selections.
+
+\subsection{Left boundary selection}
+\begin{enumerate}
+\item Right-click \menu{Component 1} \(\rightarrow\) \menu{Definitions}.
+\item Choose \menu{Selections} \(\rightarrow\) \menu{Explicit}.
+\item Rename it \type{left_boundary}.
+\item Change the geometric entity level to \menu{Boundary}.
+\item Click the left edge of the rectangle in the Graphics window.
+\item Click the \menu{+} button to add it to the selection.
+\end{enumerate}
+
+\subsection{Right boundary selection}
+Repeat the same steps and rename the selection \type{right_boundary}.  Select the right edge of the rectangle.
+
+\subsection{Source-region selection, optional}
+If you created a circle or subdomain around the hotspot, create a selection named \type{source_region}.  This is useful when you want a different mesh size near the deposition center.
+
+\section{How to inspect the mesh}
+
+\subsection{Plot mesh quality}
+\begin{enumerate}
+\item Right-click \menu{Results}.
+\item Choose \menu{More Plot Groups} \(\rightarrow\) \menu{Mesh Plot} if available.
+\item Select \menu{Mesh 1}.
+\item Click \menu{Plot}.
+\end{enumerate}
+
+\subsection{Check element size near the source}
+Zoom into the source center \((x_0,y_0)\).  The Gaussian deposition region should contain several elements across its width.  If it is represented by only one or two elements, the peak temperature will be inaccurate.
+
+\subsection{Check mesh statistics}
+\begin{enumerate}
+\item Click \menu{Mesh 1}.
+\item Look for \menu{Statistics} in the Settings or toolbar.
+\item Record the number of triangular elements and minimum element quality.
+\end{enumerate}
+Low-quality elements can cause inaccurate gradients or solver difficulty.  For this rectangular model, the mesh quality should generally be good.
+
+\section{How to duplicate studies for verification cases}
+
+Do not overwrite the main radiation-heating study each time you run a verification case.  Instead, duplicate studies.
+
+\begin{enumerate}
+\item Right-click \menu{Study 1}.
+\item Choose \menu{Duplicate}.
+\item Rename the duplicate \type{Study_uniform_source_verification} or another descriptive name.
+\item Change only the parameters or variables needed for that verification case.
+\item Compute the duplicate study.
+\end{enumerate}
+
+This preserves the original setup and makes it easier to compare cases.
+
+\section{Parametric sweep for mesh refinement}
+
+\subsection{Add the sweep}
+\begin{enumerate}
+\item Right-click \menu{Study 1}.
+\item Choose \menu{Parametric Sweep}.
+\item In the parameter table, select \type{hmax}.
+\item Enter values such as \type{0.8[um] 0.4[um] 0.2[um]}.
+\item Make sure the mesh uses \type{hmax} as its maximum element size.
+\item Click \menu{Compute}.
+\end{enumerate}
+
+\subsection{What to record}
+For each mesh value, record:
+\begin{itemize}
+\item maximum temperature rise, \(\max(T-T_0)\),
+\item total excess energy, \(\int \rho_m c_p(T-T_0)d\Omega\),
+\item centerline profile through the hotspot,
+\item number of mesh elements.
+\end{itemize}
+
+\section{Parametric sweep for ballistic source width}
+
+The parameter \type{sigBall} controls the spatial width of the broadened ballistic source.  To understand sensitivity:
+
+\begin{enumerate}
+\item Right-click \menu{Study 1}.
+\item Choose \menu{Parametric Sweep}.
+\item Select parameter \type{sigBall}.
+\item Type values \type{1[um] 2[um] 4[um] 8[um]}.
+\item Compute.
+\item Compare peak temperature rise and spatial spread.
+\end{enumerate}
+
+Increasing \type{sigBall} should generally reduce the peak temperature and spread the heating over a larger region, if total energy is normalized consistently.  If the total energy changes unintentionally, normalize the Gaussian source.
+
+\section{Source normalization issue}
+
+The Gaussian source expressions above are convenient but not automatically normalized to fixed total power.  If you change \type{sigDep} or \type{sigBall}, the integral of the source also changes.  For sensitivity studies where total energy must remain fixed, normalize the Gaussian.
+
+For an infinite 2D Gaussian,
+\begin{equation}
+\int_{\mathbb{R}^2}\exp\left(-\frac{r^2}{2\sigma^2}\right)dA=2\pi\sigma^2.
+\end{equation}
+A normalized source can therefore use
+\begin{equation}
+Q_{\mathrm{dep}}=\frac{P_{\mathrm{dep}}}{2\pi\sigma_{\mathrm{dep}}^2}f_{\mathrm{dep}}g(t),
+\end{equation}
+where \(P_{\mathrm{dep}}\) is power per out-of-plane thickness.  In a finite domain the exact integral differs slightly, so use \type{intop_domain(fdep)} for numerical normalization if needed.
+
+In \comsol{}, define
+\begin{lstlisting}
+Qdep = Pdep*fdep/intop_domain(fdep)*gtime
+\end{lstlisting}
+where \type{Pdep} has units of \type{W/m} in a 2D model interpreted per unit out-of-plane thickness.
+
+\section{Interpreting 2D units carefully}
+
+A 2D \comsol{} model represents a cross-section.  Volumetric heat source terms still use \(\mathrm{W/m^3}\), but integrated domain quantities are often interpreted per unit out-of-plane thickness.  For example,
+\begin{equation}
+\int_{\Omega} Q\,dA
+\end{equation}
+has units \(\mathrm{W/m}\), not \(\mathrm{W}\), because the missing third dimension has not been integrated.
+
+If the physical device has an out-of-plane thickness \(L_z\), the total power is approximately
+\begin{equation}
+P_{\mathrm{3D}}=L_z\int_{\Omega}Q\,dA.
+\end{equation}
+Add a parameter \type{Lz} if you want to convert 2D per-thickness quantities to total 3D values.
+
+\section{Adding temperature-dependent thermal conductivity}
+
+After the constant-property model is verified, one may use temperature-dependent conductivity.  A simple linearized model is
+\begin{equation}
+k(T)=k_0\left[1+a_k(T-T_0)\right].
+\end{equation}
+In \comsol{}:
+\begin{enumerate}
+\item Add parameter \type{ak = -1e-3[1/K]} or another chosen coefficient.
+\item Add variable \type{kT = kSi*(1+ak*(T-T0))}.
+\item In the material property for thermal conductivity, replace \type{kSi} with \type{kT}.
+\end{enumerate}
+
+Do not introduce this before the constant-property verification tests pass.  Temperature-dependent material properties make the PDE nonlinear and can hide simpler setup mistakes.
+
+\section{Adding a heat sink layer, optional model variant}
+
+If you want to model silicon attached to a thermal sink, add a second rectangle below the silicon.
+
+\begin{enumerate}
+\item In \menu{Geometry 1}, add a second rectangle.
+\item Set its width to \type{Lx} and height to \type{Lsink}.
+\item Position it below the silicon, for example \type{y=-Lsink}.
+\item Add parameter \type{Lsink = 5[um]}.
+\item Assign a separate material to the sink with its own \(k\), \(\rho\), and \(c_p\).
+\item Keep continuity at the internal boundary by default.
+\item Apply fixed temperature or convection at the bottom of the sink.
+\end{enumerate}
+
+This variant is closer to a real device mounted on a substrate or thermal path, but it is less useful for the simplest energy-conservation tests.
+
+\section{Creating probes for time traces}
+
+\subsection{Point probe at hotspot center}
+\begin{enumerate}
+\item Right-click \menu{Definitions} under \menu{Component 1}.
+\item Choose \menu{Probes} \(\rightarrow\) \menu{Point Probe} if available.
+\item Set the point coordinates to \type{x0}, \type{y0}.
+\item Set expression to \type{T-T0}.
+\item Compute the study again.
+\end{enumerate}
+
+A point probe gives the hotspot temperature rise as a function of time.  This is often the clearest way to compare different source widths or thermal boundary conditions.
+
+\subsection{Domain probe for total thermal energy}
+If your \comsol{} version supports domain probes:
+\begin{enumerate}
+\item Create a domain probe.
+\item Set expression to \type{rhoSi*CpSi*(T-T0)}.
+\item Use integration over the silicon domain.
+\end{enumerate}
+This gives a time trace of total thermal energy per out-of-plane thickness.
+
+\section{Report generation inside COMSOL, optional}
+
+\begin{enumerate}
+\item Click \menu{File} \(\rightarrow\) \menu{Report} or use the \menu{Report} node if available.
+\item Select model contents, parameters, physics settings, mesh, solver, and results.
+\item Generate a PDF or HTML report for archival use.
+\end{enumerate}
+
+This is not a substitute for the LaTeX project notes, but it is useful for recording exact \comsol{} GUI settings.
+
+\section{How to compare with MATLAB Module 4}
+
+\subsection{Use the same inputs}
+The MATLAB and \comsol{} comparisons are meaningful only if the following match:
+\begin{itemize}
+\item domain size \(L_x,L_y\),
+\item material properties \(\rho_m,c_p,k\),
+\item initial condition,
+\item heat source amplitude and units,
+\item boundary conditions,
+\item output times.
+\end{itemize}
+
+\subsection{Compare robust quantities first}
+Do not compare individual nodal values first because MATLAB and \comsol{} may use different meshes.  Start with:
+\begin{itemize}
+\item total excess thermal energy,
+\item maximum temperature rise,
+\item centerline profile interpolated onto common coordinates,
+\item qualitative hotspot spreading rate.
+\end{itemize}
+
+\subsection{Then compare field maps}
+Export the \comsol{} temperature field to CSV and interpolate it onto the MATLAB grid or mesh.  Compare
+\begin{equation}
+\Delta T_{\mathrm{err}}=T_{\mathrm{COMSOL}}-T_{\mathrm{MATLAB}}.
+\end{equation}
+A useful normalized error is
+\begin{equation}
+\epsilon_T=\frac{\|T_{\mathrm{COMSOL}}-T_{\mathrm{MATLAB}}\|_2}{\|T_{\mathrm{COMSOL}}-T_0\|_2}.
+\end{equation}
+
+\section{Beginner navigation summary}
+
+For quick reference, the main click paths are:
+\begin{longtable}{p{0.35\linewidth}p{0.55\linewidth}}
+\toprule
+\textbf{Task} & \textbf{COMSOL path}\\
+\midrule
+Create model & \menu{Model Wizard} \(\rightarrow\) \menu{2D} \(\rightarrow\) \menu{Heat Transfer in Solids} \(\rightarrow\) \menu{Time Dependent}\\
+Parameters & \menu{Global Definitions} \(\rightarrow\) \menu{Parameters 1}\\
+Geometry & \menu{Component 1} \(\rightarrow\) \menu{Geometry 1} \(\rightarrow\) \menu{Rectangle}\\
+Variables & \menu{Component 1} \(\rightarrow\) \menu{Definitions} \(\rightarrow\) \menu{Variables}\\
+Material & \menu{Materials} \(\rightarrow\) \menu{Blank Material}\\
+Heat source & \menu{Heat Transfer in Solids} \(\rightarrow\) right-click \(\rightarrow\) \menu{Domain} \(\rightarrow\) \menu{Heat Source}\\
+Fixed temperature & \menu{Heat Transfer in Solids} \(\rightarrow\) right-click \(\rightarrow\) \menu{Boundary} \(\rightarrow\) \menu{Temperature}\\
+Insulation & \menu{Heat Transfer in Solids} \(\rightarrow\) \menu{Thermal Insulation}\\
+Mesh & \menu{Mesh 1} \(\rightarrow\) \menu{Free Triangular} and \menu{Size}\\
+Time range & \menu{Study 1} \(\rightarrow\) \menu{Step 1: Time Dependent}\\
+Plot & \menu{Results} \(\rightarrow\) \menu{2D Plot Group} \(\rightarrow\) \menu{Surface}\\
+Export & \menu{Results} \(\rightarrow\) \menu{Export} \(\rightarrow\) \menu{Data}\\
+\bottomrule
+\end{longtable}
+
+
+\section{Detailed verification worksheets}
+
+This section is intentionally repetitive.  It is written as a beginner worksheet so that a user can reproduce the verification sequence without guessing which setting to change.
+
+\subsection{Worksheet A: baseline radiation pulse case}
+\begin{enumerate}
+\item Open \menu{Global Definitions} \(\rightarrow\) \menu{Parameters 1}.
+\item Confirm \type{Q0 = 1e15[W/m^3]}.
+\item Confirm \type{etaBall = 0.3}.
+\item Confirm \type{tpulse = 10[ns]}.
+\item Open \menu{Component 1} \(\rightarrow\) \menu{Definitions} \(\rightarrow\) \menu{Thermal source variables}.
+\item Confirm \type{Qdep = Q0*fdep*gtime}.
+\item Confirm \type{Qball = etaBall*Q0*fball*gtime}.
+\item Confirm \type{Qtot = Qdep+Qball}.
+\item Open \menu{Heat Transfer in Solids} \(\rightarrow\) \menu{Initial Values 1}.
+\item Confirm \type{T0} is used as the initial temperature.
+\item Open the heat source node.
+\item Confirm the source expression is \type{Qtot}.
+\item Compute the time-dependent study.
+\item Plot \type{T-T0}.
+\item Evaluate \type{intop_domain(rhoSi*CpSi*(T-T0))} at several times.
+\end{enumerate}
+
+Expected behavior: temperature rises near the source during the pulse and then spreads by diffusion.  The broadened ballistic source should make the temperature map wider than the narrow deposition-only source.
+
+\subsection{Worksheet B: local deposition only}
+\begin{enumerate}
+\item Go to \menu{Parameters 1}.
+\item Set \type{etaBall = 0}.
+\item Recompute.
+\item Plot \type{T-T0} at the same time as the baseline case.
+\item Compare peak temperature rise against the baseline.
+\end{enumerate}
+
+Expected behavior: the source is narrower and the peak temperature is usually higher, assuming total deposited power is not normalized separately.
+
+\subsection{Worksheet C: ballistic broadening sensitivity}
+\begin{enumerate}
+\item Set \type{etaBall = 0.3}.
+\item Set \type{sigBall = 1[um]} and compute.
+\item Record peak \type{T-T0}.
+\item Set \type{sigBall = 2.5[um]} and compute.
+\item Record peak \type{T-T0}.
+\item Set \type{sigBall = 5[um]} and compute.
+\item Record peak \type{T-T0}.
+\end{enumerate}
+
+Expected behavior: broadening redistributes heat.  If the source is not normalized to fixed total power, changing \type{sigBall} also changes total input power.  Therefore, when doing a physically meaningful sensitivity study, use the normalized source form described earlier.
+
+\subsection{Worksheet D: insulated energy accounting}
+\begin{enumerate}
+\item Remove or disable all fixed-temperature boundaries.
+\item Ensure only thermal insulation is active on the outer boundary.
+\item Use a finite pulse source.
+\item Compute.
+\item Evaluate \type{intop_domain(Qtot)} as a function of time.
+\item Evaluate \type{intop_domain(rhoSi*CpSi*(T-T0))} as a function of time.
+\item The time integral of input power should match the increase in thermal energy, within numerical tolerance.
+\end{enumerate}
+
+This is one of the most important checks.  If energy is disappearing in an insulated model, the boundary conditions or source units are probably wrong.
+
+\section{Detailed solver settings for difficult transient runs}
+
+\subsection{Open the solver configuration}
+\begin{enumerate}
+\item Expand \menu{Study 1}.
+\item Expand \menu{Solver Configurations} if it is visible.
+\item Click \menu{Time-Dependent Solver}.
+\item If solver nodes are hidden, right-click \menu{Study 1} and choose \menu{Show Default Solver} or \menu{Get Initial Value/Solver Configuration}, depending on version.
+\end{enumerate}
+
+\subsection{Suggested time stepping}
+For smooth sources, the default BDF time stepping is usually fine.  For short pulses, constrain the maximum time step.
+\begin{enumerate}
+\item Click \menu{Time-Dependent Solver}.
+\item Find the \menu{Time Stepping} section.
+\item Set \menu{Steps taken by solver} to \menu{Free} for normal use.
+\item If the pulse is missed, set \menu{Maximum step} to \type{tpulse/10}.
+\item Keep \menu{Relative tolerance} at \type{1e-4} initially.
+\item Tighten to \type{1e-5} for final verification.
+\end{enumerate}
+
+\subsection{Linear solver choice}
+For this scalar thermal problem, the default direct solver is usually robust.  For very large meshes, iterative solvers may be faster but require more numerical care.  For beginner use, do not change the linear solver until the base model is working.
+
+\section{Detailed instructions for saving model variants}
+
+\subsection{Use separate files for major variants}
+Use separate \type{.mph} files for major branches:
+\begin{lstlisting}
+module4_thermal_2d_base.mph
+module4_thermal_2d_uniform_source_verification.mph
+module4_thermal_2d_gaussian_diffusion_verification.mph
+module4_thermal_2d_imported_geant4_map.mph
+module4_thermal_2d_heat_sink_boundary.mph
+\end{lstlisting}
+This prevents accidental loss of the verified base model.
+
+\subsection{Use descriptive study names}
+Inside one model, rename studies clearly:
+\begin{lstlisting}
+Study 1 - Radiation pulse
+Study 2 - Uniform equilibrium test
+Study 3 - Uniform source test
+Study 4 - Gaussian diffusion test
+Study 5 - Mesh convergence
+\end{lstlisting}
+A descriptive tree is part of reproducibility.
+
+\section{Detailed imported-map workflow}
+
+\subsection{Check coordinate convention before import}
+Before importing a radiation deposition map, confirm:
+\begin{itemize}
+\item Are coordinates in meters, micrometers, or centimeters?
+\item Is the origin at the lower-left corner, center, or another reference point?
+\item Does \(x\) correspond to lateral position and \(y\) to depth?
+\item Is the map a deposited energy density \(\mathrm{J/m^3}\), deposited dose, or power density \(\mathrm{W/m^3}\)?
+\end{itemize}
+
+\subsection{Convert deposited energy to heat source}
+If the map gives energy density \(E_{\mathrm{dep}}(x,y)\) in \(\mathrm{J/m^3}\), then a simple pulse heating model is
+\begin{equation}
+Q_{\mathrm{dep}}(x,y,t)=\frac{E_{\mathrm{dep}}(x,y)}{\tau_{\mathrm{th}}}g(t),
+\end{equation}
+where \(\tau_{\mathrm{th}}\) is an assumed thermalization time.  In \comsol{} type:
+\begin{lstlisting}
+Qdep = EdepMap(x,y)/tauTh*gtime
+\end{lstlisting}
+with \type{tauTh} defined in Parameters.
+
+\subsection{Interpolation settings to check}
+When setting up the interpolation function:
+\begin{enumerate}
+\item Choose interpolation, not analytic function.
+\item Set the argument dimension to two.
+\item Set argument units correctly.
+\item Set extrapolation to constant or nearest only if you understand what happens outside the data range.
+\item Plot the imported function before using it in the heat equation.
+\end{enumerate}
+
+\section{Detailed postprocessing recipes}
+
+\subsection{Plot temperature at selected times}
+\begin{enumerate}
+\item Click the \menu{Temperature rise} plot group.
+\item In the Settings window, find \menu{Data}.
+\item Under \menu{Time}, choose \menu{Manual} or \menu{From list} if available.
+\item Select times such as \type{0}, \type{tpulse}, \type{100[ns]}, and \type{1[us]}.
+\item Click \menu{Plot}.
+\end{enumerate}
+
+\subsection{Create an animation}
+\begin{enumerate}
+\item Right-click \menu{Results}.
+\item Choose \menu{Animation} \(\rightarrow\) \menu{Player} or \menu{File} depending on version.
+\item Select the temperature-rise plot group.
+\item Choose all time steps.
+\item Play the animation to verify qualitative heat spreading.
+\end{enumerate}
+
+\subsection{Export plot images}
+\begin{enumerate}
+\item Right-click \menu{Results} \(\rightarrow\) \menu{Export}.
+\item Choose \menu{Image}.
+\item Select the desired plot group.
+\item Choose PNG or PDF format.
+\item Export with a descriptive filename.
+\end{enumerate}
+
+\section{Physical interpretation of common outcomes}
+
+\subsection{High narrow peak}
+A high narrow temperature peak means the energy deposition is localized and diffusion has not yet spread the heat.  Check whether the source width is physically reasonable and whether the mesh resolves it.
+
+\subsection{Broad low-amplitude hotspot}
+A broad low-amplitude hotspot can indicate ballistic spreading, a large source width, or strong thermal diffusion.  Compare early and late times: ballistic broadening appears immediately through the source, while Fourier diffusion broadens progressively with time.
+
+\subsection{Boundary-dominated cooling}
+If fixed-temperature boundaries are close to the hotspot, the temperature may decay rapidly.  This can be physical if the device is strongly heat-sunk, but it can also be an artifact of placing artificial boundaries too close.
+
+\subsection{Nearly uniform temperature rise}
+If the temperature becomes nearly uniform, either the source is uniform, diffusion has had enough time to smooth the field, or the mesh/plot range is hiding small gradients.  Use centerline plots and numerical maxima to distinguish these cases.
+
+\section{What not to include in the first COMSOL model}
+
+For the first \comsol{} implementation, do not include all possible physics at once.  Specifically, postpone:
+\begin{itemize}
+\item temperature-dependent material properties,
+\item nonlinear defect reaction heat,
+\item carrier Joule heating,
+\item full electron-phonon nonequilibrium,
+\item anisotropic thermal conductivity,
+\item moving boundaries,
+\item stochastic event-by-event deposition.
+\end{itemize}
+
+Each of these can be added later, but each also adds a new failure mode.  The beginner model should first prove that the heat equation, source term, mesh, boundaries, and time stepping are correct.
+
+\section{Standalone reproduction checklist}
+
+A person with no prior \comsol{} experience should be able to reproduce the base model by following this short checklist after reading the detailed sections:
+\begin{enumerate}
+\item Open Model Wizard.
+\item Select 2D.
+\item Add Heat Transfer in Solids.
+\item Add Time Dependent study.
+\item Type all global parameters.
+\item Build a rectangle with width \type{Lx} and height \type{Ly}.
+\item Add source variables \type{Qdep}, \type{Qball}, and \type{Qtot}.
+\item Add silicon material properties \type{rhoSi}, \type{CpSi}, and \type{kSi}.
+\item Set initial temperature to \type{T0}.
+\item Add a domain Heat Source equal to \type{Qtot}.
+\item Use thermal insulation on all exterior boundaries for the first run.
+\item Build a triangular mesh with maximum size \type{hmax}.
+\item Set output times to \type{range(0,dtout,tend)}.
+\item Compute.
+\item Plot \type{T-T0}.
+\item Evaluate total excess energy using \type{intop_domain(rhoSi*CpSi*(T-T0))}.
+\item Run the uniform equilibrium and uniform source verification cases.
+\end{enumerate}
+
+\section{Summary}
+This note showed how to implement \module{} in \comsol{} at a beginner click-by-click level.  The Heat Transfer in Solids route is the most natural way to solve the transient thermal problem.  The Coefficient Form PDE route is useful when one wants a direct match to the MATLAB FEM form \(M\dot{\mathbf{T}}+K\mathbf{T}=\mathbf{F}\).  The most important modeling discipline is to verify simple cases before adding radiation source maps and coupled physics.  Once verified, the \comsol{} model provides an independent FEM implementation of the Module 4 thermal solve and a useful comparison against the MATLAB code.
+
+
+
+\end{document}
