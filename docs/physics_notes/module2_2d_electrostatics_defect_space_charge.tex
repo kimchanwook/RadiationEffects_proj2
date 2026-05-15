@@ -389,6 +389,271 @@ Rearranging gives the weak form:
 \end{equation}
 For the default zero-normal-field boundary, $g=0$ on $\Gamma_N$, the boundary integral vanishes. This is why homogeneous Neumann boundaries are called natural boundary conditions in this formulation: they do not require explicit modification of the global matrix.
 
+\subsection{Detailed derivation from weak form to matrix form}
+
+This subsection makes explicit the step that is often compressed into one line: how the weak form becomes the algebraic FEM system solved in MATLAB. The starting weak form from the previous subsection is
+\begin{equation}
+\int_{\Omega} \varepsilon_{\mathrm{Si}} \nabla w \cdot \nabla \phi \, d\Omega
+= \int_{\Omega} w \rho \, d\Omega
++ \int_{\Gamma_N} w \varepsilon_{\mathrm{Si}} g \, d\Gamma .
+\label{eq:module2_weak_form_before_discretization}
+\end{equation}
+Here $w$ is the test function, $\phi$ is the electrostatic potential, $\rho$ is the Module 2 space-charge density, and $g=\partial \phi/\partial n$ is the prescribed normal derivative on the Neumann boundary. For the present electrostatic module,
+\begin{equation}
+\rho
+= q(p-n+N_D^+-N_A^-)+\rho_{\mathrm{def}},
+\qquad
+\rho_{\mathrm{def}} = q\sum_i z_i C_i .
+\label{eq:module2_rho_for_matrix_derivation}
+\end{equation}
+Thus the defect populations enter the FEM solve through the right-hand-side source vector.
+
+\subsubsection{Global finite-element approximation}
+
+The continuous potential field is replaced by a finite-dimensional approximation:
+\begin{equation}
+\phi_h(\xvec)
+= \sum_{j=1}^{N_{\mathrm{node}}} \Phi_j N_j(\xvec),
+\label{eq:module2_global_fem_expansion}
+\end{equation}
+where $\phi_h(\xvec)$ is the approximate potential field, $\Phi_j$ is the unknown nodal potential at global node $j$, $N_j(\xvec)$ is the global shape function associated with node $j$, and $N_{\mathrm{node}}$ is the total number of mesh nodes.
+
+Equation~\eqref{eq:module2_global_fem_expansion} is a global expression. It does not mean that every node contributes to the potential at every point. Standard FEM shape functions have local support. Therefore, if $\xvec$ lies inside element $e$, only the shape functions associated with the nodes of that element are nonzero at that point. The local element form is
+\begin{equation}
+\phi_h^{(e)}(\xvec)
+= \sum_{a=1}^{n_{\mathrm{en}}} \Phi_{I_e(a)} N_a^{(e)}(\xvec),
+\qquad \xvec \in \Omega_e,
+\label{eq:module2_local_fem_expansion}
+\end{equation}
+where $n_{\mathrm{en}}$ is the number of element nodes, $a$ is a local node index, $I_e(a)$ maps local node $a$ in element $e$ to the corresponding global node index, and $N_a^{(e)}$ is the local shape function. For the linear triangular elements used in Module 2,
+\begin{equation}
+n_{\mathrm{en}}=3.
+\end{equation}
+
+The spatial gradient of the approximate potential is
+\begin{equation}
+\nabla \phi_h(\xvec)
+= \nabla \left(\sum_{j=1}^{N_{\mathrm{node}}} \Phi_j N_j(\xvec)\right).
+\end{equation}
+The nodal values $\Phi_j$ are coefficients, not spatial functions, so the gradient acts only on the shape functions:
+\begin{equation}
+\boxed{
+\nabla \phi_h(\xvec)
+= \sum_{j=1}^{N_{\mathrm{node}}} \Phi_j \nabla N_j(\xvec).
+}
+\label{eq:module2_gradient_expansion}
+\end{equation}
+Inside element $e$, this becomes
+\begin{equation}
+\nabla \phi_h^{(e)}(\xvec)
+= \sum_{a=1}^{n_{\mathrm{en}}} \Phi_{I_e(a)} \nabla N_a^{(e)}(\xvec).
+\end{equation}
+
+\subsubsection{Galerkin choice of the test function}
+
+Module 2 uses a Galerkin FEM discretization. This means that the test functions are chosen from the same space as the potential approximation. For global node $i$, choose
+\begin{equation}
+w = N_i.
+\end{equation}
+Substituting $w=N_i$ and $\phi \approx \phi_h$ into Eq.~\eqref{eq:module2_weak_form_before_discretization} gives
+\begin{equation}
+\int_{\Omega} \varepsilon_{\mathrm{Si}} \nabla N_i \cdot \nabla \phi_h \, d\Omega
+= \int_{\Omega} N_i \rho \, d\Omega
++ \int_{\Gamma_N} N_i \varepsilon_{\mathrm{Si}} g \, d\Gamma .
+\label{eq:module2_weak_with_test_Ni}
+\end{equation}
+Now insert Eq.~\eqref{eq:module2_gradient_expansion} into the left-hand side:
+\begin{equation}
+\int_{\Omega} \varepsilon_{\mathrm{Si}} \nabla N_i \cdot
+\left(\sum_{j=1}^{N_{\mathrm{node}}} \Phi_j \nabla N_j\right)
+\, d\Omega
+= \int_{\Omega} N_i \rho \, d\Omega
++ \int_{\Gamma_N} N_i \varepsilon_{\mathrm{Si}} g \, d\Gamma .
+\end{equation}
+Because $\Phi_j$ is a constant coefficient with respect to position, the sum may be pulled outside the integral:
+\begin{equation}
+\sum_{j=1}^{N_{\mathrm{node}}} \Phi_j
+\int_{\Omega} \varepsilon_{\mathrm{Si}} \nabla N_i \cdot \nabla N_j \, d\Omega
+= \int_{\Omega} N_i \rho \, d\Omega
++ \int_{\Gamma_N} N_i \varepsilon_{\mathrm{Si}} g \, d\Gamma .
+\label{eq:module2_discrete_equation_before_Kb}
+\end{equation}
+This equation is now algebraic in the unknown nodal potentials $\Phi_j$.
+
+\subsubsection{Definition of the global matrix and source vector}
+
+Define the global electrostatic stiffness matrix by
+\begin{equation}
+\boxed{
+K_{ij}
+= \int_{\Omega} \varepsilon_{\mathrm{Si}} \nabla N_i \cdot \nabla N_j \, d\Omega .
+}
+\label{eq:module2_global_Kij_detailed}
+\end{equation}
+Define the global source vector by
+\begin{equation}
+\boxed{
+b_i
+= \int_{\Omega} N_i \rho \, d\Omega
++ \int_{\Gamma_N} N_i \varepsilon_{\mathrm{Si}} g \, d\Gamma .
+}
+\label{eq:module2_global_bi_detailed}
+\end{equation}
+With these definitions, Eq.~\eqref{eq:module2_discrete_equation_before_Kb} becomes
+\begin{equation}
+\boxed{
+\sum_{j=1}^{N_{\mathrm{node}}} K_{ij}\Phi_j = b_i,
+\qquad i=1,2,\ldots,N_{\mathrm{node}} .
+}
+\label{eq:module2_discrete_row_equation}
+\end{equation}
+Writing all rows together gives the global matrix equation
+\begin{equation}
+\boxed{
+K\bm{\Phi}=\bm{b}.
+}
+\label{eq:module2_global_matrix_equation_detailed}
+\end{equation}
+Some FEM texts call the right-hand side $\bm{F}$. In this project, the MATLAB implementation and the surrounding notes use $\bm{b}$ for the source vector, so the Module 2 algebraic system is written as $K\bm{\Phi}=\bm{b}$.
+
+For the default homogeneous Neumann boundary on insulated top and bottom surfaces,
+\begin{equation}
+g=0 \qquad \text{on } \Gamma_N,
+\end{equation}
+so the boundary integral in Eq.~\eqref{eq:module2_global_bi_detailed} vanishes:
+\begin{equation}
+\boxed{
+b_i
+= \int_{\Omega} N_i \rho \, d\Omega .
+}
+\label{eq:module2_bi_insulating_boundary}
+\end{equation}
+Using the Module 2 charge model, this is
+\begin{equation}
+\boxed{
+b_i
+= \int_{\Omega} N_i
+\left[q(p-n+N_D^+-N_A^-)+\rho_{\mathrm{def}}\right]
+\, d\Omega .
+}
+\label{eq:module2_bi_charge_model}
+\end{equation}
+Equivalently,
+\begin{equation}
+\boxed{
+b_i
+= \int_{\Omega} q N_i
+\left[p-n+N_D^+-N_A^-+\sum_k z_k C_k\right]
+\, d\Omega .
+}
+\label{eq:module2_bi_defect_species}
+\end{equation}
+This expression is the direct mathematical link between radiation-induced charged defects and the FEM right-hand side.
+
+\subsubsection{Element-level form and assembly}
+
+Although Eqs.~\eqref{eq:module2_global_Kij_detailed} and~\eqref{eq:module2_global_bi_detailed} are written as global integrals, the code computes them element by element. For element $e$, the local matrix is
+\begin{equation}
+\boxed{
+K_{ab}^{(e)}
+= \int_{\Omega_e} \varepsilon_{\mathrm{Si}}
+\nabla N_a^{(e)} \cdot \nabla N_b^{(e)}
+\, d\Omega,
+}
+\label{eq:module2_local_Kab_detailed}
+\end{equation}
+and the local source vector is
+\begin{equation}
+\boxed{
+b_a^{(e)}
+= \int_{\Omega_e} N_a^{(e)} \rho \, d\Omega
++ \int_{\Gamma_N \cap \partial\Omega_e} N_a^{(e)} \varepsilon_{\mathrm{Si}} g \, d\Gamma .
+}
+\label{eq:module2_local_ba_detailed}
+\end{equation}
+For the default insulating Neumann boundary, the second term in Eq.~\eqref{eq:module2_local_ba_detailed} is zero.
+
+The local element quantities are inserted into the global arrays through the element connectivity map. If local node $a$ of element $e$ corresponds to global node $A=I_e(a)$, and local node $b$ corresponds to global node $B=I_e(b)$, then assembly means
+\begin{equation}
+K_{AB} \leftarrow K_{AB} + K_{ab}^{(e)},
+\qquad
+b_A \leftarrow b_A + b_a^{(e)}.
+\end{equation}
+Repeating this over all elements gives the global system $K\bm{\Phi}=\bm{b}$.
+
+\subsubsection{Dirichlet contact potentials}
+
+The matrix equation above is the assembled equation before strongly imposing contact potentials. If the contact nodes are prescribed by
+\begin{equation}
+\phi=\bar{\phi} \qquad \text{on } \Gamma_D,
+\end{equation}
+then the corresponding entries of $\bm{\Phi}$ are known. Splitting the nodal potentials into free unknown nodes and prescribed Dirichlet nodes gives
+\begin{equation}
+\bm{\Phi}
+= \begin{bmatrix}
+\bm{\Phi}_f \\
+\bm{\Phi}_d
+\end{bmatrix},
+\end{equation}
+and the assembled system may be written as
+\begin{equation}
+\begin{bmatrix}
+K_{ff} & K_{fd} \\
+K_{df} & K_{dd}
+\end{bmatrix}
+\begin{bmatrix}
+\bm{\Phi}_f \\
+\bm{\Phi}_d
+\end{bmatrix}
+=
+\begin{bmatrix}
+\bm{b}_f \\
+\bm{b}_d
+\end{bmatrix}.
+\end{equation}
+The equation for the unknown free nodes is therefore
+\begin{equation}
+\boxed{
+K_{ff}\bm{\Phi}_f
+= \bm{b}_f - K_{fd}\bm{\Phi}_d .
+}
+\label{eq:module2_dirichlet_reduced_system}
+\end{equation}
+This is the reduced system implied by imposing fixed contact potentials. The MATLAB implementation enforces the same idea by directly modifying the matrix rows and right-hand side in \texttt{apply\_dirichlet\_bc.m}.
+
+\subsubsection{Physical interpretation of the matrix equation}
+
+The compact equation
+\begin{equation}
+K\bm{\Phi}=\bm{b}
+\end{equation}
+means
+\begin{equation}
+\text{dielectric/mesh response} \times \text{nodal potential values}
+= \text{space-charge forcing}.
+\end{equation}
+The left-hand side contains $\varepsilon_{\mathrm{Si}}$ and gradients of shape functions, so it describes how the silicon dielectric and mesh geometry resist spatial variation in potential. The right-hand side contains the space charge,
+\begin{equation}
+\rho = q(p-n+N_D^+-N_A^-)+q\sum_i z_i C_i,
+\end{equation}
+so it is where dopants, carriers, and charged radiation-induced defects enter the electrostatic solve. After solving for $\bm{\Phi}$, the continuous approximate field is reconstructed through $\phi_h(\xvec)$, and the electric field follows from
+\begin{equation}
+\Evec_h(\xvec) = -\nabla \phi_h(\xvec).
+\end{equation}
+Therefore the Module 2 chain is
+\begin{equation}
+\boxed{
+\{C_i,z_i\}
+\longrightarrow \rho_{\mathrm{def}}
+\longrightarrow \rho
+\longrightarrow \bm{b}
+\longrightarrow \bm{\Phi}
+\longrightarrow \phi_h(\xvec)
+\longrightarrow \Evec_h(\xvec).
+}
+\end{equation}
+
+
 \subsection{Triangular mesh and nodal degrees of freedom}
 
 The implemented solver begins with a rectangular computational domain and splits it into linear triangular elements. The mesh consists of

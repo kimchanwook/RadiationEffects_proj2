@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.26 (TeX Live 2025/dev/Debian) (preloaded format=pdflatex 2026.2.6)  11 MAY 2026 02:24
+This is pdfTeX, Version 3.141592653-2.6-1.40.26 (TeX Live 2025/dev/Debian) (preloaded format=pdflatex 2026.2.6)  15 MAY 2026 22:24
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -1104,9 +1104,9 @@ Overfull \hbox (7.81583pt too wide) in alignment at lines 35--59
  []
 
 [3{/usr/share/texmf/fonts/enc/dvips/lm/lm-mathit.enc}{/usr/share/texmf/fonts/en
-c/dvips/lm/lm-rm.enc}{/usr/share/texmf/fonts/enc/dvips/lm/lm-mathsy.enc}]
+c/dvips/lm/lm-rm.enc}]
 
-[4]
+[4{/usr/share/texmf/fonts/enc/dvips/lm/lm-mathsy.enc}]
 
 [5]
 LaTeX Font Info:    Trying to load font information for TS1+lmr on input line 1
@@ -1117,9 +1117,9 @@ File: ts1lmr.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
 
 [6{/usr/share/texmf/fonts/enc/dvips/lm/lm-ts1.enc}]
 
-[7{/usr/share/texmf/fonts/enc/dvips/lm/lm-mathex.enc}]
+[7]
 
-[8]
+[8{/usr/share/texmf/fonts/enc/dvips/lm/lm-mathex.enc}]
 
 [9]
 
@@ -1135,27 +1135,37 @@ File: ts1lmr.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
 
 [15]
 
-[16] [17]
+[16]
+
+[17]
 
 [18]
 
 [19]
 
-[20] (./module2_2d_electrostatics_defect_space_charge.aux)
+[20]
+
+[21] [22]
+
+[23]
+
+[24]
+
+[25] (./module2_2d_electrostatics_defect_space_charge.aux)
  ***********
 LaTeX2e <2024-11-01> patch level 2
 L3 programming layer <2025-01-18>
  ***********
 Package rerunfilecheck Info: File `module2_2d_electrostatics_defect_space_charg
 e.out' has not changed.
-(rerunfilecheck)             Checksum: 3061AE1F6E169DA9940E4B4389A6034D;11838.
+(rerunfilecheck)             Checksum: 536905C12D72FFAACC380898C1B6CCB3;13782.
  ) 
 Here is how much of TeX's memory you used:
- 32037 strings out of 473197
- 645446 string characters out of 5718606
- 1030540 words of memory out of 5000000
- 54502 multiletter control sequences out of 15000+600000
- 625245 words of font info for 158 fonts, out of 8000000 for 9000
+ 32115 strings out of 473197
+ 646921 string characters out of 5718606
+ 1031809 words of memory out of 5000000
+ 54528 multiletter control sequences out of 15000+600000
+ 625586 words of font info for 162 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
  121i,13n,124p,1042b,1205s stack positions out of 10000i,1000n,20000p,200000b,200000s
 </usr/share/texmf/fonts/type1/public/lm/lmbx10.pfb></usr/share/texmf/fonts/ty
@@ -1169,11 +1179,11 @@ fb></usr/share/texmf/fonts/type1/public/lm/lmri10.pfb></usr/share/texmf/fonts/t
 ype1/public/lm/lmsy10.pfb></usr/share/texmf/fonts/type1/public/lm/lmsy8.pfb></u
 sr/share/texmf/fonts/type1/public/lm/lmtt10.pfb></usr/share/texmf/fonts/type1/p
 ublic/lm/lmtt12.pfb>
-Output written on module2_2d_electrostatics_defect_space_charge.pdf (20 pages, 
-333366 bytes).
+Output written on module2_2d_electrostatics_defect_space_charge.pdf (25 pages, 
+359590 bytes).
 PDF statistics:
- 547 PDF objects out of 1000 (max. 8388607)
- 484 compressed objects within 5 object streams
- 141 named destinations out of 1000 (max. 500000)
- 38301 words of extra memory for PDF output out of 42996 (max. 10000000)
+ 653 PDF objects out of 1000 (max. 8388607)
+ 584 compressed objects within 6 object streams
+ 185 named destinations out of 1000 (max. 500000)
+ 38357 words of extra memory for PDF output out of 42996 (max. 10000000)
 
