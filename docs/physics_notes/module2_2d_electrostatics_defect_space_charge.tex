@@ -55,6 +55,12 @@ $x,y$ & Cartesian spatial coordinates & m \\
 $L$ & Characteristic device length scale & m \\
 $\phi_0$ & Characteristic potential scale & V \\
 $E_0$ & Characteristic electric-field scale & V/m \\
+$N_i$, $N_j$ & Finite-element shape functions associated with nodes $i$ and $j$ & dimensionless \\
+$\Phi_i$, $\Phi_j$ & Nodal electrostatic potential values in the FEM discretization & V \\
+$\bm{\Phi}$ & Vector of nodal electrostatic potentials & V \\
+$K$, $K_{ij}$ & Global electrostatic stiffness matrix and its matrix entry & F in 3D; F/m in 2D per-unit-depth form \\
+$\bm{b}$, $b_i$ & Global FEM source vector and its nodal entry & C in 3D; C/m in 2D per-unit-depth form \\
+$U$, $U_h$ & Continuous and finite-element electrostatic field energy & J \\
 \bottomrule
 \end{longtable}
 
@@ -549,6 +555,318 @@ b_i
 \label{eq:module2_bi_defect_species}
 \end{equation}
 This expression is the direct mathematical link between radiation-induced charged defects and the FEM right-hand side.
+
+
+\subsubsection{Physical interpretation of the electrostatic stiffness matrix}
+
+The matrix entry in Eq.~\eqref{eq:module2_global_Kij_detailed},
+\begin{equation}
+K_{ij}
+= \int_{\Omega} \varepsilon_{\mathrm{Si}} \nabla N_i \cdot \nabla N_j \, d\Omega,
+\end{equation}
+is the part of the FEM derivation that is easiest to treat as just an abstract mathematical object. It is more useful to attach a physical meaning to it.
+
+A good first interpretation is
+\begin{equation}
+\boxed{
+K\bm{\Phi}
+\quad \text{is the FEM-discretized version of} \quad
+-\nabla \cdot \left(\varepsilon_{\mathrm{Si}} \nabla \phi\right).
+}
+\end{equation}
+This statement is correct, but it requires one important refinement. In the strong form, the operator contains the divergence of the gradient of the potential. In the weak form, integration by parts moves one spatial derivative from the potential field onto the test function. Therefore the FEM matrix contains products of first derivatives,
+\begin{equation}
+\nabla N_i \cdot \nabla N_j,
+\end{equation}
+rather than a direct second derivative such as $\nabla^2 N_j$. The second-derivative operator is still represented, but it is represented in an integral, weak-form sense.
+
+\paragraph{Shape-function gradients and the electric field.}
+The FEM potential is
+\begin{equation}
+\phi_h(\mathbf{x})
+= \sum_{j=1}^{N_{\mathrm{node}}} \Phi_j N_j(\mathbf{x}).
+\end{equation}
+Taking the gradient gives
+\begin{equation}
+\nabla \phi_h(\mathbf{x})
+= \sum_{j=1}^{N_{\mathrm{node}}} \Phi_j \nabla N_j(\mathbf{x}).
+\end{equation}
+The electric field is
+\begin{equation}
+\Evec_h(\mathbf{x})
+= -\nabla \phi_h(\mathbf{x}),
+\end{equation}
+so
+\begin{equation}
+\Evec_h(\mathbf{x})
+= -\sum_{j=1}^{N_{\mathrm{node}}} \Phi_j \nabla N_j(\mathbf{x}).
+\end{equation}
+Thus $N_j$ tells how nodal potential $\Phi_j$ contributes to the potential field, while $\nabla N_j$ tells how nodal potential $\Phi_j$ contributes to the electric field. This is the first key physical interpretation:
+\begin{equation}
+\boxed{
+\nabla N_j
+\quad \text{is the electric-field pattern, up to a minus sign, produced by a unit potential at node } j.
+}
+\end{equation}
+
+To see this, imagine setting one nodal degree of freedom to unity and all others to zero:
+\begin{equation}
+\Phi_j = 1, \qquad \Phi_{k\neq j}=0.
+\end{equation}
+Then the finite-element potential field is simply
+\begin{equation}
+\phi_h(\mathbf{x})=N_j(\mathbf{x}),
+\end{equation}
+and the associated field-like quantity is
+\begin{equation}
+-\nabla N_j(\mathbf{x}).
+\end{equation}
+Therefore the gradient of a shape function is not just a mathematical derivative. It is the local electric-field contribution associated with that nodal basis function.
+
+\paragraph{Meaning of the dot product.}
+The dot product
+\begin{equation}
+\nabla N_i \cdot \nabla N_j
+\end{equation}
+measures how much the field pattern associated with node $i$ overlaps with the field pattern associated with node $j$. If the two shape-function gradients point in similar directions over an element, their dot product is positive. If they point in opposite directions, their dot product is negative. If their supports do not overlap, the product is zero because at least one of the shape-function gradients is zero in that region.
+
+Including the silicon permittivity gives the dielectric-weighted overlap:
+\begin{equation}
+\boxed{
+K_{ij}
+= \text{dielectric-weighted overlap of the electric-field patterns associated with nodes } i \text{ and } j.
+}
+\end{equation}
+This is why $K_{ij}$ may be interpreted as an electrostatic coupling between node $i$ and node $j$. The coupling is nonzero only when the two basis functions share element support. This locality is one of the reasons the global FEM matrix is sparse.
+
+\paragraph{Energy interpretation.}
+The electrostatic field energy stored in a dielectric is
+\begin{equation}
+U
+= \frac{1}{2}\int_{\Omega} \varepsilon_{\mathrm{Si}} |\Evec|^2 \, d\Omega.
+\end{equation}
+Using $\Evec=-\nabla \phi$, this can also be written as
+\begin{equation}
+U
+= \frac{1}{2}\int_{\Omega} \varepsilon_{\mathrm{Si}} |\nabla \phi|^2 \, d\Omega.
+\end{equation}
+For the FEM approximation,
+\begin{equation}
+\nabla \phi_h
+= \sum_j \Phi_j \nabla N_j.
+\end{equation}
+Therefore the discrete electrostatic energy is
+\begin{align}
+U_h
+&= \frac{1}{2}\int_{\Omega} \varepsilon_{\mathrm{Si}}
+\left(\sum_i \Phi_i \nabla N_i\right)
+\cdot
+\left(\sum_j \Phi_j \nabla N_j\right)
+\, d\Omega \\
+&= \frac{1}{2}\sum_i\sum_j \Phi_i\Phi_j
+\int_{\Omega} \varepsilon_{\mathrm{Si}} \nabla N_i\cdot \nabla N_j \, d\Omega.
+\end{align}
+Using the definition of $K_{ij}$,
+\begin{equation}
+\boxed{
+U_h
+= \frac{1}{2}\bm{\Phi}^T K \bm{\Phi}.
+}
+\end{equation}
+This gives a second important interpretation:
+\begin{equation}
+\boxed{
+K \text{ tells how much electrostatic field energy is produced by a given nodal potential distribution.}
+}
+\end{equation}
+The matrix is called a stiffness matrix because it penalizes sharp spatial variations in potential. In structural mechanics, stiffness penalizes displacement gradients. Here, electrostatic stiffness penalizes potential gradients. Large potential changes over short distances produce large $|\nabla \phi|$, large electric field magnitude $|\Evec|$, and therefore large electrostatic field energy.
+
+\paragraph{One-dimensional element example.}
+The same interpretation becomes especially clear in a one-dimensional linear element. Consider an element of length $h$ with two nodes. The linear shape functions are
+\begin{equation}
+N_1(x)=1-\frac{x}{h},
+\qquad
+N_2(x)=\frac{x}{h}.
+\end{equation}
+Their derivatives are
+\begin{equation}
+\frac{dN_1}{dx}=-\frac{1}{h},
+\qquad
+\frac{dN_2}{dx}=\frac{1}{h}.
+\end{equation}
+For a one-dimensional element with cross-sectional area $A$, the local stiffness entries are
+\begin{equation}
+K_{ab}^{(e)}
+= \int_0^h \varepsilon_{\mathrm{Si}} A
+\frac{dN_a}{dx}\frac{dN_b}{dx}\, dx.
+\end{equation}
+Thus
+\begin{align}
+K_{11}^{(e)}
+&= \int_0^h \varepsilon_{\mathrm{Si}} A
+\left(-\frac{1}{h}\right)
+\left(-\frac{1}{h}\right) dx
+= \frac{\varepsilon_{\mathrm{Si}} A}{h}, \\
+K_{22}^{(e)}
+&= \int_0^h \varepsilon_{\mathrm{Si}} A
+\left(\frac{1}{h}\right)
+\left(\frac{1}{h}\right) dx
+= \frac{\varepsilon_{\mathrm{Si}} A}{h}, \\
+K_{12}^{(e)}
+&= \int_0^h \varepsilon_{\mathrm{Si}} A
+\left(-\frac{1}{h}\right)
+\left(\frac{1}{h}\right) dx
+= -\frac{\varepsilon_{\mathrm{Si}} A}{h}.
+\end{align}
+Therefore
+\begin{equation}
+\boxed{
+K^{(e)}
+= \frac{\varepsilon_{\mathrm{Si}} A}{h}
+\begin{bmatrix}
+1 & -1 \\
+-1 & 1
+\end{bmatrix}.
+}
+\end{equation}
+This has the same algebraic form as a spring stiffness matrix. The corresponding element energy is
+\begin{equation}
+\boxed{
+U^{(e)}
+= \frac{1}{2}\frac{\varepsilon_{\mathrm{Si}} A}{h}
+\left(\Phi_2-\Phi_1\right)^2.
+}
+\end{equation}
+Only the potential difference matters. If $\Phi_1=\Phi_2$, then $\nabla \phi_h=0$, the electric field is zero, and the stored field energy is zero. If $\Phi_2-\Phi_1$ is large, then
+\begin{equation}
+E_x
+= -\frac{\Phi_2-\Phi_1}{h}
+\end{equation}
+is large in magnitude, and the stored field energy increases. In this simple case, the stiffness matrix literally penalizes nodal voltage differences.
+
+\paragraph{Why neighboring off-diagonal entries are often negative.}
+For neighboring nodes, the corresponding shape functions often slope in opposite directions inside the same element. In the one-dimensional example,
+\begin{equation}
+\frac{dN_1}{dx}<0,
+\qquad
+\frac{dN_2}{dx}>0,
+\end{equation}
+so
+\begin{equation}
+\frac{dN_1}{dx}\frac{dN_2}{dx}<0.
+\end{equation}
+This gives
+\begin{equation}
+K_{12}^{(e)}<0.
+\end{equation}
+The negative off-diagonal entry does not mean negative physical energy. Rather, it means neighboring nodal potentials are coupled through the electric field between them. The full quadratic form $\bm{\Phi}^T K\bm{\Phi}$ remains nonnegative for the electrostatic problem with appropriate boundary conditions. The matrix favors smooth potential fields unless the charge source $\bm{b}$ and the boundary conditions require curvature.
+
+\paragraph{Relation back to Gauss's law.}
+The strong form used in Module 2 is
+\begin{equation}
+-\nabla \cdot \left(\varepsilon_{\mathrm{Si}}\nabla\phi\right)=\rho.
+\end{equation}
+The weak form is
+\begin{equation}
+\int_{\Omega}\varepsilon_{\mathrm{Si}}\nabla\phi\cdot\nabla w\,d\Omega
+=\int_{\Omega}\rho w\,d\Omega
++\int_{\Gamma_N}\varepsilon_{\mathrm{Si}}g w\,d\Gamma.
+\end{equation}
+Choosing $w=N_i$ gives
+\begin{equation}
+\int_{\Omega}\varepsilon_{\mathrm{Si}}\nabla\phi_h\cdot\nabla N_i\,d\Omega
+=\int_{\Omega}\rho N_i\,d\Omega
++\int_{\Gamma_N}\varepsilon_{\mathrm{Si}}g N_i\,d\Gamma.
+\end{equation}
+The left-hand side is
+\begin{equation}
+\sum_j K_{ij}\Phi_j.
+\end{equation}
+Therefore
+\begin{equation}
+\boxed{
+\left(K\bm{\Phi}\right)_i
+= \int_{\Omega}\varepsilon_{\mathrm{Si}}\nabla\phi_h\cdot\nabla N_i\,d\Omega.
+}
+\end{equation}
+This quantity is the dielectric-weighted field response tested around node $i$. The right-hand side
+\begin{equation}
+b_i=\int_{\Omega}\rho N_i\,d\Omega
++\int_{\Gamma_N}\varepsilon_{\mathrm{Si}}gN_i\,d\Gamma
+\end{equation}
+is the charge and boundary-flux forcing assigned to node $i$ through the weighting function $N_i$. Therefore the row equation
+\begin{equation}
+\sum_j K_{ij}\Phi_j=b_i
+\end{equation}
+means
+\begin{equation}
+\boxed{
+\begin{aligned}
+&\text{field-flux response associated with node } i \\
+&\qquad = \text{space-charge and boundary-flux forcing assigned to node } i.
+\end{aligned}
+}
+\end{equation}
+This is the discrete weak-form statement of Gauss's law.
+
+\paragraph{Module 2 interpretation.}
+For Module 2, the source term is built from mobile carriers, ionized dopants, and charged defects:
+\begin{equation}
+\rho
+= q\left(p-n+N_D^+-N_A^-\right)+\rho_{\mathrm{def}}
+= q\left(p-n+N_D^+-N_A^-+\sum_k z_k C_k\right).
+\end{equation}
+The finite-element equation is
+\begin{equation}
+K\bm{\Phi}=\bm{b},
+\end{equation}
+with
+\begin{equation}
+K_{ij}
+= \int_{\Omega}\varepsilon_{\mathrm{Si}}\nabla N_i\cdot\nabla N_j\,d\Omega
+\end{equation}
+and, for insulating Neumann boundaries,
+\begin{equation}
+b_i=\int_{\Omega}qN_i
+\left(p-n+N_D^+-N_A^-+\sum_k z_k C_k\right)\,d\Omega.
+\end{equation}
+Thus $\bm{b}$ contains the dopant and radiation-defect charge forcing, while $K$ contains the dielectric geometry and field-coupling response. More compactly,
+\begin{equation}
+\boxed{
+K_{ij}
+= \text{how strongly the potential at node } j
+\text{ influences the electric-field balance tested at node } i.
+}
+\end{equation}
+Equivalently,
+\begin{equation}
+\boxed{
+K_{ij}
+= \text{electrostatic coupling between node } i
+\text{ and node } j,
+}
+\end{equation}
+weighted by the silicon permittivity, the mesh geometry, and the overlap of the corresponding shape-function gradients.
+
+The most useful mental model is therefore
+\begin{align}
+N_j
+&\longrightarrow \text{how node }j\text{ contributes to potential}, \\
+\nabla N_j
+&\longrightarrow \text{how node }j\text{ contributes to electric field}, \\
+\nabla N_i\cdot\nabla N_j
+&\longrightarrow \text{overlap of the field patterns from nodes }i\text{ and }j, \\
+K_{ij}
+&\longrightarrow \text{dielectric-weighted field-pattern overlap between nodes }i\text{ and }j.
+\end{align}
+Finally,
+\begin{equation}
+\boxed{
+K\bm{\Phi}\quad\text{is the discrete weak-form Gauss-law operator.}
+}
+\end{equation}
+It corresponds to $-\nabla\cdot(\varepsilon_{\mathrm{Si}}\nabla\phi)$, but in an integral finite-element sense rather than as a pointwise second derivative.
+
 
 \subsubsection{Element-level form and assembly}
 
