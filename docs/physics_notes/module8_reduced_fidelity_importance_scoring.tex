@@ -48,6 +48,13 @@ ROM & Reduced-order model & Reduced-fidelity or reduced-dimensionality model use
 \(\mathcal{P}_{3D\to2D}\) & 3D-to-2D projection & Operator that maps 3D fields to a 2D cross-section. \\
 \(\mathcal{P}_{2D\to1D}\) & 2D-to-1D projection & Operator that maps 2D fields to a 1D representation. \\
 \(\mathcal{P}_{2D\to0D}\) & 2D-to-lumped projection & Operator that maps 2D fields to scalar scores or aggregate metrics. \\
+\(u(\rvec,t)\) & Generic spatial field & Any spatially varying field being reduced to a lumped score, such as defect concentration, electric-field magnitude, or temperature rise. \\
+\(S_u(t)\) & Generic lumped score & Sensitivity-weighted scalar measure obtained from the spatial field \(u(\rvec,t)\). \\
+\(w_{D,j}(\rvec)\) & Defect-damage weighting function & Spatial and species-dependent weight used when defect species \(j\) contributes to the damage score. \\
+\(E_{\mathrm{ref}}\) & Reference electric-field scale & Field scale used to nondimensionalize the field score; it may represent a nominal operating field, design limit, or breakdown-relevant scale. \\
+\(T_0\) & Reference temperature & Baseline or ambient temperature relative to which thermal rise is measured. \\
+\(\Delta T_{\mathrm{ref}}\) & Reference temperature rise & Temperature-rise scale used to nondimensionalize the thermal score. \\
+\(g\) & Response map & Calibrated or physics-guided function mapping reduced scores to a predicted device response. \\
 \(\varepsilon_r\) & Reduced-model error & Relative output error of reduced model \(r\) compared with a reference model. \\
 \(\varepsilon_{\mathrm{tol}}\) & Error tolerance & Maximum acceptable reduced-model output error. \\
 \(\varepsilon_0\) & Regularization constant & Small positive number used to avoid division by zero in normalized metrics. \\
@@ -229,6 +236,36 @@ The most aggressive reduction maps a field to one or more scalar scores. A gener
 \end{equation}
 The weighting function \(w(\rvec)\) encodes device sensitivity. For example, defects near a junction, oxide interface, depletion region, or high-field region may matter more than defects deep in a neutral bulk region.
 
+\subsubsection{Physical meaning of the generic lumped score}
+Equation~\eqref{eq:generic_weighted_score} defines a general recipe for compressing a spatially resolved field into one time-dependent scalar:
+\[
+    S_u(t)
+    =
+    \frac{\int_{\Omega_{2D}} w(\rvec)u(\rvec,t)\,\dd A}
+    {\int_{\Omega_{2D}} w(\rvec)\,\dd A+\varepsilon_0}.
+\]
+The quantity \(S_u(t)\) is not a new physical field. It is a reduced score extracted from the field \(u(\rvec,t)\). The field \(u(\rvec,t)\) is a placeholder for whichever spatial quantity is being reduced. It could represent a defect concentration field \(C_j(\rvec,t)\), an electric-field magnitude \(\abs{\bm{E}(\rvec,t)}\), a temperature-rise field \(T(\rvec,t)-T_0\), a recombination-rate field, or any other local quantity whose spatial map is too expensive or unnecessary to carry into the next reduced-model stage.
+
+The weighting function \(w(\rvec)\) acts as a device-sensitivity map. Regions with large \(w(\rvec)\) contribute strongly to the score, while regions with small \(w(\rvec)\) contribute weakly. This is essential because the reduced model should not simply ask how much of a quantity exists everywhere in the domain. It should ask how much of that quantity exists in regions where it can affect the final device response. For example, damage near a junction, depletion region, oxide interface, high-field region, or main current path may matter more than damage in a relatively inactive bulk region.
+
+The numerator,
+\[
+    \int_{\Omega_{2D}} w(\rvec)u(\rvec,t)\,\dd A,
+\]
+is the sensitivity-weighted accumulation of the field over the two-dimensional device domain. If \(u\) is a defect concentration, this numerator is a sensitivity-weighted defect burden. If \(u\) is a temperature rise, it is a sensitivity-weighted thermal exposure. If \(u\) is an electric-field distortion measure, it is a sensitivity-weighted field stress.
+
+The denominator,
+\[
+    \int_{\Omega_{2D}} w(\rvec)\,\dd A+\varepsilon_0,
+\]
+normalizes by the total weight. This makes \(S_u(t)\) a weighted average rather than a quantity that automatically increases with the size of the computational domain. The small positive constant \(\varepsilon_0\) is included only as a numerical regularization term to prevent division by zero if the total weight is zero or extremely small. In this Module 8 context, \(\varepsilon_0\) is not the vacuum permittivity; it is a numerical safeguard.
+
+Thus \(S_u(t)\) answers the reduced-model question:
+\begin{quote}
+At time \(t\), how large is the device-relevant part of the spatial field \(u(\rvec,t)\)?
+\end{quote}
+For slide-level interpretation, the generic lumped score is a \emph{sensitivity-weighted average of a spatial physics field}. It is the mathematical bridge between the full field representation and the lumped decoupled model.
+
 Representative scores are
 \begin{align}
     D_{\mathrm{score}}(t)
@@ -248,13 +285,94 @@ Representative scores are
     \label{eq:thermal_score}\\[0.5em]
     R_{\mathrm{score}}(t)
     &=
-    g\!big(D_{\mathrm{score}},F_{\mathrm{score}},T_{\mathrm{score}}\big).
+    g\!\big(D_{\mathrm{score}},F_{\mathrm{score}},T_{\mathrm{score}}\big).
     \label{eq:response_score}
 \end{align}
 Here \(E_{\mathrm{ref}}\), \(T_0\), and \(\Delta T_{\mathrm{ref}}\) are reference scales. The function \(g\) is a calibrated or physics-guided response map.
 
+\subsubsection{Physical meaning of the damage score}
+Equation~\eqref{eq:damage_score} defines \(D_{\mathrm{score}}(t)\), the reduced scalar representation of defect-related damage strength:
+\[
+    D_{\mathrm{score}}(t)
+    =
+    \frac{\sum_j \int_{\Omega_{2D}} w_{D,j}(\rvec) C_j(\rvec,t)\,\dd A}
+    {\sum_j \int_{\Omega_{2D}} w_{D,j}(\rvec)\,\dd A+\varepsilon_0}.
+\]
+The field \(C_j(\rvec,t)\) is the spatial concentration of defect species \(j\). The index \(j\) allows different defect types to contribute differently. A vacancy, an interstitial, a charged trap, and a recombination center do not necessarily produce the same device-level consequence, even if their concentrations are numerically similar. The weighting function \(w_{D,j}(\rvec)\) therefore plays two roles: it encodes where the device is sensitive and how important defect species \(j\) is to the chosen output.
+
+The numerator is a sensitivity-weighted defect burden. It does not simply count all defects everywhere. It counts defects more strongly when they appear in regions where they can affect the device response, such as a depletion region, junction, oxide interface, high-field region, or main current path. The denominator normalizes by the total defect-damage weight, with \(\varepsilon_0\) included only as a small numerical safeguard against division by zero.
+
+Thus \(D_{\mathrm{score}}(t)\) answers the reduced-model question:
+\begin{center}
+\fbox{\parbox{0.86\textwidth}{
+At time \(t\), how much defect concentration exists in locations and species channels that matter for degradation?
+}}
+\end{center}
+This is different from the total number of defects. A large defect population far from electrically active regions may produce a smaller \(D_{\mathrm{score}}\) than a smaller defect population concentrated near a sensitive junction. For slide-level interpretation, the damage score is therefore a \emph{sensitivity-weighted defect burden}.
+
+\subsubsection{Physical meaning of the field score}
+Equation~\eqref{eq:field_score} defines \(F_{\mathrm{score}}(t)\), the reduced scalar representation of electric-field stress:
+\[
+    F_{\mathrm{score}}(t)
+    =
+    \frac{\max_{\rvec\in\Omega_{2D}} \abs{\bm{E}(\rvec,t)}}
+    {E_{\mathrm{ref}}}.
+\]
+The electric field \(\bm{E}(\rvec,t)\) is obtained from the electrostatic potential through \(\bm{E}=-\nabla\phi\). The maximum over \(\Omega_{2D}\) means that this score is intentionally sensitive to field hot spots. This is appropriate when the device response is controlled by peak field stress, local field crowding, avalanche-like behavior, leakage enhancement, or breakdown proximity.
+
+The denominator \(E_{\mathrm{ref}}\) converts the peak field magnitude into a dimensionless ratio. Depending on the use case, \(E_{\mathrm{ref}}\) may be chosen as a nominal operating field, a design-limit field, a breakdown-relevant field scale, or a calibration scale extracted from a higher-fidelity simulation. If \(F_{\mathrm{score}}\approx 1\), the maximum field is comparable to the chosen reference scale. If \(F_{\mathrm{score}}>1\), the model predicts a field excursion beyond that reference scale.
+
+Thus \(F_{\mathrm{score}}(t)\) answers the reduced-model question:
+\begin{center}
+\fbox{\parbox{0.86\textwidth}{
+At time \(t\), how severe is the strongest electric-field distortion relative to the field scale that matters for device operation?
+}}
+\end{center}
+For slide-level interpretation, the field score is a \emph{normalized peak electric-field stress}. It compresses the full electrostatic solution into the single field quantity most likely to control field-driven degradation.
+
+\subsubsection{Physical meaning of the thermal score}
+Equation~\eqref{eq:thermal_score} defines \(T_{\mathrm{score}}(t)\), the reduced scalar representation of thermal exposure:
+\[
+    T_{\mathrm{score}}(t)
+    =
+    \frac{\max_{\rvec\in\Omega_{2D}} \left[T(\rvec,t)-T_0\right]}
+    {\Delta T_{\mathrm{ref}}}.
+\]
+The numerator is the maximum temperature rise above the baseline temperature \(T_0\). Like the field score, this definition uses a maximum rather than a spatial average. That choice preserves local hot-spot information, which is important when defect mobility, annealing, reaction rates, leakage current, or material reliability are controlled by the hottest part of the device rather than by the domain-averaged temperature.
+
+The reference scale \(\Delta T_{\mathrm{ref}}\) makes the thermal score dimensionless. It may represent an acceptable temperature rise, a reliability threshold, a calibration scale, or a temperature rise known to activate a particular defect-kinetic pathway. If \(T_{\mathrm{score}}\approx 1\), the peak temperature rise is comparable to the chosen reference thermal scale.
+
+Thus \(T_{\mathrm{score}}(t)\) answers the reduced-model question:
+\begin{center}
+\fbox{\parbox{0.86\textwidth}{
+At time \(t\), how large is the worst local temperature rise relative to the thermal scale that controls degradation or defect kinetics?
+}}
+\end{center}
+For slide-level interpretation, the thermal score is a \emph{normalized peak thermal exposure}. It is not intended to reproduce the entire temperature map; it preserves the thermal feature most likely to alter defect evolution and device response.
+
+\subsubsection{Physical meaning of the response score}
+Equation~\eqref{eq:response_score} defines \(R_{\mathrm{score}}(t)\), the reduced scalar representation of the final device response:
+\[
+    R_{\mathrm{score}}(t)
+    =
+    g\!\big(D_{\mathrm{score}},F_{\mathrm{score}},T_{\mathrm{score}}\big).
+\]
+This equation is the final lumped surrogate step. Instead of passing full defect, electric-field, and temperature maps into a fully coupled multiphysics solve, the reduced model passes only the reduced scores into a response map \(g\). The map \(g\) may be physics-guided, empirically fitted, calibrated against full simulations, calibrated against experiments, or built from a mixture of those sources.
+
+The response score should be interpreted as a prediction of the device-level consequence of the reduced physics state. Depending on the chosen quantity of interest, it may represent normalized degradation, leakage-current increase, threshold-voltage shift, collected-charge loss, mobility degradation, recombination enhancement, or a pass/fail metric. The exact definition of \(R_{\mathrm{score}}\) must therefore be tied to the device metric being predicted.
+
+The function \(g\) is also where coupled effects can be reintroduced in reduced form. For example, damage and field distortion may not act independently: defects can reshape the electric field, and the electric field can change carrier transport and recombination. Similarly, temperature can change defect mobility and reaction rates. A reduced response map can include such interactions through nonlinear terms, cross terms, thresholds, or calibrated response surfaces, even though the spatial fields themselves have been compressed.
+
+Thus \(R_{\mathrm{score}}(t)\) answers the reduced-model question:
+\begin{center}
+\fbox{\parbox{0.86\textwidth}{
+Given the damage burden, field stress, and thermal exposure retained by the reduced model, what is the predicted device-level degradation or response?
+}}
+\end{center}
+For slide-level interpretation, the response score is the \emph{reduced-model prediction of device consequence}. It is the bridge from physics scores to engineering decision-making.
+
 \begin{physicsbox}
-\textbf{Interpretation.} A lumped model is not trying to reproduce every field. It is trying to preserve the few combinations of fields that the device actually responds to. The scoring model should therefore be judged by output prediction error, not by pointwise field error.
+\textbf{Interpretation.} A lumped model is not trying to reproduce every field. It is trying to preserve the few combinations of fields that the device actually responds to. The scoring model should therefore be judged by output prediction error, not by pointwise field error. The damage score preserves the defect burden that matters; the field score preserves peak electric-field stress; the thermal score preserves peak thermal exposure; and the response score maps those retained quantities into a device-level consequence.
 \end{physicsbox}
 
 \section{Identifying impactful physics and bypassing non-essential physics}
@@ -344,7 +462,7 @@ A finite-difference estimate is
 \begin{equation}
     S_{k\ell}
     \approx
-    \frac{\ln\!big(\abs{y_k(\theta_\ell+\Delta\theta_\ell)}+\varepsilon_0\big)
+    \frac{\ln\!\big(\abs{y_k(\theta_\ell+\Delta\theta_\ell)}+\varepsilon_0\big)
           -\ln\!\big(\abs{y_k(\theta_\ell)}+\varepsilon_0\big)}
     {\ln\!\big(\abs{\theta_\ell+\Delta\theta_\ell}+\varepsilon_0\big)
           -\ln\!\big(\abs{\theta_\ell}+\varepsilon_0\big)}.
@@ -358,7 +476,7 @@ When inputs are uncertain over a wide range, local sensitivity can be misleading
     \boxed{
     \mathcal{S}_\ell
     =
-    \frac{\mathrm{Var}_{\theta_\ell}\!big(\mathbb{E}[\mathcal{J}\mid \theta_\ell]\big)}
+    \frac{\mathrm{Var}_{\theta_\ell}\!\big(\mathbb{E}[\mathcal{J}\mid \theta_\ell]\big)}
     {\mathrm{Var}(\mathcal{J})}.
     }
     \label{eq:global_sensitivity}

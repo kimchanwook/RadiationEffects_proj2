@@ -1,0 +1,49 @@
+\contentsline {section}{Symbols and acronyms used in this document}{3}{Doc-Start}%
+\contentsline {section}{\numberline {1}Why a reduction module is needed}{7}{section.1}%
+\contentsline {section}{\numberline {2}Full model, reduced models, and quantities of interest}{8}{section.2}%
+\contentsline {subsection}{\numberline {2.1}Full model as an operator}{8}{subsection.2.1}%
+\contentsline {subsection}{\numberline {2.2}Reduced-model error should be measured in device outputs}{8}{subsection.2.2}%
+\contentsline {section}{\numberline {3}Dimensional reduction: 3D to 2D to 1D to lumped scores}{9}{section.3}%
+\contentsline {subsection}{\numberline {3.1}3D Geant4 output to a 2D project model}{9}{subsection.3.1}%
+\contentsline {subsection}{\numberline {3.2}2D to 1D reduction}{10}{subsection.3.2}%
+\contentsline {subsection}{\numberline {3.3}1D or 2D to lumped/scoring models}{10}{subsection.3.3}%
+\contentsline {subsubsection}{\numberline {3.3.1}Physical meaning of the generic lumped score}{10}{subsubsection.3.3.1}%
+\contentsline {subsubsection}{\numberline {3.3.2}Physical meaning of the damage score}{12}{subsubsection.3.3.2}%
+\contentsline {subsubsection}{\numberline {3.3.3}Physical meaning of the field score}{12}{subsubsection.3.3.3}%
+\contentsline {subsubsection}{\numberline {3.3.4}Physical meaning of the thermal score}{13}{subsubsection.3.3.4}%
+\contentsline {subsubsection}{\numberline {3.3.5}Physical meaning of the response score}{13}{subsubsection.3.3.5}%
+\contentsline {section}{\numberline {4}Identifying impactful physics and bypassing non-essential physics}{14}{section.4}%
+\contentsline {subsection}{\numberline {4.1}The model as a directed physics graph}{14}{subsection.4.1}%
+\contentsline {subsection}{\numberline {4.2}Bypass criteria}{15}{subsection.4.2}%
+\contentsline {section}{\numberline {5}Impact estimation}{15}{section.5}%
+\contentsline {subsection}{\numberline {5.1}Module ablation impact}{16}{subsection.5.1}%
+\contentsline {subsection}{\numberline {5.2}Incremental fidelity impact}{16}{subsection.5.2}%
+\contentsline {subsection}{\numberline {5.3}Local sensitivity}{16}{subsection.5.3}%
+\contentsline {subsection}{\numberline {5.4}Global sensitivity}{17}{subsection.5.4}%
+\contentsline {subsection}{\numberline {5.5}Adjoint sensitivity for expensive models}{17}{subsection.5.5}%
+\contentsline {section}{\numberline {6}Computational cost estimation}{17}{section.6}%
+\contentsline {subsection}{\numberline {6.1}Cost should be measured and modeled}{17}{subsection.6.1}%
+\contentsline {subsection}{\numberline {6.2}Cost of coupling}{18}{subsection.6.2}%
+\contentsline {subsection}{\numberline {6.3}Cost of dimensionality}{18}{subsection.6.3}%
+\contentsline {section}{\numberline {7}Importance score: impact divided by computational cost}{18}{section.7}%
+\contentsline {subsection}{\numberline {7.1}Basic definition}{19}{subsection.7.1}%
+\contentsline {subsection}{\numberline {7.2}Incremental importance}{19}{subsection.7.2}%
+\contentsline {subsection}{\numberline {7.3}Decision categories}{19}{subsection.7.3}%
+\contentsline {section}{\numberline {8}Module-by-module reduction opportunities}{20}{section.8}%
+\contentsline {subsection}{\numberline {8.1}Module 1: Geant4 deposition maps}{20}{subsection.8.1}%
+\contentsline {subsection}{\numberline {8.2}Module 2: electrostatics}{20}{subsection.8.2}%
+\contentsline {subsection}{\numberline {8.3}Module 3: defect evolution}{21}{subsection.8.3}%
+\contentsline {subsection}{\numberline {8.4}Module 4: thermal transport}{21}{subsection.8.4}%
+\contentsline {subsection}{\numberline {8.5}Module 5: carrier drift-diffusion}{21}{subsection.8.5}%
+\contentsline {subsection}{\numberline {8.6}Module 6: coupled multiphysics}{22}{subsection.8.6}%
+\contentsline {subsection}{\numberline {8.7}Module 7 and Module 8 distinction}{22}{subsection.8.7}%
+\contentsline {section}{\numberline {9}A practical Module 8 workflow}{22}{section.9}%
+\contentsline {subsection}{\numberline {9.1}Step 1: define outputs and tolerances}{22}{subsection.9.1}%
+\contentsline {subsection}{\numberline {9.2}Step 2: run a small reference set}{22}{subsection.9.2}%
+\contentsline {subsection}{\numberline {9.3}Step 3: build reduced candidates}{23}{subsection.9.3}%
+\contentsline {subsection}{\numberline {9.4}Step 4: estimate impact}{23}{subsection.9.4}%
+\contentsline {subsection}{\numberline {9.5}Step 5: estimate cost}{23}{subsection.9.5}%
+\contentsline {subsection}{\numberline {9.6}Step 6: compute importance score}{23}{subsection.9.6}%
+\contentsline {subsection}{\numberline {9.7}Step 7: validate the reduced model}{23}{subsection.9.7}%
+\contentsline {section}{\numberline {10}What this module should output}{23}{section.10}%
+\contentsline {section}{\numberline {11}Summary}{24}{section.11}%
