@@ -1,0 +1,19 @@
+# Batch run for Module 1 silicon energy deposition.
+# Output: output/module1_silicon_edep.hdf5
+
+/control/verbose 1
+/run/verbose 1
+/event/verbose 0
+/tracking/verbose 0
+
+/run/initialize
+
+# Default beam: protons from above the silicon target toward -z.
+# Silicon top face is at z = +25 um; source starts at z = +30 um.
+/gun/particle proton
+/gun/energy 10 MeV
+/gun/position 0 0 30 um
+/gun/direction 0 0 -1
+
+/run/printProgress 100
+/run/beamOn 1000

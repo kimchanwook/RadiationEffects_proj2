@@ -1,0 +1,15 @@
+# Visualization run: opens the Qt viewer, then fires a small number of events.
+
+/control/execute init_vis.mac
+
+/gun/particle proton
+/gun/energy 10 MeV
+/gun/position 0 0 30 um
+/gun/direction 0 0 -1
+
+/tracking/storeTrajectory 1
+/vis/scene/add/trajectories smooth
+/vis/scene/endOfEventAction accumulate
+
+/run/beamOn 10
+/vis/viewer/refresh

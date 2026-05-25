@@ -1,0 +1,32 @@
+# Interactive visualization macro for Module 1 silicon geometry.
+# Geometry: 20 um x 20 um x 50 um silicon target centered at the origin.
+
+/control/verbose 1
+/run/verbose 1
+/event/verbose 0
+/tracking/verbose 0
+
+/run/initialize
+
+# Use an explicitly Qt/OpenGL viewer. If this fails on WSL, try setting:
+#   export LIBGL_ALWAYS_SOFTWARE=1
+# before running the executable.
+/vis/open OGLSQt 1000x1000-0+0
+
+/vis/drawVolume
+/vis/viewer/set/style surface
+/vis/viewer/set/auxiliaryEdge true
+/vis/viewer/set/lineSegmentsPerCircle 96
+
+# CAD-like viewing: keep z as up, view from an oblique direction, allow free rotation.
+/vis/viewer/set/upVector 0 0 1
+/vis/viewer/set/viewpointVector 1 1 0.7
+/vis/viewer/set/rotationStyle freeRotation
+/vis/viewer/zoom 1.8
+
+# Axes length is 30 um so it is comparable to the 20 x 20 x 50 um target.
+/vis/scene/add/axes 0 0 0 30 um
+/vis/scene/add/scale
+
+/vis/viewer/set/autoRefresh true
+/vis/viewer/refresh
