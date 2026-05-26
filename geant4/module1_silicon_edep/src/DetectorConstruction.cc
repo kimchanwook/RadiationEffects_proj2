@@ -16,8 +16,10 @@ G4VPhysicalVolume* DetectorConstruction::Construct()
   // Materials.
   auto worldMaterial = nist->FindOrBuildMaterial("G4_Galactic");
   auto silicon       = nist->FindOrBuildMaterial("G4_Si");
+  auto tungsten      = nist->FindOrBuildMaterial("G4_W");
 
-  // World volume. It only needs to be comfortably larger than the silicon target.
+  // World volume. It only needs to be comfortably larger than the silicon target
+  // and the top tungsten shield.
   const G4double worldHalfX = 0.5 * mm;
   const G4double worldHalfY = 0.5 * mm;
   const G4double worldHalfZ = 0.5 * mm;
@@ -54,6 +56,48 @@ G4VPhysicalVolume* DetectorConstruction::Construct()
       0,
       true);
 
+  // --------------------------------------------------------------------------
+  // Top shielding layer: tungsten cap directly above the silicon device.
+  //
+  // Silicon is centered at z = 0 and has half-thickness 25 um, so its top
+  // surface is at z = +25 um. A tungsten shield of thickness t_W is centered at
+  //
+  //   z_W = siliconHalfZ + 0.5*t_W.
+  //
+  // For the initial case below, t_W = 1 um, so the shield occupies
+  // z = +25 um to +26 um and sits directly on top of the silicon.
+  // --------------------------------------------------------------------------
+  const G4double tungstenThickness = 1.0 * um;
+  //const G4double tungstenThickness = 2.0 * um;
+  //const G4double tungstenThickness = 3.0 * um;
+  //const G4double tungstenThickness = 4.0 * um;
+  //const G4double tungstenThickness = 5.0 * um;
+  const G4double tungstenHalfX = siliconHalfX;
+  const G4double tungstenHalfY = siliconHalfY;
+  const G4double tungstenHalfZ = 0.5 * tungstenThickness;
+  const G4double tungstenCenterZ = siliconHalfZ + tungstenHalfZ;
+
+  auto tungstenSolid = new G4Box("TungstenShieldSolid",
+                                 tungstenHalfX,
+                                 tungstenHalfY,
+                                 tungstenHalfZ);
+
+  auto tungstenLogical = new G4LogicalVolume(tungstenSolid,
+                                             tungsten,
+                                             "TungstenShieldLV");
+
+  new G4PVPlacement(
+      nullptr,
+      G4ThreeVector(0.0, 0.0, tungstenCenterZ),
+      tungstenLogical,
+      "TungstenShieldPV",
+      worldLogical,
+      false,
+      0,
+      true);
+
+  // Score only the energy deposited in the silicon target. The tungsten layer is
+  // passive shielding in this first study.
   fScoringVolume = siliconLogical;
 
   // Visualization attributes.
@@ -63,6 +107,11 @@ G4VPhysicalVolume* DetectorConstruction::Construct()
   siliconVis->SetForceSolid(true);
   siliconVis->SetForceAuxEdgeVisible(true);
   siliconLogical->SetVisAttributes(siliconVis);
+
+  auto tungstenVis = new G4VisAttributes(G4Colour(0.45, 0.45, 0.45, 0.75));
+  tungstenVis->SetForceSolid(true);
+  tungstenVis->SetForceAuxEdgeVisible(true);
+  tungstenLogical->SetVisAttributes(tungstenVis);
 
   return worldPhysical;
 }
