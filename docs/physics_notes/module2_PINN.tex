@@ -1,0 +1,982 @@
+
+\documentclass[11pt]{article}
+\input{../shared/project_style.tex}
+
+\newcommand{\thetav}{\bm{\theta}}
+\newcommand{\xv}{\bm{x}}
+\newcommand{\muv}{\bm{\mu}}
+\newcommand{\Evec}{\mathbf{E}}
+\newcommand{\Dvec}{\mathbf{D}}
+\newcommand{\nvecb}{\mathbf{n}}
+\newcommand{\rhodef}{\rho_{\mathrm{def}}}
+\newcommand{\epss}{\varepsilon_{\mathrm{Si}}}
+\newcommand{\phinn}{\phi_{\theta}}
+\newcommand{\Rpoisson}{\mathcal{R}_{\mathrm{P}}}
+\newcommand{\Ldata}{\mathcal{L}_{\mathrm{data}}}
+\newcommand{\Lpde}{\mathcal{L}_{\mathrm{PDE}}}
+\newcommand{\Lbc}{\mathcal{L}_{\mathrm{BC}}}
+\newcommand{\Ldir}{\mathcal{L}_{\mathrm{D}}}
+\newcommand{\Lneu}{\mathcal{L}_{\mathrm{N}}}
+\newcommand{\Lreg}{\mathcal{L}_{\mathrm{reg}}}
+\newcommand{\Ltot}{\mathcal{L}_{\mathrm{total}}}
+\newcommand{\Om}{\Omega}
+\rhead{Module 2 PINN Physics Note}
+
+\begin{document}
+
+\DocTitle{Module 2\_PINN: Physics-Informed Neural Surrogate for Two-Dimensional Electrostatics}{Textbook-Style Physics Note for \texttt{RadiationEffects\_proj2}}{Using Module 2 Poisson electrostatics as the first project example of a physics-inspired neural network}
+
+\hrule
+\vspace{0.8em}
+
+\begin{overviewbox}
+\textbf{Purpose of this note.} This note introduces physics-informed and physics-inspired neural networks using Module 2 as the concrete example. Module 2 solves the electrostatic Poisson equation that maps radiation-induced defect space charge into electrostatic potential and electric field. The goal here is not to replace the existing finite-element Module 2 implementation. Instead, the goal is to build a parallel learning-based surrogate that can be trained from Module 2 simulation data and constrained by the governing electrostatic equation. The note explains, from first principles, what a neural surrogate is, what makes a neural network physics-informed, how the Poisson residual is constructed, how boundary conditions enter the loss function, how automatic differentiation is used, how training data are generated from the existing MATLAB/FEM solver, and how the final trained network can be tested as a fast approximation to Module 2.
+\end{overviewbox}
+
+\ProjectTOC
+
+\SymbolsAcronymsSection
+
+\renewcommand{\arraystretch}{1.25}
+\begin{longtable}{p{0.22\textwidth} p{0.55\textwidth} p{0.17\textwidth}}
+\toprule
+\textbf{Symbol / acronym} & \textbf{Meaning} & \textbf{Typical units} \\
+\midrule
+\endhead
+PINN & Physics-informed neural network & -- \\
+PDE & Partial differential equation & -- \\
+NN & Neural network & -- \\
+MLP & Multilayer perceptron, the standard fully connected feedforward network & -- \\
+FEM & Finite-element method & -- \\
+AD & Automatic differentiation & -- \\
+$\Om$ & Two-dimensional computational domain for Module 2 & m$^2$ \\
+$\partial\Om$ & Boundary of the domain & m \\
+$\Gamma_D$ & Dirichlet boundary segment where potential is prescribed & m \\
+$\Gamma_N$ & Neumann boundary segment where normal electric flux is prescribed & m \\
+$\xv=(x,y)$ & Spatial coordinate vector & m \\
+$\muv$ & Parameter vector, such as dose, defect amplitude, shield thickness, bias, material constants & various \\
+$\phi(\xv)$ & Exact electrostatic potential & V \\
+$\phinn(\xv,\muv)$ & Neural-network approximation to electrostatic potential & V, or dimensionless after scaling \\
+$\thetav$ & Trainable neural-network parameters, weights and biases & dimensionless \\
+$\Evec$ & Electric field, $\Evec=-\nabla \phi$ & V/m \\
+$\rho$ & Total space-charge density & C/m$^3$ \\
+$\rhodef$ & Space-charge density due to charged radiation-induced defects & C/m$^3$ \\
+$\varepsilon$, $\epss$ & Permittivity, silicon permittivity & F/m \\
+$q$ & Elementary charge magnitude & C \\
+$n,p$ & Electron and hole concentrations & m$^{-3}$ \\
+$N_D^+,N_A^-$ & Ionized donor and acceptor concentrations & m$^{-3}$ \\
+$C_i$ & Concentration of defect species $i$ & m$^{-3}$ \\
+$z_i$ & Effective charge number of defect species $i$ & -- \\
+$\Rpoisson$ & Poisson-equation residual used in the PINN loss & depends on scaling \\
+$\Ldata$ & Supervised data mismatch loss against FEM or reference values & scaled \\
+$\Lpde$ & Interior PDE residual loss & scaled \\
+$\Ldir$ & Dirichlet boundary loss & scaled \\
+$\Lneu$ & Neumann boundary loss & scaled \\
+$\Lbc$ & Total boundary-condition loss & scaled \\
+$\Lreg$ & Regularization or physical-penalty loss & scaled \\
+$\Ltot$ & Total training objective minimized by the neural network & scaled \\
+$N_r$ & Number of interior residual/collocation points & -- \\
+$N_D^{\mathrm{bc}}$ & Number of Dirichlet boundary training points & -- \\
+$N_N^{\mathrm{bc}}$ & Number of Neumann boundary training points & -- \\
+$N_s$ & Number of supervised FEM/reference samples & -- \\
+$\lambda_r,\lambda_D,\lambda_N,\lambda_s$ & Loss weights for residual, boundary, and supervised terms & -- \\
+$L$ & Characteristic length used for nondimensionalization & m \\
+$\phi_0$ & Characteristic potential scale & V \\
+$\rho_0$ & Characteristic charge-density scale & C/m$^3$ \\
+$\hat{x},\hat{y},\hat{\phi},\hat{\rho}$ & Dimensionless coordinate, potential, and charge density & -- \\
+\bottomrule
+\end{longtable}
+
+\section{Role of this note in the project}
+
+The existing Module 2 note develops the electrostatic physics and finite-element implementation for radiation-induced defect space charge in silicon. That physics remains the authoritative governing model. The present note adds a parallel learning-based path:
+\begin{equation}
+\text{Module 2 FEM solution data} + \text{Poisson equation} + \text{boundary conditions}
+\longrightarrow
+\text{trained neural surrogate for Module 2}.
+\end{equation}
+
+The immediate project goal is intentionally limited. Modules 2, 3, 4, and 5 should first be tested separately. Each module should have its own conventional physics implementation and its own neural surrogate implementation. Module 6, the fully coupled multiphysics module, can later combine these pieces. Therefore, the present note focuses only on Module 2:
+\begin{equation}
+\rho(x,y) \longrightarrow \phi(x,y) \longrightarrow \Evec(x,y).
+\end{equation}
+
+The learning model should be adjacent to the existing Module 2 solver. It should not replace the existing MATLAB/FEM code. The FEM code remains the reference implementation. The neural model is a testbed for three questions:
+\begin{enumerate}[leftmargin=2em]
+    \item Can a neural network learn the Module 2 electrostatic mapping from charge distribution and boundary conditions to potential?
+    \item Does adding the Poisson residual and boundary-condition penalties improve physical behavior compared with a purely supervised neural net?
+    \item Can the trained surrogate predict Module 2 outputs quickly enough to support parameter sweeps or later Module 6 coupling studies?
+\end{enumerate}
+
+\begin{physicsbox}
+\textbf{Important distinction.} In this note, \emph{physics-informed} means that the neural-network training objective explicitly penalizes violations of the governing electrostatic equation and boundary conditions. \emph{Physics-inspired} is a broader term. It may include physically motivated inputs, nondimensional variables, monotonicity penalties, positivity constraints, smoothness penalties, or training data generated by a physics solver, even if a full PDE residual is not used. A strict PINN is a physics-informed neural network. A physics-inspired surrogate is a broader class that may or may not be a full PINN.
+\end{physicsbox}
+
+\section{Recap of Module 2 electrostatics}
+
+\subsection{The physical mapping solved by Module 2}
+
+Module 2 solves the electrostatic part of the radiation-effects chain. Radiation creates defects. Some defects carry net charge or alter charge balance. The electrostatic module converts that charge distribution into potential and electric field. The governing relation is Poisson's equation,
+\begin{equation}
+\nabla\cdot\left(\varepsilon \nabla \phi\right) = -\rho.
+\label{eq:poisson_general}
+\end{equation}
+For uniform silicon permittivity, this reduces to
+\begin{equation}
+\varepsilon_{\mathrm{Si}}\nabla^2 \phi = -\rho.
+\label{eq:poisson_uniform}
+\end{equation}
+Once $\phi$ is known, the electric field is obtained by
+\begin{equation}
+\Evec = -\nabla \phi.
+\label{eq:e_field}
+\end{equation}
+
+The total space-charge density is
+\begin{equation}
+\rho = q(p-n+N_D^+-N_A^-) + \rhodef.
+\label{eq:total_charge}
+\end{equation}
+The defect charge can be represented by
+\begin{equation}
+\rhodef = q\sum_{i=1}^{M} z_i C_i,
+\label{eq:defect_charge}
+\end{equation}
+where $C_i$ is the concentration of defect species $i$ and $z_i$ is its effective charge number.
+
+For a single effective defect species,
+\begin{equation}
+\rho = q\left(p-n+N_D^+-N_A^-+z_{\mathrm{def}}C\right).
+\label{eq:single_species_charge}
+\end{equation}
+
+\subsection{Boundary conditions}
+
+For a well-posed electrostatic problem, Poisson's equation must be paired with boundary conditions. On a Dirichlet boundary $\Gamma_D$, the potential is prescribed:
+\begin{equation}
+\phi(\xv)=\phi_D(\xv),\qquad \xv\in\Gamma_D.
+\label{eq:dirichlet_bc}
+\end{equation}
+On a Neumann boundary $\Gamma_N$, the normal electric displacement flux is prescribed:
+\begin{equation}
+\nvecb\cdot \varepsilon\nabla\phi(\xv)=g_N(\xv),\qquad \xv\in\Gamma_N.
+\label{eq:neumann_bc}
+\end{equation}
+Because $\Evec=-\nabla\phi$, the Neumann condition can also be interpreted as a condition on normal electric field. Care is needed with sign convention. In the form above, $g_N$ is the outward-normal component of $\varepsilon\nabla\phi$, not the outward-normal component of $\varepsilon\Evec$.
+
+\subsection{Why Module 2 is a good first PINN test case}
+
+Module 2 is a good first learning-based module for four reasons.
+
+First, the governing PDE is elliptic and comparatively simple. The main equation is Poisson's equation, not a stiff time-dependent reaction network.
+
+Second, the output is a smooth scalar field $\phi(x,y)$ in many practical cases. Neural networks often approximate smooth functions more easily than discontinuous or shock-like solutions.
+
+Third, the electric field can be obtained by differentiating the learned potential. This connects naturally to automatic differentiation.
+
+Fourth, the existing FEM solver can generate reference solutions. This makes it possible to compare a purely supervised neural network, a physics-informed neural network, and the original FEM solver on the same cases.
+
+\section{What a neural surrogate means}
+
+\subsection{A conventional solver versus a surrogate}
+
+A conventional Module 2 FEM solve proceeds approximately as follows:
+\begin{equation}
+\rho(x,y),\;\varepsilon,\;\phi_D,\;g_N
+\longrightarrow
+K\bm{\Phi}=\bm{b}
+\longrightarrow
+\bm{\Phi}
+\longrightarrow
+\phi_h(x,y),\Evec_h(x,y).
+\end{equation}
+The matrix $K$ and vector $\bm{b}$ are assembled from the mesh, material coefficients, charge density, and boundary conditions. For every new charge distribution or boundary condition, the solver may need to assemble or solve another linear system.
+
+A neural surrogate attempts to learn the mapping
+\begin{equation}
+\mathcal{G}: (\rho,\varepsilon,\text{boundary conditions},\text{parameters})\mapsto \phi.
+\end{equation}
+After training, prediction is performed by evaluating the neural network rather than solving the full discretized PDE from scratch.
+
+In the simplest scalar-response surrogate, the network might learn
+\begin{equation}
+(E_\gamma,\Phi_{\mathrm{rad}},t_{\mathrm{shield}},A_{\mathrm{def}},V_{\mathrm{bias}})
+\mapsto
+Y_{\mathrm{elec}},
+\end{equation}
+where $Y_{\mathrm{elec}}$ is a reduced electrostatic metric such as peak field, field nonuniformity, or a device-level degradation proxy. That is useful for rapid design sweeps, but it does not directly learn the full field.
+
+For Module 2, the more physics-rich surrogate learns
+\begin{equation}
+(x,y,\muv)\mapsto \phi(x,y;\muv),
+\end{equation}
+where $\muv$ parameterizes the charge distribution and boundary conditions. This is the version emphasized in this note.
+
+\subsection{What is being approximated}
+
+Let $\muv$ denote a vector of problem parameters. Examples include
+\begin{equation}
+\muv = \left(A_{\rho},\sigma_x,\sigma_y,x_c,y_c,V_L,V_R,\varepsilon_{\mathrm{Si}},L_x,L_y\right),
+\end{equation}
+where $A_\rho$ might be the amplitude of a Gaussian defect-charge distribution, $\sigma_x,\sigma_y$ its widths, $(x_c,y_c)$ its center, $V_L$ and $V_R$ boundary potentials, and $L_x,L_y$ domain dimensions.
+
+A parameterized neural potential can be written as
+\begin{equation}
+\phinn = \mathcal{N}_{\theta}(x,y,\muv),
+\label{eq:network_potential}
+\end{equation}
+where $\mathcal{N}_{\theta}$ is the neural network and $\thetav$ denotes all trainable weights and biases.
+
+For a fixed parameter vector $\muv$, evaluating the network at many spatial points gives an approximate potential field. Differentiating the network output with respect to $x$ and $y$ gives
+\begin{equation}
+\Evec_{\theta}(x,y;\muv) = -\nabla \phinn(x,y;\muv).
+\end{equation}
+
+\section{What makes the neural network physics-informed}
+
+\subsection{Purely supervised learning}
+
+A purely supervised neural surrogate uses reference data only. Suppose the FEM solver provides values
+\begin{equation}
+\left\{(x_s^{(k)},y_s^{(k)},\muv^{(k)},\phi_{\mathrm{FEM}}^{(k)})\right\}_{k=1}^{N_s}.
+\end{equation}
+A supervised network is trained by minimizing
+\begin{equation}
+\Ldata(\thetav)=\frac{1}{N_s}\sum_{k=1}^{N_s}
+\left|\mathcal{N}_{\theta}(x_s^{(k)},y_s^{(k)},\muv^{(k)})-\phi_{\mathrm{FEM}}^{(k)}\right|^2.
+\label{eq:data_loss_basic}
+\end{equation}
+This can work well if the training set is dense and representative. But a purely supervised network has no direct knowledge of Poisson's equation. It may interpolate the reference data accurately while violating the governing PDE between training points or outside the sampled parameter regime.
+
+\subsection{Physics-informed learning}
+
+A physics-informed neural network adds the governing equation into the training objective. For Module 2, the strong-form residual of Poisson's equation is
+\begin{equation}
+\Rpoisson(x,y;\muv,\thetav)
+= \nabla\cdot\left(\varepsilon\nabla\phinn(x,y;\muv)\right)+\rho(x,y;\muv).
+\label{eq:poisson_residual_dimensional}
+\end{equation}
+The exact solution satisfies
+\begin{equation}
+\Rpoisson(x,y;\muv,\thetav)=0
+\end{equation}
+for every point inside the domain. The PINN penalizes nonzero residual at interior collocation points:
+\begin{equation}
+\Lpde(\thetav)=\frac{1}{N_r}\sum_{k=1}^{N_r}
+\left|\Rpoisson(x_r^{(k)},y_r^{(k)};\muv^{(k)},\thetav)\right|^2.
+\label{eq:pde_loss}
+\end{equation}
+
+The boundary conditions are also turned into loss terms. For Dirichlet boundaries,
+\begin{equation}
+\Ldir(\thetav)=\frac{1}{N_D^{\mathrm{bc}}}\sum_{k=1}^{N_D^{\mathrm{bc}}}
+\left|\phinn(x_D^{(k)},y_D^{(k)};\muv^{(k)})-\phi_D(x_D^{(k)},y_D^{(k)};\muv^{(k)})\right|^2.
+\label{eq:dirichlet_loss}
+\end{equation}
+For Neumann boundaries,
+\begin{equation}
+\Lneu(\thetav)=\frac{1}{N_N^{\mathrm{bc}}}\sum_{k=1}^{N_N^{\mathrm{bc}}}
+\left|\nvecb^{(k)}\cdot \varepsilon\nabla\phinn(x_N^{(k)},y_N^{(k)};\muv^{(k)})-g_N(x_N^{(k)},y_N^{(k)};\muv^{(k)})\right|^2.
+\label{eq:neumann_loss}
+\end{equation}
+The full PINN training objective can then be written as
+\begin{equation}
+\Ltot(\thetav)
+=\lambda_s\Ldata
++\lambda_r\Lpde
++\lambda_D\Ldir
++\lambda_N\Lneu
++\lambda_{\mathrm{reg}}\Lreg.
+\label{eq:total_loss}
+\end{equation}
+The numbers $\lambda_s,\lambda_r,\lambda_D,\lambda_N$, and $\lambda_{\mathrm{reg}}$ are loss weights. They determine how strongly the optimizer prioritizes data fit, PDE residual satisfaction, boundary enforcement, and regularization.
+
+\begin{physicsbox}
+\textbf{Key idea.} A PINN does not merely fit a table of input-output pairs. It is trained so that its output function approximately satisfies the governing differential equation and boundary conditions. For Module 2, the network is encouraged to behave like an electrostatic potential, not just an arbitrary interpolating function.
+\end{physicsbox}
+
+\section{Neural-network representation of the potential field}
+
+\subsection{The multilayer perceptron}
+
+The simplest network for Module 2 is a multilayer perceptron. The input vector is
+\begin{equation}
+\bm{z}_0 = \begin{bmatrix}x & y & \muv^T\end{bmatrix}^T.
+\end{equation}
+The network maps this vector through a sequence of layers:
+\begin{align}
+\bm{z}_1 &= \sigma(W_1\bm{z}_0+\bm{b}_1),\\
+\bm{z}_2 &= \sigma(W_2\bm{z}_1+\bm{b}_2),\\
+&\vdots \\
+\bm{z}_{L_h} &= \sigma(W_{L_h}\bm{z}_{L_h-1}+\bm{b}_{L_h}),\\
+\phinn &= W_{\mathrm{out}}\bm{z}_{L_h}+b_{\mathrm{out}}.
+\end{align}
+Here $W_\ell$ are weight matrices, $\bm{b}_\ell$ are bias vectors, $\sigma$ is an activation function, and $L_h$ is the number of hidden layers.
+
+The trainable parameter vector is
+\begin{equation}
+\thetav = \{W_1,\bm{b}_1,W_2,\bm{b}_2,\ldots,W_{\mathrm{out}},b_{\mathrm{out}}\}.
+\end{equation}
+
+\subsection{Activation functions}
+
+The activation function matters because the Poisson residual requires second derivatives of $\phinn$. For example, if $\varepsilon$ is uniform, the residual contains
+\begin{equation}
+\nabla^2\phinn = \frac{\partial^2\phinn}{\partial x^2}+\frac{\partial^2\phinn}{\partial y^2}.
+\end{equation}
+A piecewise-linear activation such as ReLU has zero second derivative almost everywhere and is therefore not ideal for a strong-form Poisson PINN. Smoother activations are usually better for this module. Common choices include
+\begin{equation}
+\tanh(z),\qquad \sin(z),\qquad \mathrm{softplus}(z)=\ln(1+e^z).
+\end{equation}
+For the first MATLAB implementation, $\tanh$ is a reasonable default because it is smooth, available, and easy to differentiate.
+
+\subsection{Why the network input should be normalized}
+
+Neural networks train more reliably when inputs and outputs are scaled to comparable numerical ranges. Module 2 naturally contains quantities with very different units: meters, volts, charge density, and permittivity. Directly feeding dimensional quantities can make optimization ill-conditioned.
+
+Define characteristic scales:
+\begin{equation}
+\hat{x}=\frac{x}{L},\qquad \hat{y}=\frac{y}{L},\qquad \hat{\phi}=\frac{\phi}{\phi_0},\qquad \hat{\rho}=\frac{\rho}{\rho_0}.
+\end{equation}
+For uniform permittivity, Poisson's equation becomes
+\begin{equation}
+\epss\frac{\phi_0}{L^2}\left(\frac{\partial^2\hat{\phi}}{\partial \hat{x}^2}+\frac{\partial^2\hat{\phi}}{\partial \hat{y}^2}\right)=-\rho_0\hat{\rho}.
+\end{equation}
+Rearranging gives the dimensionless equation
+\begin{equation}
+\frac{\partial^2\hat{\phi}}{\partial \hat{x}^2}+\frac{\partial^2\hat{\phi}}{\partial \hat{y}^2}
+= -\beta \hat{\rho},
+\label{eq:dimensionless_poisson_beta}
+\end{equation}
+where
+\begin{equation}
+\beta = \frac{\rho_0 L^2}{\epss\phi_0}.
+\end{equation}
+If $\phi_0$ is chosen as $\rho_0 L^2/\epss$, then $\beta=1$ and the dimensionless residual becomes especially simple:
+\begin{equation}
+\hat{\mathcal{R}}_{\mathrm{P}} =
+\frac{\partial^2\hat{\phi}_{\theta}}{\partial \hat{x}^2}
++
+\frac{\partial^2\hat{\phi}_{\theta}}{\partial \hat{y}^2}
++
+\hat{\rho}=0.
+\label{eq:dimensionless_residual}
+\end{equation}
+This is the preferred form for the first implementation because the residual has order-one terms.
+
+\section{Collocation points, data points, and boundary points}
+
+\subsection{Three kinds of points}
+
+A PINN for Module 2 uses three classes of training points.
+
+\textbf{Interior residual points.} These points are sampled inside the domain:
+\begin{equation}
+\{(x_r^{(k)},y_r^{(k)},\muv^{(k)})\}_{k=1}^{N_r}\subset \Om.
+\end{equation}
+They are used to evaluate the Poisson residual.
+
+\textbf{Boundary points.} These points lie on $\partial\Om$. Dirichlet points are used for potential boundary conditions, and Neumann points are used for flux boundary conditions:
+\begin{equation}
+\{(x_D^{(k)},y_D^{(k)},\muv^{(k)})\}_{k=1}^{N_D^{\mathrm{bc}}}\subset \Gamma_D,
+\end{equation}
+\begin{equation}
+\{(x_N^{(k)},y_N^{(k)},\muv^{(k)})\}_{k=1}^{N_N^{\mathrm{bc}}}\subset \Gamma_N.
+\end{equation}
+
+\textbf{Supervised reference points.} These points come from the FEM solver or analytical solutions:
+\begin{equation}
+\{(x_s^{(k)},y_s^{(k)},\muv^{(k)},\phi_s^{(k)})\}_{k=1}^{N_s}.
+\end{equation}
+They are used for data mismatch loss.
+
+\subsection{Why collocation points are not mesh nodes}
+
+FEM solves the weak form on a mesh. PINNs usually evaluate the strong-form residual at collocation points. These points may coincide with mesh nodes, but they do not have to. In fact, for training, it is useful to sample residual points throughout the interior, including points not used as FEM nodes. This helps the network learn the continuous PDE rather than memorizing a mesh solution.
+
+For the first implementation, a practical choice is:
+\begin{itemize}[leftmargin=2em]
+    \item use FEM nodal values as supervised data points;
+    \item use randomly sampled interior points for PDE residual points;
+    \item use uniformly sampled boundary points for boundary-condition losses;
+    \item evaluate final errors on a separate grid or FEM mesh not used in training.
+\end{itemize}
+
+\section{Three levels of neural modeling for Module 2}
+
+There are three increasingly sophisticated ways to add neural networks to Module 2. They should not be confused.
+
+\subsection{Level 1: supervised neural surrogate}
+
+The simplest model uses FEM data only:
+\begin{equation}
+(x,y,\muv)\mapsto \phi_{\mathrm{FEM}}(x,y;\muv).
+\end{equation}
+The loss is just the data mismatch in Eq.~\eqref{eq:data_loss_basic}. This is not a strict PINN. It is a data-driven surrogate trained on physics-generated data. It can still be useful because the training data come from a physics solver.
+
+\subsection{Level 2: physics-inspired surrogate}
+
+A physics-inspired surrogate adds physical penalties, but not necessarily the full PDE residual. For Module 2, examples include:
+\begin{align}
+\mathcal{L}_{E,\mathrm{consistency}} &= \left\|\Evec_{\theta}+\nabla\phinn\right\|^2,\\
+\mathcal{L}_{\mathrm{smooth}} &= \left\|\nabla\phinn\right\|^2 \quad \text{or} \quad \left\|\nabla^2\phinn\right\|^2,\\
+\mathcal{L}_{\mathrm{gauge}} &= \left|\int_{\Om}\phinn\,d\Om\right|^2 \quad \text{when a gauge condition is needed}.
+\end{align}
+A physics-inspired surrogate may also enforce known monotonic trends in reduced outputs, such as stronger shield thickness reducing a degradation metric. For pure electrostatic potential, monotonicity is not generally universal, so such constraints should be used carefully.
+
+\subsection{Level 3: true PINN}
+
+A true PINN includes the PDE residual:
+\begin{equation}
+\Lpde=\frac{1}{N_r}\sum_{k=1}^{N_r}\left|\nabla\cdot(\varepsilon\nabla\phinn)+\rho\right|^2.
+\end{equation}
+It also includes boundary-condition losses and may include supervised FEM data. This is the recommended target for the Module 2\_PINN implementation.
+
+\begin{notebox}
+\textbf{Recommended near-term path.} Start with Level 1 to confirm the MATLAB neural-network pipeline works. Then add boundary-condition losses. Finally add the Poisson residual and turn the code into a true Module 2 PINN. This staged approach is safer than trying to implement every PINN feature at once.
+\end{notebox}
+
+\section{Detailed construction of the Module 2 PINN loss}
+
+\subsection{Interior Poisson residual for constant permittivity}
+
+For the first implementation, assume uniform silicon permittivity. Then
+\begin{equation}
+\Rpoisson(x,y;\thetav)=\epss\left(\frac{\partial^2\phinn}{\partial x^2}+\frac{\partial^2\phinn}{\partial y^2}\right)+\rho(x,y).
+\label{eq:residual_constant_eps}
+\end{equation}
+The exact solution satisfies $\Rpoisson=0$ inside the domain.
+
+In dimensionless form, if $\phi_0=\rho_0 L^2/\epss$, the residual is
+\begin{equation}
+\hat{\mathcal{R}}_{\mathrm{P}}(\hat{x},\hat{y};\thetav)=
+\frac{\partial^2\hat{\phi}_{\theta}}{\partial\hat{x}^2}
++
+\frac{\partial^2\hat{\phi}_{\theta}}{\partial\hat{y}^2}
++
+\hat{\rho}(\hat{x},\hat{y}).
+\label{eq:residual_constant_eps_dimless}
+\end{equation}
+The residual loss is
+\begin{equation}
+\Lpde=\frac{1}{N_r}\sum_{k=1}^{N_r}
+\left|\hat{\mathcal{R}}_{\mathrm{P}}(\hat{x}_r^{(k)},\hat{y}_r^{(k)};\thetav)\right|^2.
+\end{equation}
+
+\subsection{Interior residual for spatially varying permittivity}
+
+If the domain contains different materials, then $\varepsilon=\varepsilon(x,y)$ and the residual should remain in divergence form:
+\begin{equation}
+\Rpoisson=\nabla\cdot\left(\varepsilon(x,y)\nabla\phinn\right)+\rho(x,y).
+\end{equation}
+Expanding this gives
+\begin{equation}
+\Rpoisson
+=\varepsilon\nabla^2\phinn
++\nabla\varepsilon\cdot\nabla\phinn
++\rho.
+\end{equation}
+For discontinuous material interfaces, this strong-form residual becomes delicate because $\nabla\varepsilon$ is singular at the interface. Therefore the first Module 2 PINN should use a single uniform silicon domain. Interface problems can be treated later with domain decomposition, weak-form PINNs, or interface-condition losses.
+
+\subsection{Dirichlet boundary loss}
+
+Suppose the left and right contacts are held at fixed potentials:
+\begin{equation}
+\phi(0,y)=V_L,
+\qquad
+\phi(L_x,y)=V_R.
+\end{equation}
+The Dirichlet loss is
+\begin{equation}
+\Ldir=\frac{1}{N_D^{\mathrm{bc}}}\sum_{k=1}^{N_D^{\mathrm{bc}}}
+\left|\phinn(x_D^{(k)},y_D^{(k)})-\phi_D^{(k)}\right|^2.
+\end{equation}
+This loss anchors the potential scale. Without at least one Dirichlet condition or gauge condition, the Poisson problem is only determined up to an additive constant.
+
+\subsection{Neumann boundary loss}
+
+Suppose the top and bottom boundaries are electrically insulating in the sense of zero normal displacement flux:
+\begin{equation}
+\nvecb\cdot\varepsilon\nabla\phi=0.
+\end{equation}
+Then
+\begin{equation}
+\Lneu=\frac{1}{N_N^{\mathrm{bc}}}\sum_{k=1}^{N_N^{\mathrm{bc}}}
+\left|\nvecb^{(k)}\cdot\varepsilon\nabla\phinn(x_N^{(k)},y_N^{(k)})\right|^2.
+\end{equation}
+For a rectangular domain, the outward normal is simple:
+\begin{align}
+\text{bottom boundary }y=0: &\qquad \nvecb=(0,-1),\\
+\text{top boundary }y=L_y: &\qquad \nvecb=(0,+1),\\
+\text{left boundary }x=0: &\qquad \nvecb=(-1,0),\\
+\text{right boundary }x=L_x: &\qquad \nvecb=(+1,0).
+\end{align}
+
+\subsection{Supervised FEM data loss}
+
+The supervised loss anchors the neural solution to the reference FEM solution:
+\begin{equation}
+\Ldata=\frac{1}{N_s}\sum_{k=1}^{N_s}
+\left|\phinn(x_s^{(k)},y_s^{(k)};\muv^{(k)})-\phi_{\mathrm{FEM}}(x_s^{(k)},y_s^{(k)};\muv^{(k)})\right|^2.
+\end{equation}
+This term is optional for a pure PINN solve, but very useful for a surrogate because the project already has a FEM solver. The most stable near-term model is a hybrid:
+\begin{equation}
+\text{FEM-supervised neural surrogate} + \text{Poisson residual} + \text{boundary-condition losses}.
+\end{equation}
+
+\subsection{Electric-field consistency loss}
+
+If the network outputs only potential, electric field is computed by differentiating the potential. Then the field consistency is automatic:
+\begin{equation}
+\Evec_{\theta}=-\nabla\phinn.
+\end{equation}
+If a future network outputs both $\phi_\theta$ and $\Evec_\theta$, then an extra consistency loss should be added:
+\begin{equation}
+\mathcal{L}_{E}=\frac{1}{N_r}\sum_{k=1}^{N_r}
+\left\|\Evec_{\theta}(x_r^{(k)},y_r^{(k)})+\nabla\phi_{\theta}(x_r^{(k)},y_r^{(k)})\right\|^2.
+\end{equation}
+For the first Module 2 PINN, output only $\phi_\theta$ and compute $\Evec_\theta$ by differentiation. This is simpler and more physically constrained.
+
+\section{Automatic differentiation}
+
+\subsection{Why derivatives are needed}
+
+The Poisson residual requires first and second derivatives of the network output with respect to the spatial coordinates. If
+\begin{equation}
+\phinn=\mathcal{N}_{\theta}(x,y),
+\end{equation}
+then the residual requires
+\begin{equation}
+\frac{\partial \phinn}{\partial x},\quad
+\frac{\partial \phinn}{\partial y},\quad
+\frac{\partial^2 \phinn}{\partial x^2},\quad
+\frac{\partial^2 \phinn}{\partial y^2}.
+\end{equation}
+Automatic differentiation computes these derivatives by differentiating the computational graph of the neural network. This is different from finite differences. The derivative is not estimated by perturbing the input and subtracting values. It is obtained by exact differentiation of the operations used to define the network, up to floating-point arithmetic.
+
+\subsection{Conceptual chain rule}
+
+For a one-layer example,
+\begin{equation}
+\phi_\theta(x)=w_2\sigma(w_1x+b_1)+b_2.
+\end{equation}
+Then
+\begin{equation}
+\frac{d\phi_\theta}{dx}=w_2\sigma'(w_1x+b_1)w_1,
+\end{equation}
+and
+\begin{equation}
+\frac{d^2\phi_\theta}{dx^2}=w_2\sigma''(w_1x+b_1)w_1^2.
+\end{equation}
+For deep networks, the same idea applies but the chain rule is applied through many layers. Automatic differentiation automates this process.
+
+\subsection{MATLAB implication}
+
+In MATLAB, a custom training loop with \texttt{dlnetwork}, \texttt{dlarray}, \texttt{dlfeval}, and \texttt{dlgradient} is the natural implementation path. The conceptual derivative sequence is:
+\begin{enumerate}[leftmargin=2em]
+    \item Evaluate $\phinn$ at collocation points.
+    \item Differentiate $\phinn$ with respect to the coordinate input array to obtain $\partial\phinn/\partial x$ and $\partial\phinn/\partial y$.
+    \item Differentiate the first derivatives again to obtain second derivatives.
+    \item Build the residual $\hat{\mathcal{R}}_{\mathrm{P}}$.
+    \item Build the total loss.
+    \item Differentiate the total loss with respect to trainable network parameters $\thetav$.
+    \item Update $\thetav$ using Adam or another optimizer.
+\end{enumerate}
+
+\section{Analytical verification cases for Module 2\_PINN}
+
+A neural surrogate should not be trusted until it passes simple cases where the answer is known.
+
+\subsection{Zero-charge linear-potential case}
+
+Let
+\begin{equation}
+\rho(x,y)=0
+\end{equation}
+in a rectangle $0\le x\le L_x$, $0\le y\le L_y$. Apply
+\begin{equation}
+\phi(0,y)=V_L,
+\qquad
+\phi(L_x,y)=V_R,
+\end{equation}
+and insulating top and bottom boundaries. The exact solution is
+\begin{equation}
+\phi(x,y)=V_L+\frac{V_R-V_L}{L_x}x.
+\end{equation}
+The electric field is uniform:
+\begin{equation}
+\Evec=-\nabla\phi=-\frac{V_R-V_L}{L_x}\hat{\bm{x}}.
+\end{equation}
+This case checks whether the network can satisfy Laplace's equation and simple Dirichlet conditions.
+
+\subsection{Uniform charge in one dimension}
+
+If the solution depends only on $x$ and the charge density is uniform, then
+\begin{equation}
+\epss\frac{d^2\phi}{dx^2}=-\rho_0.
+\end{equation}
+Integrating twice gives
+\begin{equation}
+\phi(x)=-\frac{\rho_0}{2\epss}x^2+C_1x+C_2.
+\end{equation}
+With $\phi(0)=V_L$ and $\phi(L_x)=V_R$,
+\begin{equation}
+C_2=V_L,
+\end{equation}
+\begin{equation}
+C_1=\frac{V_R-V_L}{L_x}+\frac{\rho_0 L_x}{2\epss}.
+\end{equation}
+Therefore,
+\begin{equation}
+\phi(x)=V_L+\left(\frac{V_R-V_L}{L_x}+\frac{\rho_0L_x}{2\epss}\right)x-\frac{\rho_0}{2\epss}x^2.
+\label{eq:uniform_charge_analytic}
+\end{equation}
+This case checks whether the network learns curvature from space charge.
+
+\subsection{Gaussian defect charge}
+
+A localized defect-charge source can be defined as
+\begin{equation}
+\rho(x,y)=A_{\rho}\exp\left[-\frac{(x-x_c)^2}{2\sigma_x^2}-\frac{(y-y_c)^2}{2\sigma_y^2}\right].
+\label{eq:gaussian_charge}
+\end{equation}
+This case usually has no simple closed-form solution in a finite rectangle with mixed boundary conditions, but it is a useful FEM-vs-PINN comparison case. The network should reproduce:
+\begin{itemize}[leftmargin=2em]
+    \item the potential perturbation near the charged region;
+    \item the sign of the field deflection;
+    \item the smoothing effect of Poisson's equation;
+    \item correct boundary potentials.
+\end{itemize}
+
+\section{Training modes for the first MATLAB implementation}
+
+\subsection{Mode A: single-case PINN solve}
+
+In a single-case solve, the network approximates $\phi(x,y)$ for one fixed charge distribution and one fixed set of boundary conditions:
+\begin{equation}
+(x,y)\mapsto\phi(x,y).
+\end{equation}
+The training objective is
+\begin{equation}
+\Ltot=\lambda_r\Lpde+\lambda_D\Ldir+\lambda_N\Lneu.
+\end{equation}
+No FEM data are required, although FEM data can be used for validation. This is the most conceptually pure PINN case.
+
+The disadvantage is that training a network for one case may take longer than solving the FEM system directly. Therefore, single-case PINNs are best used for learning and verification, not as the final speedup strategy.
+
+\subsection{Mode B: supervised surrogate over many FEM cases}
+
+In a supervised surrogate, the FEM solver generates many cases. The network learns
+\begin{equation}
+(x,y,\muv)\mapsto\phi_{\mathrm{FEM}}(x,y;\muv).
+\end{equation}
+The loss begins as
+\begin{equation}
+\Ltot=\lambda_s\Ldata.
+\end{equation}
+This is the simplest way to create a fast surrogate. After training, one network can evaluate many new parameter settings without re-solving the FEM system.
+
+\subsection{Mode C: physics-informed surrogate over many FEM cases}
+
+This is the recommended target. It combines supervised FEM data with PDE and boundary losses:
+\begin{equation}
+\Ltot=\lambda_s\Ldata+\lambda_r\Lpde+\lambda_D\Ldir+\lambda_N\Lneu.
+\end{equation}
+The network is trained to match FEM data while also respecting the governing equation. This approach is more stable than a data-only surrogate and more useful than a single-case PINN.
+
+\begin{physicsbox}
+\textbf{Recommended Module 2\_PINN direction.} For this project, Module 2\_PINN should be implemented as a physics-informed surrogate over a family of Module 2 electrostatic problems. The FEM solver should generate training data. The PINN residual and boundary losses should regularize the learned mapping.
+\end{physicsbox}
+
+\section{Parameterizing the charge distribution}
+
+\subsection{Why parameterization matters}
+
+A neural surrogate cannot learn an arbitrary function-to-function mapping unless the input representation is defined. For a first Module 2 surrogate, use a low-dimensional parameterization of $\rho(x,y)$ rather than a full image-like charge-density map.
+
+A good first parameterization is a uniform background plus one Gaussian defect-charge packet:
+\begin{equation}
+\rho(x,y;\muv)=\rho_{\mathrm{bg}}
++A_{\rho}\exp\left[-\frac{(x-x_c)^2}{2\sigma_x^2}-\frac{(y-y_c)^2}{2\sigma_y^2}\right].
+\end{equation}
+Then
+\begin{equation}
+\muv=\left[\rho_{\mathrm{bg}},A_{\rho},x_c,y_c,\sigma_x,\sigma_y,V_L,V_R\right]^T.
+\end{equation}
+This gives a controllable training family. The neural network input becomes
+\begin{equation}
+\left[x,y,\rho_{\mathrm{bg}},A_{\rho},x_c,y_c,\sigma_x,\sigma_y,V_L,V_R\right]^T.
+\end{equation}
+
+\subsection{Why not immediately use a full charge-density image}
+
+A full charge-density map input is more general, but it requires a different architecture. A standard MLP cannot naturally ingest an arbitrary two-dimensional field unless the field is flattened into a very high-dimensional vector. That is inefficient and does not scale well.
+
+For field-to-field learning, one would eventually use a convolutional neural network, a U-Net, a Fourier neural operator, or a graph/mesh neural operator. Those are important future directions, but they are unnecessary for the first Module 2 PINN. The first implementation should use a parameterized source.
+
+\section{Hard versus soft enforcement of boundary conditions}
+
+\subsection{Soft boundary enforcement}
+
+The simplest approach is soft enforcement: add boundary losses to the total loss. This is what Eq.~\eqref{eq:dirichlet_loss} and Eq.~\eqref{eq:neumann_loss} do. The network is not forced to satisfy boundary conditions exactly, but it is penalized when it does not.
+
+Soft enforcement is easy to implement and should be used first.
+
+\subsection{Hard boundary enforcement}
+
+Hard enforcement builds the boundary condition into the network ansatz. For example, in a one-dimensional Dirichlet problem with $\phi(0)=V_L$ and $\phi(L_x)=V_R$, one can write
+\begin{equation}
+\phi_{\theta}(x)=V_L+\frac{V_R-V_L}{L_x}x+x(L_x-x)N_{\theta}(x).
+\label{eq:hard_bc_1d}
+\end{equation}
+The term $x(L_x-x)$ vanishes at both boundaries, so the network automatically satisfies the Dirichlet conditions.
+
+In two dimensions, a similar idea can be used, but the formula becomes more complicated for mixed boundary conditions. Therefore, the first Module 2 PINN should use soft boundary losses. Hard enforcement can be added later if boundary errors become a problem.
+
+\section{Loss weighting and why it is difficult}
+
+\subsection{The scale problem}
+
+The total loss combines quantities with different units and magnitudes. If the PDE residual term is numerically much larger than the boundary loss, the optimizer may ignore the boundary. If the boundary loss dominates, the network may satisfy the boundary but violate the PDE in the interior.
+
+This is why nondimensionalization is not cosmetic. It is essential. A well-scaled dimensionless residual makes the different loss components easier to balance.
+
+\subsection{Practical initial weights}
+
+A reasonable first choice is
+\begin{equation}
+\Ltot=\Ldata+\Lpde+10\Ldir+\Lneu.
+\end{equation}
+The Dirichlet boundary may receive a larger weight because potential boundary conditions define the voltage scale. But these weights are not universal. They should be monitored and adjusted based on training curves and validation plots.
+
+\subsection{Diagnostics}
+
+During training, plot each loss term separately:
+\begin{equation}
+\Ldata,\qquad \Lpde,\qquad \Ldir,\qquad \Lneu.
+\end{equation}
+Do not only plot the total loss. A decreasing total loss can hide a boundary loss that remains too large.
+
+\section{Validation metrics}
+
+The neural surrogate should be validated against FEM and analytical cases. Useful metrics include the relative potential error
+\begin{equation}
+\epsilon_{\phi}=\frac{\left\|\phi_{\theta}-\phi_{\mathrm{FEM}}\right\|_2}{\left\|\phi_{\mathrm{FEM}}\right\|_2+\epsilon},
+\end{equation}
+the relative electric-field error
+\begin{equation}
+\epsilon_{E}=\frac{\left\|\Evec_{\theta}-\Evec_{\mathrm{FEM}}\right\|_2}{\left\|\Evec_{\mathrm{FEM}}\right\|_2+\epsilon},
+\end{equation}
+and the normalized residual error
+\begin{equation}
+\epsilon_R=\sqrt{\frac{1}{N_r}\sum_{k=1}^{N_r}\left|\hat{\mathcal{R}}_{\mathrm{P}}^{(k)}\right|^2}.
+\end{equation}
+Here $\epsilon$ is a small number used to avoid division by zero.
+
+Field plots should include:
+\begin{itemize}[leftmargin=2em]
+    \item FEM potential $\phi_{\mathrm{FEM}}(x,y)$;
+    \item PINN potential $\phi_{\theta}(x,y)$;
+    \item error field $\phi_{\theta}-\phi_{\mathrm{FEM}}$;
+    \item FEM electric-field magnitude $|\Evec_{\mathrm{FEM}}|$;
+    \item PINN electric-field magnitude $|\Evec_{\theta}|$;
+    \item residual map $|\hat{\mathcal{R}}_{\mathrm{P}}|$.
+\end{itemize}
+
+\section{How the Module 2 PINN connects to the existing MATLAB solver}
+
+\subsection{Existing Module 2 reference role}
+
+The existing Module 2 MATLAB/FEM implementation should serve as the reference model. Its role is to produce:
+\begin{equation}
+\rho(x,y),\quad \phi_{\mathrm{FEM}}(x,y),\quad \Evec_{\mathrm{FEM}}(x,y)
+\end{equation}
+for many controlled cases. The PINN should not replace this reference solver during development. It should be judged against it.
+
+\subsection{Suggested adjacent files}
+
+The new MATLAB code should eventually be added as adjacent files rather than replacing existing Module 2 code. A possible structure is:
+\begin{verbatim}
+matlab/
+  main_module2_electrostatics.m              existing reference FEM driver
+  main_module2_PINN_electrostatics.m         new PINN driver
+  pinn/
+    module2_pinn_network.m                   build MLP/dlnetwork
+    module2_pinn_loss.m                      loss and gradients
+    module2_pinn_train.m                     training loop
+    module2_pinn_predict.m                   evaluate trained surrogate
+    module2_pinn_make_dataset.m              generate FEM training cases
+    module2_pinn_verify.m                    analytical/FEM verification plots
+\end{verbatim}
+This note creates the physics foundation for those files. The code should be written later.
+
+\section{Recommended staged implementation}
+
+\subsection{Stage 1: analytical zero-charge test}
+
+Train a network for the zero-charge linear-potential case. The goal is not speed. The goal is to verify:
+\begin{itemize}[leftmargin=2em]
+    \item the network builds correctly;
+    \item automatic differentiation works;
+    \item the boundary losses are applied correctly;
+    \item the learned potential is linear;
+    \item the field is uniform.
+\end{itemize}
+
+\subsection{Stage 2: uniform charge test}
+
+Train on the uniform charge case with the analytical solution in Eq.~\eqref{eq:uniform_charge_analytic}. This checks second derivatives and source-term handling.
+
+\subsection{Stage 3: one Gaussian defect source}
+
+Use the FEM solver as reference for a Gaussian defect charge. Train the PINN with data plus residual. Compare to FEM.
+
+\subsection{Stage 4: parameterized Gaussian family}
+
+Train one network over many Gaussian defect-charge cases:
+\begin{equation}
+(x,y,A_{\rho},x_c,y_c,\sigma_x,\sigma_y,V_L,V_R)\mapsto \phi(x,y).
+\end{equation}
+This is the first true surrogate stage. After training, the network can predict new cases without running the FEM solver.
+
+\subsection{Stage 5: export surrogate metrics for later Module 6 coupling}
+
+Once Module 2\_PINN is validated, compute quantities that Module 6 will eventually need:
+\begin{equation}
+\phi_{\theta}(x,y),\qquad \Evec_{\theta}(x,y),\qquad |\Evec_{\theta}(x,y)|,\qquad \max |\Evec_{\theta}|,
+\end{equation}
+and possibly reduced metrics such as field nonuniformity or peak field near a defect cluster.
+
+\section{How this becomes a surrogate speedup}
+
+A single-case PINN does not automatically speed up a single PDE solve. Training may take longer than FEM. The speedup comes from amortization over many cases.
+
+Suppose the FEM solve cost per case is $T_{\mathrm{FEM}}$. Suppose $N_{\mathrm{train}}$ FEM cases are generated for training, and the neural-network training cost is $T_{\mathrm{train}}$. The up-front cost is
+\begin{equation}
+T_{\mathrm{upfront}}=N_{\mathrm{train}}T_{\mathrm{FEM}}+T_{\mathrm{train}}.
+\end{equation}
+After training, the cost per new surrogate prediction is $T_{\mathrm{NN}}$, usually much smaller than $T_{\mathrm{FEM}}$ for dense parameter sweeps. The surrogate becomes worthwhile when
+\begin{equation}
+N_{\mathrm{query}}T_{\mathrm{FEM}} > T_{\mathrm{upfront}}+N_{\mathrm{query}}T_{\mathrm{NN}}.
+\end{equation}
+Solving for the approximate break-even number of future queries gives
+\begin{equation}
+N_{\mathrm{query}} > \frac{T_{\mathrm{upfront}}}{T_{\mathrm{FEM}}-T_{\mathrm{NN}}}.
+\end{equation}
+Thus the surrogate is most valuable when many parameter queries are needed: dose sweeps, defect-amplitude sweeps, boundary-voltage sweeps, shielding cases, uncertainty propagation, or optimization.
+
+\section{Physical interpretation of the trained surrogate}
+
+The trained Module 2 PINN should be interpreted carefully. It is not discovering new electrostatics. The governing equation is already known. Instead, it learns an efficient approximation to the solution operator for a defined family of Module 2 problems.
+
+The physically meaningful outputs are:
+\begin{equation}
+\phi_{\theta}(x,y;\muv),
+\qquad
+\Evec_{\theta}(x,y;\muv),
+\qquad
+\Rpoisson(x,y;\muv,\thetav).
+\end{equation}
+The first two are surrogate predictions. The third is a self-diagnostic: it measures whether the prediction behaves like a solution to Poisson's equation.
+
+A good surrogate should not only match FEM values at training points. It should also have small residuals between points and small errors on unseen parameter cases.
+
+\section{Common failure modes}
+
+\subsection{Boundary-condition failure}
+
+The network may fit the interior data but fail at boundaries. This is common if the Dirichlet loss weight is too small. Boundary-condition plots should be inspected directly.
+
+\subsection{Residual failure}
+
+The network may match FEM values but violate Poisson's equation between data points. This indicates that the supervised term dominates the PDE term or that collocation points are too sparse.
+
+\subsection{Loss imbalance}
+
+If one loss term is orders of magnitude larger than the others, it may dominate training. Nondimensionalization and loss-weight tuning are required.
+
+\subsection{Poor extrapolation}
+
+A neural surrogate should not be trusted far outside the training parameter range. If the network is trained only on small defect amplitudes, it should not be expected to predict high-charge regimes reliably.
+
+\subsection{Non-smooth activation functions}
+
+Because Module 2 requires second derivatives, nonsmooth activations can cause poor residual behavior. Smooth activations such as $\tanh$ are preferred for the first implementation.
+
+\subsection{Sharp localized charge distributions}
+
+Very narrow Gaussian charge sources create high curvature in the potential. The network may need more collocation points, more hidden units, or input features that better capture localized structure.
+
+\section{How to present Module 2\_PINN in an interview or report}
+
+The clean presentation narrative is:
+\begin{enumerate}[leftmargin=2em]
+    \item The conventional solver maps defect charge to electrostatic potential using Poisson's equation.
+    \item The finite-element solver is accurate but can become expensive when repeated over many parameter cases.
+    \item A neural surrogate is trained to approximate the Module 2 solution operator.
+    \item The network is physics-informed by penalizing Poisson residuals and boundary-condition violations.
+    \item Validation compares the surrogate against analytical solutions and FEM reference cases.
+    \item The trained surrogate can accelerate parameter sweeps and later coupled Module 6 studies.
+\end{enumerate}
+
+The most important figure set is:
+\begin{itemize}[leftmargin=2em]
+    \item schematic of FEM data generation and PINN training;
+    \item potential-field comparison: FEM versus PINN;
+    \item error map;
+    \item residual map;
+    \item runtime or parameter-sweep comparison.
+\end{itemize}
+
+\section{Relationship to future Module 6 PINN coupling}
+
+Module 6 will eventually couple Modules 2, 3, 4, and 5. The full coupled unknown vector might be
+\begin{equation}
+\bm{U}=\{C_i,T,\phi,n,p,\Evec,R,\mu_n,\mu_p\}.
+\end{equation}
+A full Module 6 PINN would need residuals for defect evolution, heat transport, electrostatics, and carrier continuity. That is a much more difficult problem.
+
+The purpose of Module 2\_PINN is to isolate one piece first. If the project can successfully build and validate a PINN surrogate for Poisson electrostatics, then similar ideas can be extended to Module 3, Module 4, and Module 5 before attempting the full coupled Module 6 surrogate.
+
+\section{Summary of the Module 2\_PINN model}
+
+The core Module 2 PINN model is:
+\begin{equation}
+\phinn=\mathcal{N}_{\theta}(x,y,\muv),
+\end{equation}
+with electric field
+\begin{equation}
+\Evec_{\theta}=-\nabla\phinn.
+\end{equation}
+The governing residual is
+\begin{equation}
+\Rpoisson=\nabla\cdot\left(\varepsilon\nabla\phinn\right)+\rho.
+\end{equation}
+The recommended hybrid training objective is
+\begin{equation}
+\Ltot
+=\lambda_s\Ldata
++\lambda_r\Lpde
++\lambda_D\Ldir
++\lambda_N\Lneu
++\lambda_{\mathrm{reg}}\Lreg.
+\end{equation}
+For the first implementation, use a parameterized defect-charge distribution, smooth activation functions, dimensionless variables, FEM-generated supervised data, and analytical verification cases.
+
+\begin{physicsbox}
+\textbf{Final takeaway.} Module 2\_PINN should be treated as a physics-informed surrogate for the electrostatic Poisson solver. Its role is not to replace physical reasoning or the reference FEM implementation. Its role is to learn a fast, differentiable approximation to the Module 2 solution map while being constrained by the same electrostatic equation that defines the original module.
+\end{physicsbox}
+
+\section{References for further study}
+
+The following references are useful background for the concepts used in this note.
+
+\begin{enumerate}[leftmargin=2em]
+    \item M. Raissi, P. Perdikaris, and G. E. Karniadakis, ``Physics-informed neural networks: A deep learning framework for solving forward and inverse problems involving nonlinear partial differential equations,'' \emph{Journal of Computational Physics}, 2019.
+    \item G. E. Karniadakis, I. G. Kevrekidis, L. Lu, P. Perdikaris, S. Wang, and L. Yang, ``Physics-informed machine learning,'' \emph{Nature Reviews Physics}, 2021.
+    \item J. N. Reddy, \emph{An Introduction to the Finite Element Method}. Useful for the weak-form and FEM background that underlies the reference Module 2 solver.
+    \item S. M. Sze and K. K. Ng, \emph{Physics of Semiconductor Devices}. Useful for semiconductor electrostatics, dopant charge, and carrier transport background.
+    \item The existing \texttt{module2\_2d\_electrostatics\_defect\_space\_charge.tex} note in this project. That document remains the reference physics derivation for Module 2 electrostatics and FEM.
+\end{enumerate}
+
+\end{document}

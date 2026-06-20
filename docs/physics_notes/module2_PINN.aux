@@ -1,0 +1,106 @@
+\relax 
+\providecommand\hyper@newdestlabel[2]{}
+\providecommand\HyField@AuxAddToFields[1]{}
+\providecommand\HyField@AuxAddToCoFields[2]{}
+\gdef \LT@i {\LT@entry 
+    {1}{115.34666pt}\LT@entry 
+    {1}{270.36668pt}\LT@entry 
+    {1}{91.85748pt}}
+\@writefile{toc}{\contentsline {section}{Symbols and acronyms used in this document}{4}{Doc-Start}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {1}Role of this note in the project}{6}{section.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {2}Recap of Module 2 electrostatics}{7}{section.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.1}The physical mapping solved by Module 2}{7}{subsection.2.1}\protected@file@percent }
+\newlabel{eq:poisson_general}{{2.1}{7}{The physical mapping solved by Module 2}{equation.2.1}{}}
+\newlabel{eq:poisson_uniform}{{2.2}{7}{The physical mapping solved by Module 2}{equation.2.2}{}}
+\newlabel{eq:e_field}{{2.3}{7}{The physical mapping solved by Module 2}{equation.2.3}{}}
+\newlabel{eq:total_charge}{{2.4}{7}{The physical mapping solved by Module 2}{equation.2.4}{}}
+\newlabel{eq:defect_charge}{{2.5}{7}{The physical mapping solved by Module 2}{equation.2.5}{}}
+\newlabel{eq:single_species_charge}{{2.6}{8}{The physical mapping solved by Module 2}{equation.2.6}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.2}Boundary conditions}{8}{subsection.2.2}\protected@file@percent }
+\newlabel{eq:dirichlet_bc}{{2.7}{8}{Boundary conditions}{equation.2.7}{}}
+\newlabel{eq:neumann_bc}{{2.8}{8}{Boundary conditions}{equation.2.8}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.3}Why Module 2 is a good first PINN test case}{8}{subsection.2.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {3}What a neural surrogate means}{8}{section.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.1}A conventional solver versus a surrogate}{9}{subsection.3.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.2}What is being approximated}{9}{subsection.3.2}\protected@file@percent }
+\newlabel{eq:network_potential}{{3.6}{9}{What is being approximated}{equation.3.6}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {4}What makes the neural network physics-informed}{10}{section.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.1}Purely supervised learning}{10}{subsection.4.1}\protected@file@percent }
+\newlabel{eq:data_loss_basic}{{4.2}{10}{Purely supervised learning}{equation.4.2}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.2}Physics-informed learning}{10}{subsection.4.2}\protected@file@percent }
+\newlabel{eq:poisson_residual_dimensional}{{4.3}{10}{Physics-informed learning}{equation.4.3}{}}
+\newlabel{eq:pde_loss}{{4.5}{10}{Physics-informed learning}{equation.4.5}{}}
+\newlabel{eq:dirichlet_loss}{{4.6}{11}{Physics-informed learning}{equation.4.6}{}}
+\newlabel{eq:neumann_loss}{{4.7}{11}{Physics-informed learning}{equation.4.7}{}}
+\newlabel{eq:total_loss}{{4.8}{11}{Physics-informed learning}{equation.4.8}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {5}Neural-network representation of the potential field}{11}{section.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.1}The multilayer perceptron}{11}{subsection.5.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.2}Activation functions}{12}{subsection.5.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.3}Why the network input should be normalized}{12}{subsection.5.3}\protected@file@percent }
+\newlabel{eq:dimensionless_poisson_beta}{{5.12}{12}{Why the network input should be normalized}{equation.5.12}{}}
+\newlabel{eq:dimensionless_residual}{{5.14}{13}{Why the network input should be normalized}{equation.5.14}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {6}Collocation points, data points, and boundary points}{13}{section.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {6.1}Three kinds of points}{13}{subsection.6.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {6.2}Why collocation points are not mesh nodes}{13}{subsection.6.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {7}Three levels of neural modeling for Module 2}{14}{section.7}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {7.1}Level 1: supervised neural surrogate}{14}{subsection.7.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {7.2}Level 2: physics-inspired surrogate}{14}{subsection.7.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {7.3}Level 3: true PINN}{15}{subsection.7.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {8}Detailed construction of the Module 2 PINN loss}{15}{section.8}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {8.1}Interior Poisson residual for constant permittivity}{15}{subsection.8.1}\protected@file@percent }
+\newlabel{eq:residual_constant_eps}{{8.1}{15}{Interior Poisson residual for constant permittivity}{equation.8.1}{}}
+\newlabel{eq:residual_constant_eps_dimless}{{8.2}{15}{Interior Poisson residual for constant permittivity}{equation.8.2}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {8.2}Interior residual for spatially varying permittivity}{15}{subsection.8.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {8.3}Dirichlet boundary loss}{16}{subsection.8.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {8.4}Neumann boundary loss}{16}{subsection.8.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {8.5}Supervised FEM data loss}{16}{subsection.8.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {8.6}Electric-field consistency loss}{17}{subsection.8.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {9}Automatic differentiation}{17}{section.9}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {9.1}Why derivatives are needed}{17}{subsection.9.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {9.2}Conceptual chain rule}{17}{subsection.9.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {9.3}MATLAB implication}{18}{subsection.9.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {10}Analytical verification cases for Module 2\_PINN}{18}{section.10}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {10.1}Zero-charge linear-potential case}{18}{subsection.10.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {10.2}Uniform charge in one dimension}{19}{subsection.10.2}\protected@file@percent }
+\newlabel{eq:uniform_charge_analytic}{{10.9}{19}{Uniform charge in one dimension}{equation.10.9}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {10.3}Gaussian defect charge}{19}{subsection.10.3}\protected@file@percent }
+\newlabel{eq:gaussian_charge}{{10.10}{19}{Gaussian defect charge}{equation.10.10}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {11}Training modes for the first MATLAB implementation}{19}{section.11}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {11.1}Mode A: single-case PINN solve}{20}{subsection.11.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {11.2}Mode B: supervised surrogate over many FEM cases}{20}{subsection.11.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {11.3}Mode C: physics-informed surrogate over many FEM cases}{20}{subsection.11.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {12}Parameterizing the charge distribution}{21}{section.12}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {12.1}Why parameterization matters}{21}{subsection.12.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {12.2}Why not immediately use a full charge-density image}{21}{subsection.12.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {13}Hard versus soft enforcement of boundary conditions}{21}{section.13}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {13.1}Soft boundary enforcement}{21}{subsection.13.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {13.2}Hard boundary enforcement}{22}{subsection.13.2}\protected@file@percent }
+\newlabel{eq:hard_bc_1d}{{13.1}{22}{Hard boundary enforcement}{equation.13.1}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {14}Loss weighting and why it is difficult}{22}{section.14}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {14.1}The scale problem}{22}{subsection.14.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {14.2}Practical initial weights}{22}{subsection.14.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {14.3}Diagnostics}{22}{subsection.14.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {15}Validation metrics}{23}{section.15}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {16}How the Module 2 PINN connects to the existing MATLAB solver}{23}{section.16}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {16.1}Existing Module 2 reference role}{23}{subsection.16.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {16.2}Suggested adjacent files}{24}{subsection.16.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {17}Recommended staged implementation}{24}{section.17}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {17.1}Stage 1: analytical zero-charge test}{24}{subsection.17.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {17.2}Stage 2: uniform charge test}{24}{subsection.17.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {17.3}Stage 3: one Gaussian defect source}{25}{subsection.17.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {17.4}Stage 4: parameterized Gaussian family}{25}{subsection.17.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {17.5}Stage 5: export surrogate metrics for later Module 6 coupling}{25}{subsection.17.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {18}How this becomes a surrogate speedup}{25}{section.18}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {19}Physical interpretation of the trained surrogate}{26}{section.19}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {20}Common failure modes}{26}{section.20}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {20.1}Boundary-condition failure}{26}{subsection.20.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {20.2}Residual failure}{26}{subsection.20.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {20.3}Loss imbalance}{26}{subsection.20.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {20.4}Poor extrapolation}{27}{subsection.20.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {20.5}Non-smooth activation functions}{27}{subsection.20.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {20.6}Sharp localized charge distributions}{27}{subsection.20.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {21}How to present Module 2\_PINN in an interview or report}{27}{section.21}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {22}Relationship to future Module 6 PINN coupling}{28}{section.22}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {23}Summary of the Module 2\_PINN model}{28}{section.23}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {24}References for further study}{28}{section.24}\protected@file@percent }
+\gdef \@abspage@last{29}
