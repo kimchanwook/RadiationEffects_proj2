@@ -8,9 +8,10 @@ Tool split
 
 Current implementation status
 -----------------------------
-This package now includes six working code paths:
+This package now includes seven working code paths:
 
 1. Module 2: first 2D finite-element electrostatic Poisson implementation
+1b. Module 2 PINN: standalone physics-inspired neural-network Poisson surrogate demo
 2. Module 3: first 2D defect evolution implementation plus a new linear-triangle FEM defect diffusion-reaction path
 3. Module 4: first executable 2D ballistic-diffusive thermal implementation plus a new linear-triangle FEM thermal path
 4. Module 5: first linear-triangle FEM drift-diffusion carrier-transport path
@@ -25,6 +26,14 @@ Module 2 electrostatics pieces now included:
 - strong Dirichlet boundary-condition insertion and natural zero-Neumann edges
 - electric-field postprocessing from the solved electrostatic potential
 - verification cases for zero charge, linear Laplace solution, uniform space charge, and localized defect charge
+
+
+Module 2 PINN pieces now included:
+- standalone MATLAB entry point `main_module2_pinn_electrostatics.m`
+- physics residual for eps_si*(d2phi/dx2 + d2phi/dy2) + rho = 0
+- Dirichlet and natural-Neumann boundary-condition loss terms
+- optional sparse FEM anchor data for stabilization
+- FEM-reference comparison plots, PDE-residual plots, field plots, and training-loss curves
 
 Module 3 FEM pieces now included:
 - linear triangular finite-element weak-form implementation for diffusion-reaction evolution
@@ -74,6 +83,7 @@ Recommended run order
 2. `main_module2_electrostatics('localized_defect_charge')`
 3. `main_module2_electrostatics('linear_potential')`
 4. `main_module2_electrostatics('uniform_space_charge')`
+4b. `main_module2_pinn_electrostatics('localized_defect_charge')`
 5. `main_module3_2d_defect_evolution('gaussian_diffusion')`
 6. `main_module3_2d_defect_evolution('pure_annealing')`
 7. `main_module3_fem_defect_evolution('gaussian_diffusion')`
@@ -122,6 +132,9 @@ Outputs written automatically
 Module 2 outputs:
 - `matlab/outputs/module2_2d/`
 
+Module 2 PINN outputs:
+- `matlab/outputs/module2_pinn_2d/`
+
 Module 3 outputs:
 - `matlab/outputs/module3_2d/`
 - `matlab/outputs/module3_fem_2d/`
@@ -146,6 +159,10 @@ Generated files include:
 - `*_potential.png` (Module 2)
 - `*_space_charge.png` (Module 2)
 - `*_electric_field_magnitude.png` (Module 2)
+- `*_pinn_potential.png` (Module 2 PINN)
+- `*_pinn_abs_potential_error.png` (Module 2 PINN)
+- `*_pinn_pde_residual.png` (Module 2 PINN)
+- `*_pinn_training_loss.png` (Module 2 PINN)
 - `*_final_temperature.png`
 - `*_final_ballistic_divergence.png` (Module 4)
 - `*_fem_final_temperature.png` (Module 4 FEM)
@@ -164,7 +181,7 @@ Generated files include:
 
 Important numerical note
 ------------------------
-The current Module 2 solver is steady-state linear finite-element assembly. Module 3 now has both an explicit structured-grid solver and an implicit linear-triangle FEM solver. Module 4 now has both the original explicit structured-grid ballistic-diffusive solver and a new implicit linear-triangle FEM solver. Module 5 now has a first implicit linear-triangle FEM drift-diffusion solver with known fields and linearized recombination. Module 6 now has a first staggered linear-triangle FEM coupling scaffold that passes fields between the Module 2, 3, 4, and 5 reduced FEM blocks. The legacy Module 4a Fourier baseline remains explicit. The structured-grid Module 4 path adds a relaxation-time term and a ballistic front resolution constraint, so the time step should satisfy the conservative recommended dt reported in each summary file.
+The current Module 2 solver is steady-state linear finite-element assembly. The Module 2 PINN entry point is a standalone Deep Learning Toolbox demonstration that trains a neural surrogate using the Poisson residual, boundary losses, and optional sparse FEM anchors. Module 3 now has both an explicit structured-grid solver and an implicit linear-triangle FEM solver. Module 4 now has both the original explicit structured-grid ballistic-diffusive solver and a new implicit linear-triangle FEM solver. Module 5 now has a first implicit linear-triangle FEM drift-diffusion solver with known fields and linearized recombination. Module 6 now has a first staggered linear-triangle FEM coupling scaffold that passes fields between the Module 2, 3, 4, and 5 reduced FEM blocks. The legacy Module 4a Fourier baseline remains explicit. The structured-grid Module 4 path adds a relaxation-time term and a ballistic front resolution constraint, so the time step should satisfy the conservative recommended dt reported in each summary file.
 
 Near-term next steps
 --------------------
