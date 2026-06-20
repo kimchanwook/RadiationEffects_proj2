@@ -4,5 +4,6 @@ thisFile = mfilename('fullpath');
 thisDir = fileparts(thisFile);
 addpath(thisDir);
 addpath(fullfile(thisDir, 'cases'));
+addpath(fullfile(thisDir, 'tests'));
 addpath(genpath(fullfile(thisDir, 'src')));
 end

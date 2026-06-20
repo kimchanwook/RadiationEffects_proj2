@@ -34,6 +34,7 @@ Module 2 PINN pieces now included:
 - Dirichlet and natural-Neumann boundary-condition loss terms
 - optional sparse FEM anchor data for stabilization
 - FEM-reference comparison plots, PDE-residual plots, field plots, and training-loss curves
+- lightweight smoke/regression test `test_module2_pinn_electrostatics.m`
 
 Module 3 FEM pieces now included:
 - linear triangular finite-element weak-form implementation for diffusion-reaction evolution
@@ -79,53 +80,56 @@ Legacy Module 4a baseline pieces retained:
 
 Recommended run order
 ---------------------
+The setup script now also adds the `tests` folder to the MATLAB path, so test functions can be called by name from the MATLAB project root.
+
 1. `setup_project_paths`
 2. `main_module2_electrostatics('localized_defect_charge')`
 3. `main_module2_electrostatics('linear_potential')`
 4. `main_module2_electrostatics('uniform_space_charge')`
-4b. `main_module2_pinn_electrostatics('localized_defect_charge')`
-5. `main_module3_2d_defect_evolution('gaussian_diffusion')`
-6. `main_module3_2d_defect_evolution('pure_annealing')`
-7. `main_module3_fem_defect_evolution('gaussian_diffusion')`
-8. `main_module3_fem_defect_evolution('pure_annealing')`
-9. `main_module4_2d_ballistic_diffusive_thermal('uniform_equilibrium')`
-10. `main_module4_2d_ballistic_diffusive_thermal('localized_pulse')`
-11. `main_module4_2d_ballistic_diffusive_thermal('boundary_heating')`
-12. `main_module4_fem_ballistic_diffusive_thermal('uniform_equilibrium')`
-13. `main_module4_fem_ballistic_diffusive_thermal('gaussian_diffusion')`
-14. `main_module4_fem_ballistic_diffusive_thermal('uniform_source')`
-15. `main_module5_drift_diffusion('uniform_no_field')`
-16. `main_module5_drift_diffusion('lifetime_recombination')`
-17. `main_module5_drift_diffusion('gaussian_diffusion')`
-18. `main_module5_drift_diffusion('field_drift')`
-19. `main_module6_multiphysics('smoke')`
-20. `main_module6_multiphysics('defect_field_coupling')`
-21. `main_module6_multiphysics('thermal_feedback')`
-22. `main_module4a_2d_continuum_thermal('uniform_equilibrium')`  % archived Fourier baseline
-20. `test_module2_zero_charge_2d`
-21. `test_module2_linear_potential_2d`
-22. `test_module2_uniform_space_charge_2d`
-23. `test_module2_localized_defect_charge_2d`
-24. `test_module3_gaussian_diffusion_2d`
-25. `test_module3_pure_annealing_2d`
-26. `test_module3_fem_gaussian_diffusion_2d`
-27. `test_module3_fem_pure_annealing_2d`
-28. `test_module3_fem_uniform_state_2d`
-29. `test_module4_bd_uniform_equilibrium_2d`
-30. `test_module4_bd_localized_pulse_2d`
-31. `test_module4_bd_boundary_heating_2d`
-32. `test_module4_fem_uniform_equilibrium_2d`
-33. `test_module4_fem_gaussian_diffusion_2d`
-34. `test_module4_fem_uniform_source_2d`
-35. `test_module5_fem_uniform_no_field_2d`
-36. `test_module5_fem_lifetime_recombination_2d`
-37. `test_module5_fem_gaussian_diffusion_2d`
-38. `test_module5_fem_field_drift_sign_2d`
-39. `test_module6_fem_smoke_2d`
-40. `test_module6_fem_charge_consistency_2d`
-41. `test_module4a_uniform_equilibrium_2d`
-40. `test_module4a_hotspot_diffusion_2d`
-41. `test_module4a_steady_source_2d`
+5. `main_module2_pinn_electrostatics('localized_defect_charge')`
+6. `main_module3_2d_defect_evolution('gaussian_diffusion')`
+7. `main_module3_2d_defect_evolution('pure_annealing')`
+8. `main_module3_fem_defect_evolution('gaussian_diffusion')`
+9. `main_module3_fem_defect_evolution('pure_annealing')`
+10. `main_module4_2d_ballistic_diffusive_thermal('uniform_equilibrium')`
+11. `main_module4_2d_ballistic_diffusive_thermal('localized_pulse')`
+12. `main_module4_2d_ballistic_diffusive_thermal('boundary_heating')`
+13. `main_module4_fem_ballistic_diffusive_thermal('uniform_equilibrium')`
+14. `main_module4_fem_ballistic_diffusive_thermal('gaussian_diffusion')`
+15. `main_module4_fem_ballistic_diffusive_thermal('uniform_source')`
+16. `main_module5_drift_diffusion('uniform_no_field')`
+17. `main_module5_drift_diffusion('lifetime_recombination')`
+18. `main_module5_drift_diffusion('gaussian_diffusion')`
+19. `main_module5_drift_diffusion('field_drift')`
+20. `main_module6_multiphysics('smoke')`
+21. `main_module6_multiphysics('defect_field_coupling')`
+22. `main_module6_multiphysics('thermal_feedback')`
+23. `main_module4a_2d_continuum_thermal('uniform_equilibrium')`  % archived Fourier baseline
+24. `test_module2_zero_charge_2d`
+25. `test_module2_linear_potential_2d`
+26. `test_module2_uniform_space_charge_2d`
+27. `test_module2_localized_defect_charge_2d`
+28. `test_module2_pinn_electrostatics`
+29. `test_module3_gaussian_diffusion_2d`
+30. `test_module3_pure_annealing_2d`
+31. `test_module3_fem_gaussian_diffusion_2d`
+32. `test_module3_fem_pure_annealing_2d`
+33. `test_module3_fem_uniform_state_2d`
+34. `test_module4_bd_uniform_equilibrium_2d`
+35. `test_module4_bd_localized_pulse_2d`
+36. `test_module4_bd_boundary_heating_2d`
+37. `test_module4_fem_uniform_equilibrium_2d`
+38. `test_module4_fem_gaussian_diffusion_2d`
+39. `test_module4_fem_uniform_source_2d`
+40. `test_module5_fem_uniform_no_field_2d`
+41. `test_module5_fem_lifetime_recombination_2d`
+42. `test_module5_fem_gaussian_diffusion_2d`
+43. `test_module5_fem_field_drift_sign_2d`
+44. `test_module6_fem_smoke_2d`
+45. `test_module6_fem_charge_consistency_2d`
+46. `test_module4a_uniform_equilibrium_2d`
+47. `test_module4a_hotspot_diffusion_2d`
+48. `test_module4a_steady_source_2d`
 
 Outputs written automatically
 -----------------------------
