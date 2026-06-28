@@ -1,0 +1,1224 @@
+\documentclass[11pt]{article}
+\input{../shared/project_style.tex}
+
+\newcommand{\thetav}{\bm{\theta}}
+\newcommand{\xv}{\bm{x}}
+\newcommand{\muv}{\bm{\mu}}
+\newcommand{\Evec}{\mathbf{E}}
+\newcommand{\Dvec}{\mathbf{D}}
+\newcommand{\nvecb}{\mathbf{n}}
+\newcommand{\rhodef}{\rho_{\mathrm{def}}}
+\newcommand{\epss}{\varepsilon_{\mathrm{Si}}}
+\newcommand{\phinn}{\phi_{\theta}}
+\newcommand{\Rpoisson}{\mathcal{R}_{\mathrm{P}}}
+\newcommand{\Rcausal}{\mathcal{R}_{\mathrm{C}}}
+\newcommand{\Ldata}{\mathcal{L}_{\mathrm{data}}}
+\newcommand{\Lpde}{\mathcal{L}_{\mathrm{PDE}}}
+\newcommand{\Lbc}{\mathcal{L}_{\mathrm{BC}}}
+\newcommand{\Ldir}{\mathcal{L}_{\mathrm{D}}}
+\newcommand{\Lneu}{\mathcal{L}_{\mathrm{N}}}
+\newcommand{\Lreg}{\mathcal{L}_{\mathrm{reg}}}
+\newcommand{\Ltot}{\mathcal{L}_{\mathrm{total}}}
+\newcommand{\Lslice}{\mathcal{L}_{\mathrm{slice}}}
+\newcommand{\Om}{\Omega}
+\newcommand{\taud}{\tau}
+\newcommand{\sg}{\operatorname{sg}}
+\newcommand{\stgrad}{\operatorname{stopgrad}}
+\newcommand{\Norm}[1]{\left\lVert #1 \right\rVert}
+\rhead{Module 2 Causal PINN Physics Note}
+
+\begin{document}
+
+\DocTitle{Module 2\_CPINN: Causal Physics-Informed Neural Training for Two-Dimensional Electrostatics}{Textbook-Style Physics Note for \texttt{RadiationEffects\_proj2}}{Extending Module 2\_PINN with causality-respecting residual weighting across ordered damage, dose, time, or continuation states}
+
+\hrule
+\vspace{0.8em}
+
+\begin{overviewbox}
+\textbf{Purpose of this note.} This document develops the physics and mathematics needed to add a Causal Physics-Informed Neural Network path to Module 2 of \texttt{RadiationEffects\_proj2}. Module 2 solves electrostatic Poisson physics: radiation-induced charged defects create a space-charge density, the space charge modifies electrostatic potential, and the potential gives electric field. The ordinary Module 2 PINN enforces Poisson's equation at interior collocation points and boundary conditions at boundary points. The causal extension modifies the training objective so that ordered states are learned in a physically meaningful sequence. For Module 2, the ordered variable is not intrinsic electrostatic time, because Poisson's equation is elliptic and quasi-static. Instead, the ordered variable should be a damage time, dose/load step, defect-evolution snapshot, or continuation parameter inherited from the radiation-effects chain.
+\end{overviewbox}
+
+\ProjectTOC
+
+\SymbolsAcronymsSection
+
+\renewcommand{\arraystretch}{1.25}
+\begin{longtable}{p{0.22\textwidth} p{0.55\textwidth} p{0.17\textwidth}}
+\toprule
+\textbf{Symbol / acronym} & \textbf{Meaning} & \textbf{Typical units} \\
+\midrule
+\endhead
+CPINN & Causal Physics-Informed Neural Network in this note. This is not the same as conservative PINN, which is also sometimes abbreviated cPINN in the literature. & -- \\
+PINN & Physics-informed neural network & -- \\
+PDE & Partial differential equation & -- \\
+FEM & Finite-element method & -- \\
+AD & Automatic differentiation & -- \\
+MLP & Multilayer perceptron & -- \\
+$\Om$ & Two-dimensional Module 2 computational domain & m$^2$ \\
+$\partial\Om$ & Boundary of the domain & m \\
+$\Gamma_D$ & Dirichlet boundary segment & m \\
+$\Gamma_N$ & Neumann boundary segment & m \\
+$\xv=(x,y)$ & Spatial coordinate & m \\
+$\taud$ & Ordered causal/continuation variable: damage time, dose step, load factor, or upstream defect-evolution snapshot index & s, Gy, fluence, or dimensionless \\
+$\muv$ & Parameter vector: charge-shape parameters, material parameters, boundary voltages, geometry parameters & various \\
+$\phi(\xv;\taud,\muv)$ & Exact quasi-static electrostatic potential at ordered state $\taud$ & V \\
+$\phinn(\xv,\taud,\muv)$ & Neural-network approximation to potential & V or dimensionless \\
+$\thetav$ & Trainable neural-network weights and biases & -- \\
+$\Evec$ & Electric field, $\Evec=-\nabla\phi$ & V/m \\
+$\rho$ & Total space-charge density & C/m$^3$ \\
+$\rhodef$ & Defect-induced space-charge density & C/m$^3$ \\
+$\varepsilon$, $\epss$ & Permittivity, silicon permittivity & F/m \\
+$q$ & Elementary charge magnitude & C \\
+$n,p$ & Electron and hole concentrations & m$^{-3}$ \\
+$N_D^+,N_A^-$ & Ionized donor and acceptor concentrations & m$^{-3}$ \\
+$C_i$ & Concentration of defect species $i$ & m$^{-3}$ \\
+$z_i$ & Effective charge number of defect species $i$ & -- \\
+$\Rpoisson$ & Poisson residual & scaled or C/m$^3$ \\
+$\Rcausal$ & Optional sensitivity/ordered-consistency residual & scaled \\
+$\Ldata$ & Supervised mismatch loss against FEM/reference values & scaled \\
+$\Lpde$ & Interior PDE residual loss & scaled \\
+$\Ldir$ & Dirichlet boundary loss & scaled \\
+$\Lneu$ & Neumann boundary loss & scaled \\
+$\Lbc$ & Total boundary-condition loss & scaled \\
+$\mathcal{L}_{\mathrm{slice},i}$ & Loss contribution at ordered state $\taud_i$ & scaled \\
+$w_i$ & Causal residual weight for ordered state $\taud_i$ & -- \\
+$\epsilon_c$ & Causality parameter controlling how sharply earlier errors suppress later residuals & -- \\
+$N_\taud$ & Number of ordered states/slices & -- \\
+$N_r$ & Number of interior residual/collocation points per slice & -- \\
+$N_D^{\mathrm{bc}}$ & Number of Dirichlet boundary points per slice & -- \\
+$N_N^{\mathrm{bc}}$ & Number of Neumann boundary points per slice & -- \\
+$N_s$ & Number of supervised reference points per slice & -- \\
+$L$ & Characteristic length scale & m \\
+$\phi_0$ & Characteristic potential scale & V \\
+$\rho_0$ & Characteristic charge-density scale & C/m$^3$ \\
+$\hat{x},\hat{y},\hat{\taud},\hat{\phi},\hat{\rho}$ & Dimensionless coordinate, ordered variable, potential, and charge density & -- \\
+\bottomrule
+\end{longtable}
+
+\section{Position of Module 2\_CPINN in the project}
+
+The baseline Module 2 electrostatic solver maps a charge distribution into potential and electric field:
+\begin{equation}
+\rho(x,y) \longrightarrow \phi(x,y) \longrightarrow \Evec(x,y).
+\end{equation}
+The ordinary Module 2 PINN note introduced a neural surrogate for this mapping by combining supervised FEM data with the strong-form Poisson residual and boundary-condition penalties. The present document keeps that same physical model but changes the \emph{training logic}. The CPINN objective is designed to learn ordered states progressively rather than allowing the optimizer to reduce residuals everywhere at once.
+
+The intended Module 2 path is therefore
+\begin{equation}
+\text{Module 2 FEM} \quad \longleftrightarrow \quad \text{Module 2\_PINN} \quad \longrightarrow \quad \text{Module 2\_CPINN}.
+\end{equation}
+The FEM solver remains the reference implementation. The ordinary PINN remains the simpler learning baseline. The CPINN is a training strategy to test whether causality-respecting weighting improves robustness when the electrostatic problems are arranged along a meaningful ordered coordinate such as irradiation time, accumulated dose, defect-amplitude continuation, or coupled-iteration index.
+
+\begin{physicsbox}
+\textbf{Central caveat.} Poisson electrostatics is not a time-evolution equation. A voltage or charge distribution at one time does not evolve to the next time through Module 2 alone. Therefore, a causal PINN applied to a single static Poisson solve is not physically necessary. The causal idea becomes meaningful for Module 2 only when the Poisson solves are embedded in an ordered radiation-effects sequence, for example $\rho(x,y,t_0),\rho(x,y,t_1),\ldots$ generated by defect evolution or by accumulated dose.
+\end{physicsbox}
+
+This point is not a minor detail. The original causal PINN idea was developed for time-dependent systems where the solution at later time depends on the correctness of earlier time. Module 2 is elliptic and quasi-static. Therefore, the right interpretation for this project is:
+\begin{equation}
+\boxed{\text{Module 2\_CPINN is a causality-respecting ordered training curriculum for a sequence of quasi-static Poisson problems.}}
+\end{equation}
+It should not be described as a new electrostatic law.
+
+\section{Recap: Module 2 electrostatic physics}
+
+\subsection{Strong-form Poisson equation}
+
+Module 2 solves Poisson's equation in a two-dimensional silicon cross section. The dimensional equation is
+\begin{equation}
+\nabla\cdot\left(\varepsilon \nabla \phi\right) = -\rho,
+\label{eq:poisson_general}
+\end{equation}
+where $\varepsilon$ is permittivity, $\phi$ is electrostatic potential, and $\rho$ is total space-charge density. For uniform silicon permittivity,
+\begin{equation}
+\epss \nabla^2 \phi = -\rho,
+\label{eq:poisson_constant_eps}
+\end{equation}
+with
+\begin{equation}
+\nabla^2\phi=\frac{\partial^2\phi}{\partial x^2}+\frac{\partial^2\phi}{\partial y^2}.
+\end{equation}
+The electric field is
+\begin{equation}
+\Evec=-\nabla\phi
+= -\begin{bmatrix}
+\partial \phi/\partial x \\
+\partial \phi/\partial y
+\end{bmatrix}.
+\label{eq:e_field_definition}
+\end{equation}
+
+The total charge density can be represented as
+\begin{equation}
+\rho=q\left(p-n+N_D^+-N_A^-\right)+\rhodef,
+\label{eq:total_charge}
+\end{equation}
+where $p$ and $n$ are hole and electron concentrations, $N_D^+$ and $N_A^-$ are ionized dopant concentrations, and $\rhodef$ is charge due to radiation-induced defects. For a set of charged defect species,
+\begin{equation}
+\rhodef=q\sum_{j=1}^{M}z_j C_j,
+\label{eq:defect_charge_density}
+\end{equation}
+where $C_j$ is the concentration of defect species $j$ and $z_j$ is its effective charge number.
+
+\subsection{Boundary conditions}
+
+On a Dirichlet boundary $\Gamma_D$, the potential is prescribed:
+\begin{equation}
+\phi(\xv)=\phi_D(\xv),\qquad \xv\in\Gamma_D.
+\label{eq:dirichlet_bc}
+\end{equation}
+On a Neumann boundary $\Gamma_N$, the normal flux is prescribed:
+\begin{equation}
+\nvecb\cdot\varepsilon\nabla\phi(\xv)=g_N(\xv),\qquad \xv\in\Gamma_N.
+\label{eq:neumann_bc}
+\end{equation}
+Because $\Evec=-\nabla\phi$, the outward electric displacement is $\Dvec\cdot\nvecb=-\nvecb\cdot\varepsilon\nabla\phi$. Thus the sign convention for $g_N$ must be kept explicit.
+
+For a pure Neumann problem, the potential is determined only up to an additive constant. In that case, a gauge condition such as
+\begin{equation}
+\int_{\Om}\phi\,d\Om=0
+\label{eq:gauge_condition}
+\end{equation}
+or one fixed reference node must be added. Most first Module 2 cases should include at least one Dirichlet boundary to avoid this ambiguity.
+
+\subsection{Weak form and FEM reference}
+
+The FEM reference solver comes from the weak form. Multiply Eq.~\eqref{eq:poisson_general} by a test function $v$ and integrate over $\Om$:
+\begin{equation}
+\int_{\Om} v\,\nabla\cdot(\varepsilon\nabla\phi)\,d\Om
+= -\int_{\Om}v\rho\,d\Om.
+\end{equation}
+Using integration by parts,
+\begin{equation}
+\int_{\Om} v\,\nabla\cdot(\varepsilon\nabla\phi)\,d\Om
+=\int_{\partial\Om} v\,\nvecb\cdot\varepsilon\nabla\phi\,d\Gamma
+-\int_{\Om}\nabla v\cdot\varepsilon\nabla\phi\,d\Om.
+\end{equation}
+Therefore,
+\begin{equation}
+\int_{\Om}\nabla v\cdot\varepsilon\nabla\phi\,d\Om
+=\int_{\Om}v\rho\,d\Om
++\int_{\partial\Om} v\,\nvecb\cdot\varepsilon\nabla\phi\,d\Gamma.
+\label{eq:weak_form_general}
+\end{equation}
+When Dirichlet conditions are imposed strongly and Neumann data are given on $\Gamma_N$,
+\begin{equation}
+\int_{\Om}\nabla v\cdot\varepsilon\nabla\phi\,d\Om
+=\int_{\Om}v\rho\,d\Om
++\int_{\Gamma_N} v g_N\,d\Gamma.
+\label{eq:weak_form_neumann}
+\end{equation}
+This weak form leads to the discrete FEM system
+\begin{equation}
+K\bm{\Phi}=\bm{b},
+\label{eq:fem_linear_system}
+\end{equation}
+where $\bm{\Phi}$ contains nodal potential values. The CPINN does not replace this derivation. It uses FEM solutions as reference data and uses the strong-form residual as an additional training constraint.
+
+\section{Ordinary Module 2 PINN formulation}
+
+\subsection{Neural representation of potential}
+
+The Module 2 PINN represents the potential by a neural network
+\begin{equation}
+\phinn=\mathcal{N}_{\thetav}(x,y,\muv),
+\label{eq:ordinary_pinn_representation}
+\end{equation}
+where $\muv$ is a parameter vector describing the electrostatic case. Examples include charge amplitude, charge location, Gaussian widths, boundary voltages, permittivity, and geometry dimensions.
+
+The electric field predicted by the network is not a separately trained quantity unless explicitly chosen. It is naturally obtained by differentiation:
+\begin{equation}
+\Evec_{\theta}(x,y;\muv)=-\nabla\phinn(x,y;\muv).
+\label{eq:network_field}
+\end{equation}
+
+\subsection{Poisson residual}
+
+For constant permittivity, define the strong-form residual
+\begin{equation}
+\Rpoisson(x,y;\muv,\thetav)
+=\epss\left(\frac{\partial^2\phinn}{\partial x^2}+\frac{\partial^2\phinn}{\partial y^2}\right)+\rho(x,y;\muv).
+\label{eq:dimensional_poisson_residual}
+\end{equation}
+The exact solution satisfies $\Rpoisson=0$ at every interior point. A standard PINN evaluates this residual at collocation points $\{\xv_r^{(k)}\}_{k=1}^{N_r}$:
+\begin{equation}
+\Lpde(\thetav)=\frac{1}{N_r}\sum_{k=1}^{N_r}\left|\Rpoisson\left(\xv_r^{(k)};\muv^{(k)},\thetav\right)\right|^2.
+\label{eq:ordinary_pde_loss}
+\end{equation}
+
+For spatially variable permittivity,
+\begin{equation}
+\Rpoisson=\nabla\cdot\left(\varepsilon\nabla\phinn\right)+\rho
+=\varepsilon\nabla^2\phinn+\nabla\varepsilon\cdot\nabla\phinn+\rho.
+\label{eq:variable_eps_residual}
+\end{equation}
+The first implementation should use constant $\epss$ unless there is a clear need for material interfaces.
+
+\subsection{Boundary losses}
+
+The Dirichlet boundary loss is
+\begin{equation}
+\Ldir(\thetav)=\frac{1}{N_D}\sum_{k=1}^{N_D}
+\left|\phinn(\xv_D^{(k)};\muv^{(k)})-\phi_D(\xv_D^{(k)};\muv^{(k)})\right|^2.
+\label{eq:dirichlet_loss}
+\end{equation}
+The Neumann boundary loss is
+\begin{equation}
+\Lneu(\thetav)=\frac{1}{N_N}\sum_{k=1}^{N_N}
+\left|\nvecb^{(k)}\cdot\varepsilon\nabla\phinn(\xv_N^{(k)};\muv^{(k)})-g_N(\xv_N^{(k)};\muv^{(k)})\right|^2.
+\label{eq:neumann_loss}
+\end{equation}
+The total boundary loss is
+\begin{equation}
+\Lbc=\lambda_D\Ldir+\lambda_N\Lneu.
+\label{eq:bc_loss}
+\end{equation}
+
+\subsection{Supervised data loss}
+
+If the FEM solver provides reference values
+\begin{equation}
+\left\{\left(x_s^{(k)},y_s^{(k)},\muv^{(k)},\phi_{\mathrm{FEM}}^{(k)}\right)\right\}_{k=1}^{N_s},
+\end{equation}
+then the supervised loss is
+\begin{equation}
+\Ldata(\thetav)=\frac{1}{N_s}\sum_{k=1}^{N_s}
+\left|\phinn(x_s^{(k)},y_s^{(k)};\muv^{(k)})-\phi_{\mathrm{FEM}}^{(k)}\right|^2.
+\label{eq:data_loss}
+\end{equation}
+The ordinary PINN objective is
+\begin{equation}
+\Ltot(\thetav)=\lambda_s\Ldata+\lambda_r\Lpde+\lambda_D\Ldir+\lambda_N\Lneu+\lambda_{\mathrm{reg}}\Lreg.
+\label{eq:ordinary_total_loss}
+\end{equation}
+
+\section{Why causal PINN was introduced}
+
+\subsection{The problem with simultaneous residual minimization}
+
+Consider a time-dependent PDE in abstract form:
+\begin{equation}
+\frac{\partial u}{\partial t}=\mathcal{F}[u],\qquad (x,t)\in\Om\times[0,T],
+\label{eq:abstract_evolution_pde}
+\end{equation}
+with initial condition
+\begin{equation}
+u(x,0)=u_0(x).
+\end{equation}
+A standard continuous-time PINN represents
+\begin{equation}
+u_{\theta}=\mathcal{N}_{\theta}(x,t)
+\end{equation}
+and defines the residual
+\begin{equation}
+\mathcal{R}(x,t;\theta)=\frac{\partial u_{\theta}}{\partial t}(x,t)-\mathcal{F}[u_{\theta}](x,t).
+\label{eq:evolution_residual}
+\end{equation}
+The ordinary residual loss is
+\begin{equation}
+\mathcal{L}_r=\frac{1}{N_tN_x}\sum_{i=1}^{N_t}\sum_{j=1}^{N_x}
+\left|\mathcal{R}(x_j,t_i;\theta)\right|^2.
+\label{eq:ordinary_time_residual_sum}
+\end{equation}
+This loss treats all time slices simultaneously. It does not explicitly require the network to first learn early times before later times.
+
+To see the issue, discretize the time derivative by a forward or backward difference. For clarity, use
+\begin{equation}
+\frac{\partial u}{\partial t}(x,t_i)\approx \frac{u(x,t_i)-u(x,t_{i-1})}{\Delta t}.
+\label{eq:fd_time_derivative}
+\end{equation}
+Then the residual at $t_i$ takes the schematic form
+\begin{equation}
+\mathcal{R}_i(x;\theta)\approx
+\frac{u_{\theta}(x,t_i)-u_{\theta}(x,t_{i-1})}{\Delta t}-\mathcal{F}[u_{\theta}](x,t_{i-1}).
+\label{eq:discrete_residual_depends_on_previous}
+\end{equation}
+The residual at $t_i$ depends on the network predictions at earlier time $t_{i-1}$. Therefore, a small residual at $t_i$ is physically meaningful only if the prediction at $t_{i-1}$ is already accurate. Otherwise the model may produce a later-time output that is consistent with a wrong earlier-time output.
+
+This is the core causal-PINN diagnosis: ordinary PINNs can reduce residuals at later times before early-time physics has been learned correctly. That violates the causal structure of evolution equations.
+
+\subsection{Temporal residual loss by slice}
+
+Define the residual loss at a single time slice $t_i$ as
+\begin{equation}
+\mathcal{L}_{r,i}(\theta)=\frac{1}{N_x}\sum_{j=1}^{N_x}
+\left|\mathcal{R}(x_j,t_i;\theta)\right|^2.
+\label{eq:time_slice_residual_loss}
+\end{equation}
+Then the ordinary residual loss is
+\begin{equation}
+\mathcal{L}_r(\theta)=\frac{1}{N_t}\sum_{i=1}^{N_t}\mathcal{L}_{r,i}(\theta).
+\label{eq:ordinary_residual_by_slice}
+\end{equation}
+The ordinary sum gives every time slice equal access to the optimizer from the beginning. A causal training strategy instead assigns time-dependent weights $w_i$ so that early slices dominate until their residuals are small.
+
+\subsection{Causal residual weights}
+
+The causal residual loss is
+\begin{equation}
+\mathcal{L}_{r}^{\mathrm{causal}}(\theta)=\frac{1}{N_t}\sum_{i=1}^{N_t}w_i\mathcal{L}_{r,i}(\theta).
+\label{eq:causal_residual_loss_general}
+\end{equation}
+The defining choice is
+\begin{equation}
+w_i=\exp\left[-\epsilon_c\sum_{k=1}^{i-1}\mathcal{L}_{r,k}(\theta)\right],
+\qquad w_1=1.
+\label{eq:causal_weight_basic}
+\end{equation}
+The parameter $\epsilon_c>0$ controls how strongly earlier residuals suppress later residuals. If the earlier losses are large, then $w_i$ is small, and the optimizer effectively ignores later time slices. As the earlier losses decrease, $w_i$ increases toward one, activating later slices.
+
+In implementation, the weights are usually treated as non-differentiated weights:
+\begin{equation}
+w_i=\exp\left[-\epsilon_c\,\stgrad\left(\sum_{k=1}^{i-1}\mathcal{L}_{r,k}(\theta)\right)\right].
+\label{eq:causal_weight_stop_gradient}
+\end{equation}
+The stop-gradient operation means the optimizer does not exploit the derivative of the weight formula itself. The weights act as a training curriculum, not as another differentiable path that can be gamed by the optimizer.
+
+\begin{physicsbox}
+\textbf{Interpretation.} A causal PINN does not add a new physical term to the PDE. It changes how the PDE residual loss is weighted during training. Earlier states must become accurate before later states receive full optimization weight.
+\end{physicsbox}
+
+\subsection{Causal weights as an activation front}
+
+The causal weights create an activation front moving from early to late time. At the beginning, one often sees
+\begin{equation}
+w_1\approx 1,
+\qquad
+w_2,w_3,\ldots,w_{N_t}\ll 1.
+\end{equation}
+After early residuals decrease,
+\begin{equation}
+w_2,w_3,\ldots
+\end{equation}
+become larger. Near convergence,
+\begin{equation}
+w_i\approx 1\qquad\text{for all }i.
+\end{equation}
+A practical convergence diagnostic is therefore
+\begin{equation}
+\min_i w_i>1-\delta_w,
+\label{eq:causal_weight_stopping}
+\end{equation}
+where $\delta_w$ is a tolerance such as $10^{-2}$ or $10^{-3}$ after losses have been nondimensionalized.
+
+\section{Adapting causal PINN to Module 2}
+
+\subsection{Why the adaptation is not automatic}
+
+Module 2 solves
+\begin{equation}
+\nabla\cdot(\varepsilon\nabla\phi)=-\rho.
+\end{equation}
+There is no $\partial\phi/\partial t$ term. This means the Poisson solution at state $\taud_i$ is obtained from the charge distribution at the same state:
+\begin{equation}
+\rho(\xv;\taud_i)\longrightarrow \phi(\xv;\taud_i).
+\end{equation}
+The Poisson equation itself does not state
+\begin{equation}
+\phi(\xv;\taud_i)=\text{time evolution of }\phi(\xv;\taud_{i-1}).
+\end{equation}
+Thus, a causal formulation for Module 2 must be attached to an ordered sequence supplied by the larger radiation-effects problem:
+\begin{equation}
+\rho(\xv;\taud_0),\rho(\xv;\taud_1),\ldots,\rho(\xv;\taud_{N_\taud}).
+\end{equation}
+Here $\taud$ may represent:
+\begin{itemize}[leftmargin=2em]
+\item physical defect-evolution time from Module 3;
+\item accumulated radiation dose or fluence from Module 1 to Module 3;
+\item an artificial continuation factor multiplying defect charge;
+\item a boundary-voltage ramp;
+\item a multiphysics coupling iteration index in Module 6.
+\end{itemize}
+
+The strongest physical choice is defect-evolution time or dose, because those are genuine ordered variables in the project. The safest first implementation choice is an artificial defect-amplitude continuation parameter, because it is easy to generate and easy to debug.
+
+\subsection{Ordered quasi-static Poisson sequence}
+
+Define an ordered variable
+\begin{equation}
+\taud_0<\taud_1<\cdots<\taud_{N_\taud}.
+\end{equation}
+At each state, Module 2 satisfies
+\begin{equation}
+\nabla\cdot\left(\varepsilon\nabla\phi(\xv;\taud_i,\muv)\right)
+=-\rho(\xv;\taud_i,\muv),
+\qquad \xv\in\Om.
+\label{eq:ordered_poisson_sequence}
+\end{equation}
+The boundary conditions may also depend on $\taud_i$:
+\begin{align}
+\phi(\xv;\taud_i,\muv)&=\phi_D(\xv;\taud_i,\muv),\qquad \xv\in\Gamma_D,\label{eq:ordered_dirichlet}\\
+\nvecb\cdot\varepsilon\nabla\phi(\xv;\taud_i,\muv)&=g_N(\xv;\taud_i,\muv),\qquad \xv\in\Gamma_N.\label{eq:ordered_neumann}
+\end{align}
+The CPINN representation is
+\begin{equation}
+\phinn=\mathcal{N}_{\theta}(x,y,\taud,\muv).
+\label{eq:cpinn_network}
+\end{equation}
+This network learns a family of electrostatic solutions indexed by $\taud$.
+
+\subsection{Slice-wise Module 2 residual}
+
+For each ordered state $\taud_i$, define the residual
+\begin{equation}
+\Rpoisson^{(i)}(\xv;\thetav)
+=\nabla\cdot\left(\varepsilon\nabla\phinn(\xv,\taud_i,\muv)\right)+\rho(\xv;\taud_i,\muv).
+\label{eq:slice_poisson_residual}
+\end{equation}
+For constant $\epss$,
+\begin{equation}
+\Rpoisson^{(i)}(\xv;\thetav)=
+\epss\left(
+\frac{\partial^2\phinn}{\partial x^2}(\xv,\taud_i,\muv)
++
+\frac{\partial^2\phinn}{\partial y^2}(\xv,\taud_i,\muv)
+\right)+\rho(\xv;\taud_i,\muv).
+\label{eq:slice_poisson_residual_constant_eps}
+\end{equation}
+The residual loss for the slice is
+\begin{equation}
+\mathcal{L}_{\mathrm{PDE},i}(\thetav)=\frac{1}{N_r}\sum_{j=1}^{N_r}
+\left|\Rpoisson^{(i)}(\xv_{r,j}^{(i)};\thetav)\right|^2.
+\label{eq:slice_pde_loss}
+\end{equation}
+Similarly,
+\begin{equation}
+\mathcal{L}_{\mathrm{D},i}(\thetav)=\frac{1}{N_D}\sum_{j=1}^{N_D}
+\left|\phinn(\xv_{D,j}^{(i)},\taud_i,\muv)-\phi_D(\xv_{D,j}^{(i)},\taud_i,\muv)\right|^2,
+\label{eq:slice_dirichlet_loss}
+\end{equation}
+\begin{equation}
+\mathcal{L}_{\mathrm{N},i}(\thetav)=\frac{1}{N_N}\sum_{j=1}^{N_N}
+\left|\nvecb_j\cdot\varepsilon\nabla\phinn(\xv_{N,j}^{(i)},\taud_i,\muv)-g_N(\xv_{N,j}^{(i)},\taud_i,\muv)\right|^2,
+\label{eq:slice_neumann_loss}
+\end{equation}
+and, when FEM data are available,
+\begin{equation}
+\mathcal{L}_{\mathrm{data},i}(\thetav)=\frac{1}{N_s}\sum_{j=1}^{N_s}
+\left|\phinn(\xv_{s,j}^{(i)},\taud_i,\muv)-\phi_{\mathrm{FEM}}(\xv_{s,j}^{(i)},\taud_i,\muv)\right|^2.
+\label{eq:slice_data_loss}
+\end{equation}
+
+Define the total slice loss
+\begin{equation}
+\mathcal{L}_{\mathrm{slice},i}(\thetav)=
+\lambda_r\mathcal{L}_{\mathrm{PDE},i}+
+\lambda_D\mathcal{L}_{\mathrm{D},i}+
+\lambda_N\mathcal{L}_{\mathrm{N},i}+
+\lambda_s\mathcal{L}_{\mathrm{data},i}.
+\label{eq:slice_total_loss}
+\end{equation}
+This is the loss that would be minimized for state $\taud_i$ in an ordinary PINN. CPINN changes how the slice losses are weighted.
+
+\section{Causal Module 2 loss}
+
+\subsection{Prefix loss}
+
+The causal logic says that state $\taud_i$ should receive full training weight only if all previous states $\taud_0,\ldots,\taud_{i-1}$ are already reasonably accurate. Define the prefix loss before state $i$ as
+\begin{equation}
+S_{i-1}(\thetav)=\sum_{k=0}^{i-1}\mathcal{L}_{\mathrm{slice},k}(\thetav),
+\qquad S_{-1}=0.
+\label{eq:prefix_loss}
+\end{equation}
+Then define the causal weight
+\begin{equation}
+w_i=\exp\left[-\epsilon_c\,\stgrad\left(S_{i-1}(\thetav)\right)\right].
+\label{eq:module2_causal_weight}
+\end{equation}
+The first state has
+\begin{equation}
+w_0=\exp(0)=1.
+\end{equation}
+The second state has
+\begin{equation}
+w_1=\exp\left[-\epsilon_c\,\stgrad(\mathcal{L}_{\mathrm{slice},0})\right].
+\end{equation}
+If the first state is poorly learned, $w_1$ is small. As $\mathcal{L}_{\mathrm{slice},0}$ decreases, $w_1$ grows.
+
+The full Module 2 CPINN loss is
+\begin{equation}
+\Ltot^{\mathrm{CPINN}}(\thetav)=
+\frac{1}{N_\taud+1}\sum_{i=0}^{N_\taud}w_i\mathcal{L}_{\mathrm{slice},i}(\thetav)
++\lambda_{\mathrm{reg}}\Lreg(\thetav).
+\label{eq:module2_cpinn_loss}
+\end{equation}
+This is the central equation for the planned Module 2\_CPINN extension.
+
+\subsection{Residual-only causal weighting versus full-slice causal weighting}
+
+There are two reasonable versions.
+
+\textbf{Version A: residual-only causal weighting.} Only the PDE residual is causally weighted:
+\begin{equation}
+\Ltot^{\mathrm{A}}=
+\frac{1}{N_\taud+1}\sum_{i=0}^{N_\taud}
+\left[w_i\lambda_r\mathcal{L}_{\mathrm{PDE},i}+\lambda_D\mathcal{L}_{\mathrm{D},i}+\lambda_N\mathcal{L}_{\mathrm{N},i}+\lambda_s\mathcal{L}_{\mathrm{data},i}\right]
++\lambda_{\mathrm{reg}}\Lreg.
+\label{eq:residual_only_weighting}
+\end{equation}
+This is closest to the original causal-PINN idea, which focused on residual losses.
+
+\textbf{Version B: full-slice causal weighting.} The entire slice loss is causally weighted:
+\begin{equation}
+\Ltot^{\mathrm{B}}=
+\frac{1}{N_\taud+1}\sum_{i=0}^{N_\taud}w_i
+\left[\lambda_r\mathcal{L}_{\mathrm{PDE},i}+\lambda_D\mathcal{L}_{\mathrm{D},i}+\lambda_N\mathcal{L}_{\mathrm{N},i}+\lambda_s\mathcal{L}_{\mathrm{data},i}\right]
++\lambda_{\mathrm{reg}}\Lreg.
+\label{eq:full_slice_weighting}
+\end{equation}
+This is more aggressive: later states are withheld almost completely until earlier states are learned.
+
+For Module 2, Version B is easier to reason about during early development because one weight controls the whole ordered slice. Version A is closer to the literature and may be preferable once debugging is complete.
+
+\subsection{Including the initial or first state}
+
+For an evolution equation, the initial condition is the first cause. For Module 2, the first ordered state often plays the analogous role. If $\taud_0$ is a zero-dose or zero-defect state, it should be learned first. If $\rho(\xv;\taud_0)=0$ and boundary conditions are simple, it may even have an analytical solution. This makes it an ideal anchor.
+
+For example, with zero charge and left/right Dirichlet voltages,
+\begin{equation}
+\rho=0,
+\qquad
+\phi(0,y)=V_L,
+\qquad
+\phi(L_x,y)=V_R,
+\qquad
+\frac{\partial\phi}{\partial y}(x,0)=\frac{\partial\phi}{\partial y}(x,L_y)=0,
+\end{equation}
+the exact solution is
+\begin{equation}
+\phi(x,y)=V_L+\frac{V_R-V_L}{L_x}x.
+\label{eq:linear_potential_anchor}
+\end{equation}
+This anchor state is a natural first slice for Module 2\_CPINN.
+
+\section{Nondimensional CPINN formulation}
+
+\subsection{Why nondimensionalization is required}
+
+The dimensional residual in Eq.~\eqref{eq:slice_poisson_residual_constant_eps} has units of C/m$^3$. Its magnitude can be extremely different from a voltage data loss. Causal weights contain exponentials of cumulative losses:
+\begin{equation}
+w_i=\exp\left[-\epsilon_c S_{i-1}\right].
+\end{equation}
+If $S_{i-1}$ is dimensional or numerically huge, the weights collapse to zero. If it is too small, the weights stay near one and the causal mechanism disappears. Therefore, every slice loss entering the causal weight must be dimensionless and numerically controlled.
+
+\begin{notebox}
+\textbf{Implementation rule.} Do not use raw dimensional Poisson residuals inside the exponential causal weights. Always nondimensionalize or normalize each slice loss before forming $w_i$.
+\end{notebox}
+
+\subsection{Dimensionless variables}
+
+Choose scales
+\begin{equation}
+\hat{x}=\frac{x}{L},\qquad
+\hat{y}=\frac{y}{L},\qquad
+\hat{\phi}=\frac{\phi}{\phi_0},\qquad
+\hat{\rho}=\frac{\rho}{\rho_0}.
+\end{equation}
+For the ordered variable, choose
+\begin{equation}
+\hat{\taud}=\frac{\taud-\taud_{\min}}{\taud_{\max}-\taud_{\min}}.
+\end{equation}
+For uniform permittivity,
+\begin{equation}
+\epss\frac{\phi_0}{L^2}
+\left(\frac{\partial^2\hat{\phi}}{\partial\hat{x}^2}
++\frac{\partial^2\hat{\phi}}{\partial\hat{y}^2}\right)
+=-\rho_0\hat{\rho}.
+\end{equation}
+Thus
+\begin{equation}
+\frac{\partial^2\hat{\phi}}{\partial\hat{x}^2}
++\frac{\partial^2\hat{\phi}}{\partial\hat{y}^2}
++\beta\hat{\rho}=0,
+\label{eq:dimensionless_poisson_cpinn}
+\end{equation}
+where
+\begin{equation}
+\beta=\frac{\rho_0L^2}{\epss\phi_0}.
+\end{equation}
+A convenient choice is
+\begin{equation}
+\phi_0=\frac{\rho_0L^2}{\epss},
+\end{equation}
+which gives $\beta=1$. If boundary voltages dominate, another reasonable choice is
+\begin{equation}
+\phi_0=\max\left(|V_L|,|V_R|,\frac{\rho_0L^2}{\epss}\right).
+\end{equation}
+Then $\beta$ is retained explicitly.
+
+\subsection{Dimensionless residual and loss}
+
+The dimensionless residual at slice $i$ is
+\begin{equation}
+\hat{\Rpoisson}^{(i)}
+=\frac{\partial^2\hat{\phi}_{\theta}}{\partial\hat{x}^2}
++\frac{\partial^2\hat{\phi}_{\theta}}{\partial\hat{y}^2}
++\beta\hat{\rho}(\hat{x},\hat{y};\hat{\taud}_i,\muv).
+\label{eq:dimensionless_slice_residual}
+\end{equation}
+The corresponding loss is
+\begin{equation}
+\widehat{\mathcal{L}}_{\mathrm{PDE},i}=\frac{1}{N_r}\sum_{j=1}^{N_r}\left|\hat{\Rpoisson}^{(i)}(\hat{\xv}_{r,j})\right|^2.
+\label{eq:dimensionless_slice_pde_loss}
+\end{equation}
+Use dimensionless versions of $\mathcal{L}_{\mathrm{D},i}$, $\mathcal{L}_{\mathrm{N},i}$, and $\mathcal{L}_{\mathrm{data},i}$ as well. The prefix loss used in the causal weights should be
+\begin{equation}
+\hat{S}_{i-1}=\sum_{k=0}^{i-1}\widehat{\mathcal{L}}_{\mathrm{slice},k},
+\label{eq:dimensionless_prefix_loss}
+\end{equation}
+not the dimensional version.
+
+\section{Optional ordered-consistency residual}
+
+\subsection{Differentiating quasi-static Poisson with respect to the ordered variable}
+
+Although Module 2 is not dynamic, one can derive a useful consistency equation if $\rho$ changes smoothly with $\taud$. Start with
+\begin{equation}
+\nabla\cdot\left(\varepsilon\nabla\phi(\xv,\taud)\right)+\rho(\xv,\taud)=0.
+\label{eq:poisson_tau}
+\end{equation}
+Differentiate both sides with respect to $\taud$:
+\begin{equation}
+\frac{\partial}{\partial\taud}\left[\nabla\cdot\left(\varepsilon\nabla\phi\right)\right]
++\frac{\partial\rho}{\partial\taud}=0.
+\end{equation}
+If $\varepsilon$ does not depend on $\taud$,
+\begin{equation}
+\nabla\cdot\left(\varepsilon\nabla\frac{\partial\phi}{\partial\taud}\right)
++\frac{\partial\rho}{\partial\taud}=0.
+\label{eq:tau_sensitivity_poisson}
+\end{equation}
+For constant $\epss$,
+\begin{equation}
+\epss\nabla^2\left(\frac{\partial\phi}{\partial\taud}\right)
++\frac{\partial\rho}{\partial\taud}=0.
+\label{eq:tau_sensitivity_constant_eps}
+\end{equation}
+This is not a time-evolution equation. It is a sensitivity equation. It says that the rate of change of potential with respect to dose/time/load factor is governed by the rate of change of charge density.
+
+\subsection{Sensitivity residual for CPINN}
+
+For the neural network, define
+\begin{equation}
+\Rcausal(\xv,\taud;\thetav)=
+\nabla\cdot\left(\varepsilon\nabla\frac{\partial\phinn}{\partial\taud}\right)
++\frac{\partial\rho}{\partial\taud}.
+\label{eq:ordered_consistency_residual}
+\end{equation}
+For constant permittivity,
+\begin{equation}
+\Rcausal=
+\epss\left(
+\frac{\partial^3\phinn}{\partial x^2\partial\taud}
++
+\frac{\partial^3\phinn}{\partial y^2\partial\taud}
+\right)+\frac{\partial\rho}{\partial\taud}.
+\label{eq:ordered_consistency_residual_constant_eps}
+\end{equation}
+A corresponding loss is
+\begin{equation}
+\mathcal{L}_{\mathrm{sens},i}
+=\frac{1}{N_r}\sum_{j=1}^{N_r}\left|\Rcausal(\xv_{r,j}^{(i)},\taud_i;\thetav)\right|^2.
+\label{eq:sensitivity_loss}
+\end{equation}
+
+This residual can improve smoothness across ordered states, but it requires third derivatives of the network output if implemented in strong form. That can be expensive and numerically delicate in MATLAB. Therefore, this term should be optional, not part of the first CPINN implementation.
+
+\subsection{Finite-difference alternative}
+
+A more practical alternative is to use a finite-difference consistency penalty between adjacent ordered states. Suppose the network predicts $\phinn(\xv,\taud_i)$ and $\phinn(\xv,\taud_{i-1})$. Define
+\begin{equation}
+\partial_{\taud}^{\Delta}\phinn(\xv,\taud_i)
+=\frac{\phinn(\xv,\taud_i)-\phinn(\xv,\taud_{i-1})}{\taud_i-\taud_{i-1}},
+\end{equation}
+and
+\begin{equation}
+\partial_{\taud}^{\Delta}\rho(\xv,\taud_i)
+=\frac{\rho(\xv,\taud_i)-\rho(\xv,\taud_{i-1})}{\taud_i-\taud_{i-1}}.
+\end{equation}
+Then enforce
+\begin{equation}
+\nabla\cdot\left(\varepsilon\nabla\partial_{\taud}^{\Delta}\phinn\right)
++\partial_{\taud}^{\Delta}\rho\approx 0.
+\label{eq:finite_difference_sensitivity}
+\end{equation}
+This still requires second spatial derivatives, but avoids explicit third mixed derivatives from automatic differentiation. It is a better optional add-on for MATLAB.
+
+\section{Architecture choices for Module 2\_CPINN}
+
+\subsection{Input-output map}
+
+The recommended first architecture is a scalar-output MLP:
+\begin{equation}
+(\hat{x},\hat{y},\hat{\taud},\hat{\muv})\longmapsto \hat{\phi}_{\theta}.
+\label{eq:cpinn_io_map}
+\end{equation}
+The electric field is then obtained from derivatives:
+\begin{equation}
+\hat{E}_{x,\theta}=-\frac{\partial\hat{\phi}_{\theta}}{\partial\hat{x}},
+\qquad
+\hat{E}_{y,\theta}=-\frac{\partial\hat{\phi}_{\theta}}{\partial\hat{y}}.
+\end{equation}
+Dimensional fields are recovered by
+\begin{equation}
+E_x=\frac{\phi_0}{L}\hat{E}_x,
+\qquad
+E_y=\frac{\phi_0}{L}\hat{E}_y.
+\end{equation}
+
+\subsection{Why local charge alone is insufficient}
+
+A tempting input choice is
+\begin{equation}
+(x,y,\rho(x,y))\mapsto \phi(x,y).
+\end{equation}
+This is generally insufficient. Poisson's equation is nonlocal: the potential at one point depends on the charge distribution and boundary conditions over the entire domain. Two different global charge distributions can have the same local value $\rho(x,y)$ at one point but produce different potentials there.
+
+Therefore, the network input must encode the global case. There are three practical options:
+\begin{enumerate}[leftmargin=2em]
+\item \textbf{Analytic parameter encoding.} If the charge is generated by a small number of parameters, feed those parameters into the network. Example: Gaussian amplitude, center, widths, and background charge.
+\item \textbf{Field encoder.} If the charge distribution is a full grid, use a separate encoder network to compress $\rho(x,y)$ into latent variables. This is more advanced and closer to operator learning.
+\item \textbf{Single-case PINN.} Train one CPINN for one ordered sequence of charge maps. Then the network input can be only $(x,y,\taud)$ because the sequence itself is fixed.
+\end{enumerate}
+For the first MATLAB implementation, use either option 1 or option 3. Avoid a full field encoder until the basic CPINN loss is tested.
+
+\subsection{Activation function}
+
+The strong-form Poisson residual requires second derivatives of the network output. Therefore, avoid ReLU for the main PINN because it has zero second derivative almost everywhere. Use smooth activations such as
+\begin{equation}
+\tanh(z),\qquad \sin(z),\qquad \mathrm{softplus}(z)=\ln(1+e^z).
+\end{equation}
+For Module 2\_CPINN, $\tanh$ is the best first choice because it is smooth, standard, and stable.
+
+\subsection{Hard versus soft boundary enforcement}
+
+Boundary conditions can be enforced softly through loss terms or hardwired into the network ansatz. For a rectangular domain with left/right Dirichlet potentials, one can write
+\begin{equation}
+\phinn(x,y,\taud)=\phi_{\mathrm{bc}}(x,y,\taud)+d(x,y)\,\mathcal{N}_{\theta}(x,y,\taud),
+\label{eq:hard_bc_ansatz}
+\end{equation}
+where $\phi_{\mathrm{bc}}$ satisfies the Dirichlet boundary values and $d(x,y)$ vanishes on the Dirichlet boundaries. For example, if $x\in[0,L_x]$ and both $x=0$ and $x=L_x$ are Dirichlet boundaries,
+\begin{equation}
+d(x,y)=x(L_x-x).
+\end{equation}
+A simple boundary interpolant is
+\begin{equation}
+\phi_{\mathrm{bc}}(x,y,\taud)=\left(1-\frac{x}{L_x}\right)V_L(\taud)+\frac{x}{L_x}V_R(\taud).
+\end{equation}
+Then the neural correction cannot violate the left/right Dirichlet values. This can simplify training.
+
+For the first implementation, soft boundary losses are easier to generalize. Hard boundary enforcement can be added later once the CPINN pipeline works.
+
+\section{Sampling strategy}
+
+\subsection{Ordered-state sampling}
+
+Choose ordered states
+\begin{equation}
+\taud_0,\taud_1,\ldots,\taud_{N_\taud}.
+\end{equation}
+The states should be sorted in the physically meaningful direction: increasing time, increasing dose, increasing defect amplitude, or increasing coupling iteration. Causal weights are meaningless if the slices are shuffled.
+
+For early debugging, use a continuation sequence such as
+\begin{equation}
+\rho(x,y;\taud_i)=a_i\rho_{\mathrm{target}}(x,y),
+\qquad
+0=a_0<a_1<\cdots<a_{N_\taud}=1.
+\label{eq:amplitude_continuation}
+\end{equation}
+This creates an easy-to-understand ordered sequence from zero charge to target charge.
+
+\subsection{Interior residual points}
+
+For each slice $\taud_i$, sample interior points
+\begin{equation}
+\{\xv_{r,j}^{(i)}\}_{j=1}^{N_r}\subset\Om.
+\end{equation}
+Options include uniform random sampling, Latin hypercube sampling, Sobol sampling, or FEM-node sampling. For the first version, uniform random sampling is sufficient.
+
+The collocation points are not necessarily FEM mesh nodes. FEM nodes are tied to the discretization of the reference solver. PINN collocation points are points where the continuous residual is evaluated.
+
+\subsection{Boundary points}
+
+For each slice, sample boundary points on $\Gamma_D$ and $\Gamma_N$:
+\begin{equation}
+\{\xv_{D,j}^{(i)}\}_{j=1}^{N_D}\subset\Gamma_D,
+\qquad
+\{\xv_{N,j}^{(i)}\}_{j=1}^{N_N}\subset\Gamma_N.
+\end{equation}
+Boundary points may be fixed for the full training run or resampled periodically. Fixed points are easier to debug. Resampling gives better coverage.
+
+\subsection{Supervised data points}
+
+If FEM reference data are available, sample potential values from the FEM solution:
+\begin{equation}
+\{\xv_{s,j}^{(i)},\phi_{\mathrm{FEM}}(\xv_{s,j}^{(i)},\taud_i)\}_{j=1}^{N_s}.
+\end{equation}
+For the first CPINN test, use supervised data at the same ordered slices as the residual slices. Later, one can train with sparse supervised slices and test interpolation across unseen slices.
+
+\section{Training algorithm}
+
+\subsection{Algorithm in mathematical form}
+
+The Module 2\_CPINN training algorithm is:
+
+\begin{enumerate}[leftmargin=2em]
+\item Choose ordered states $\taud_0<\taud_1<\cdots<\taud_{N_\taud}$.
+\item Generate charge maps $\rho(\xv;\taud_i,\muv)$ and boundary data for each state.
+\item Generate collocation, boundary, and optional supervised data points for each state.
+\item Initialize neural-network parameters $\thetav$.
+\item For each training iteration:
+\begin{enumerate}[leftmargin=2em]
+\item Compute $\mathcal{L}_{\mathrm{PDE},i}$, $\mathcal{L}_{\mathrm{D},i}$, $\mathcal{L}_{\mathrm{N},i}$, and $\mathcal{L}_{\mathrm{data},i}$ for all slices.
+\item Form dimensionless slice losses $\widehat{\mathcal{L}}_{\mathrm{slice},i}$.
+\item Compute prefix losses $\hat{S}_{i-1}=\sum_{k=0}^{i-1}\widehat{\mathcal{L}}_{\mathrm{slice},k}$.
+\item Compute weights $w_i=\exp[-\epsilon_c\stgrad(\hat{S}_{i-1})]$.
+\item Compute $\Ltot^{\mathrm{CPINN}}=\frac{1}{N_\taud+1}\sum_i w_i\widehat{\mathcal{L}}_{\mathrm{slice},i}+\lambda_{\mathrm{reg}}\Lreg$.
+\item Update $\thetav$ using Adam or another optimizer.
+\end{enumerate}
+\item Monitor $\min_i w_i$, slice residuals, FEM validation error, and electric-field error.
+\item Stop when validation errors are acceptable and causal weights have activated across the sequence.
+\end{enumerate}
+
+\subsection{Annealing the causality parameter}
+
+The parameter $\epsilon_c$ controls the sharpness of the curriculum. If $\epsilon_c$ is too small, then
+\begin{equation}
+w_i\approx 1
+\end{equation}
+for all slices and the method reduces to an ordinary PINN. If $\epsilon_c$ is too large, then later slices may remain inactive for too long.
+
+A practical strategy is to train through a sequence
+\begin{equation}
+\epsilon_c^{(1)}<\epsilon_c^{(2)}<\cdots<\epsilon_c^{(M)}.
+\end{equation}
+For example,
+\begin{equation}
+\epsilon_c\in\{0.1,1,10,100\}
+\end{equation}
+may be used after all losses are dimensionless and order-one. The exact values should be treated as hyperparameters, not physical constants.
+
+\subsection{Causal stopping criterion}
+
+A CPINN-specific diagnostic is
+\begin{equation}
+w_{\min}=\min_i w_i.
+\end{equation}
+If $w_{\min}$ remains near zero, later ordered states are not active. If $w_{\min}$ approaches one, all states have become active. A possible stopping criterion is
+\begin{equation}
+w_{\min}>1-\delta_w
+\end{equation}
+combined with validation error criteria such as
+\begin{equation}
+\frac{\Norm{\phi_{\theta}-\phi_{\mathrm{FEM}}}_{L^2(\Om)}}
+{\Norm{\phi_{\mathrm{FEM}}}_{L^2(\Om)}}<\delta_{\phi},
+\end{equation}
+and
+\begin{equation}
+\frac{\Norm{\Evec_{\theta}-\Evec_{\mathrm{FEM}}}_{L^2(\Om)}}
+{\Norm{\Evec_{\mathrm{FEM}}}_{L^2(\Om)}}<\delta_E.
+\end{equation}
+
+\section{Connection to Module 3 and Module 6}
+
+\subsection{Using Module 3 defect evolution as the causal source}
+
+The most physically meaningful ordered variable for Module 2\_CPINN is defect-evolution time from Module 3. Module 3 produces
+\begin{equation}
+C_j(x,y,t_0),C_j(x,y,t_1),\ldots,C_j(x,y,t_N).
+\end{equation}
+These defect concentrations create charge densities
+\begin{equation}
+\rho(x,y,t_i)=q\left[p-n+N_D^+-N_A^-+\sum_j z_j C_j(x,y,t_i)\right].
+\end{equation}
+Then Module 2 solves
+\begin{equation}
+\nabla\cdot\left(\varepsilon\nabla\phi(x,y,t_i)\right)=-\rho(x,y,t_i)
+\end{equation}
+for each $t_i$.
+
+The causal structure comes from Module 3, not from Poisson electrostatics. Module 3 says defects evolve from earlier times to later times. Module 2 says each time snapshot has a quasi-static electrostatic response.
+
+\subsection{Using Module 6 coupling iteration as the ordered variable}
+
+In a coupled simulation, one may have iteration index $m$:
+\begin{equation}
+\rho^{(m)} \rightarrow \phi^{(m)} \rightarrow \Evec^{(m)} \rightarrow \text{carrier/thermal/defect update} \rightarrow \rho^{(m+1)}.
+\end{equation}
+The ordered variable may then be the coupling iteration. A CPINN could be trained to respect the sequence of coupled states. This is more advanced and should be postponed until Modules 2 through 5 are individually validated.
+
+\subsection{Recommended project sequence}
+
+The recommended project path is:
+\begin{enumerate}[leftmargin=2em]
+\item Validate baseline Module 2 FEM on simple analytic cases.
+\item Validate ordinary Module 2\_PINN on the same cases.
+\item Create Module 2\_CPINN using artificial charge-amplitude continuation.
+\item Compare ordinary PINN versus CPINN on interpolation and extrapolation across charge amplitude.
+\item Replace artificial continuation with Module 3 defect snapshots.
+\item Only then consider using coupling iteration from Module 6.
+\end{enumerate}
+
+\section{Diagnostics and validation}
+
+\subsection{Potential error}
+
+Compare predicted and FEM potentials at validation points:
+\begin{equation}
+\varepsilon_{\phi}^{\mathrm{rel}}
+=\frac{\left[\sum_j\left|\phi_{\theta}(\xv_j)-\phi_{\mathrm{FEM}}(\xv_j)\right|^2\right]^{1/2}}
+{\left[\sum_j\left|\phi_{\mathrm{FEM}}(\xv_j)\right|^2\right]^{1/2}}.
+\label{eq:relative_potential_error}
+\end{equation}
+If the denominator is small, use an absolute error or normalize by $\phi_0$.
+
+\subsection{Electric-field error}
+
+The electric field is often more important than potential for downstream carrier transport. Compute
+\begin{equation}
+\varepsilon_E^{\mathrm{rel}}
+=\frac{\left[\sum_j\Norm{\Evec_{\theta}(\xv_j)-\Evec_{\mathrm{FEM}}(\xv_j)}^2\right]^{1/2}}
+{\left[\sum_j\Norm{\Evec_{\mathrm{FEM}}(\xv_j)}^2\right]^{1/2}}.
+\label{eq:relative_field_error}
+\end{equation}
+A network can have visually acceptable potential but poor field accuracy because differentiation amplifies errors. Therefore, field error must be a primary metric.
+
+\subsection{Residual-by-slice plot}
+
+Plot
+\begin{equation}
+\widehat{\mathcal{L}}_{\mathrm{PDE},0},\widehat{\mathcal{L}}_{\mathrm{PDE},1},\ldots,\widehat{\mathcal{L}}_{\mathrm{PDE},N_\taud}
+\end{equation}
+versus ordered state. In an ordinary PINN, later residuals may drop before earlier residuals are accurate. In a successful CPINN, residual reduction should move progressively through the ordered sequence.
+
+\subsection{Causal-weight plot}
+
+Plot
+\begin{equation}
+w_0,w_1,\ldots,w_{N_\taud}
+\end{equation}
+throughout training. This is the most distinctive CPINN diagnostic. The weights should begin with early slices active and later slices suppressed. As training progresses, weights should activate toward later slices.
+
+\subsection{Gauss-law consistency}
+
+A physical diagnostic is the integrated Gauss-law error. For a subdomain $A\subset\Om$,
+\begin{equation}
+\int_{\partial A}\varepsilon\nabla\phi\cdot\nvecb\,d\Gamma+
+\int_A\rho\,dA=0.
+\end{equation}
+For the network,
+\begin{equation}
+\mathcal{E}_{\mathrm{Gauss}}(A)=
+\left|\int_{\partial A}\varepsilon\nabla\phinn\cdot\nvecb\,d\Gamma+
+\int_A\rho\,dA\right|.
+\end{equation}
+This test checks whether the learned field satisfies the integral physics, not just pointwise residual samples.
+
+\section{Recommended first CPINN test cases}
+
+\subsection{Case 1: zero charge with linear potential}
+
+Set
+\begin{equation}
+\rho=0,
+\qquad
+\phi(0,y)=V_L,
+\qquad
+\phi(L_x,y)=V_R,
+\qquad
+\partial_y\phi(x,0)=\partial_y\phi(x,L_y)=0.
+\end{equation}
+The exact solution is Eq.~\eqref{eq:linear_potential_anchor}. This should be solved by FEM, ordinary PINN, and CPINN. The CPINN ordered variable can be a voltage ramp:
+\begin{equation}
+V_R(\taud_i)=a_iV_R^{\mathrm{target}},
+\qquad
+0\le a_i\le 1.
+\end{equation}
+This case checks boundary handling and automatic differentiation, but it does not strongly test charge physics.
+
+\subsection{Case 2: Gaussian charge amplitude continuation}
+
+Let
+\begin{equation}
+\rho(x,y;\taud_i)=a_i\rho_0\exp\left[-\frac{(x-x_c)^2}{2\sigma_x^2}-\frac{(y-y_c)^2}{2\sigma_y^2}\right],
+\label{eq:gaussian_charge_continuation}
+\end{equation}
+with
+\begin{equation}
+0=a_0<a_1<\cdots<a_{N_\taud}=1.
+\end{equation}
+Use simple boundary conditions, such as grounded Dirichlet boundaries or left/right bias. This is the best first real CPINN test because the ordered variable has a clear continuation meaning.
+
+\subsection{Case 3: defect snapshots from Module 3}
+
+Use Module 3 to generate defect concentrations $C_j(x,y,t_i)$ and construct
+\begin{equation}
+\rho(x,y,t_i)=q\sum_j z_jC_j(x,y,t_i)
+\end{equation}
+plus any background carrier/dopant charge terms included in the chosen approximation. This is the first project-relevant CPINN case. It tests whether causal ordering across defect-evolution time improves electrostatic surrogate training.
+
+\subsection{Case 4: coupled-state snapshots from Module 6}
+
+Use stored coupled iterations from Module 6:
+\begin{equation}
+\rho^{(m)}(x,y),\quad \phi^{(m)}(x,y),\quad \Evec^{(m)}(x,y).
+\end{equation}
+This should not be the first test. It is useful only after the individual modules are stable.
+
+\section{Common failure modes}
+
+\subsection{Mistaking CPINN for a new electrostatic model}
+
+The CPINN does not change Poisson's equation. It changes the training objective. The physics remains
+\begin{equation}
+\nabla\cdot(\varepsilon\nabla\phi)=-\rho.
+\end{equation}
+If the note or code implies that Module 2 has causal time evolution by itself, that is incorrect.
+
+\subsection{Using unscaled losses in causal exponentials}
+
+The causal weight contains an exponential. If losses are not normalized, the model may produce
+\begin{equation}
+w_i\approx 0
+\end{equation}
+for almost every later slice. This is not a deep physical result; it is numerical underflow or bad scaling.
+
+\subsection{Overweighting supervised data}
+
+If $\lambda_s$ is too large, the network may fit FEM values but ignore the residual. If $\lambda_r$ is too large, the network may reduce residual at collocation points while fitting boundary/data poorly. CPINN does not remove the need for loss balancing.
+
+\subsection{Using too many ordered slices too early}
+
+A large number of slices increases cost and can make the activation front difficult to monitor. Begin with 5 to 10 ordered states. Increase after the basic behavior is validated.
+
+\subsection{Poor charge-parameter representation}
+
+If the network input does not encode the global charge distribution, it cannot learn a general Poisson operator. For a parameterized Gaussian charge, parameters are sufficient. For arbitrary charge maps, a simple MLP input is not enough unless one trains a separate network for a fixed sequence.
+
+\section{What should be implemented first}
+
+The first Module 2\_CPINN implementation should be intentionally modest:
+\begin{enumerate}[leftmargin=2em]
+\item Use a fixed rectangular domain.
+\item Use constant silicon permittivity.
+\item Use smooth $\tanh$ MLP.
+\item Use dimensionless coordinates, potential, and charge density.
+\item Use artificial Gaussian charge-amplitude continuation.
+\item Use soft Dirichlet and Neumann boundary losses.
+\item Use full-slice causal weighting first.
+\item Compare against ordinary Module 2\_PINN and FEM.
+\item Plot residual by slice and causal weights.
+\end{enumerate}
+
+After this works, add:
+\begin{enumerate}[leftmargin=2em]
+\item hard boundary enforcement;
+\item residual-only causal weighting;
+\item Module 3 defect snapshots;
+\item optional finite-difference ordered-consistency residual;
+\item interpolation tests on unseen dose/time slices.
+\end{enumerate}
+
+\section{Minimal mathematical specification for the code}
+
+The code-level mathematical model should be the following.
+
+\subsection{Inputs}
+
+Use normalized inputs
+\begin{equation}
+\bm{z}=\begin{bmatrix}
+\hat{x} & \hat{y} & \hat{\taud} & \hat{\muv}^T
+\end{bmatrix}^T.
+\end{equation}
+The neural network returns
+\begin{equation}
+\hat{\phi}_{\theta}=\mathcal{N}_{\theta}(\bm{z}).
+\end{equation}
+
+\subsection{Residual}
+
+For each slice,
+\begin{equation}
+\hat{\Rpoisson}^{(i)}=
+\frac{\partial^2\hat{\phi}_{\theta}}{\partial\hat{x}^2}
++
+\frac{\partial^2\hat{\phi}_{\theta}}{\partial\hat{y}^2}
++\beta\hat{\rho}^{(i)}.
+\end{equation}
+
+\subsection{Slice losses}
+
+Use
+\begin{equation}
+\widehat{\mathcal{L}}_{\mathrm{slice},i}=
+\lambda_r\widehat{\mathcal{L}}_{\mathrm{PDE},i}+
+\lambda_D\widehat{\mathcal{L}}_{\mathrm{D},i}+
+\lambda_N\widehat{\mathcal{L}}_{\mathrm{N},i}+
+\lambda_s\widehat{\mathcal{L}}_{\mathrm{data},i}.
+\end{equation}
+
+\subsection{Causal weights}
+
+Use
+\begin{equation}
+\hat{S}_{i-1}=\sum_{k=0}^{i-1}\widehat{\mathcal{L}}_{\mathrm{slice},k},
+\qquad
+w_i=\exp\left[-\epsilon_c\stgrad(\hat{S}_{i-1})\right].
+\end{equation}
+
+\subsection{Total loss}
+
+Use
+\begin{equation}
+\hat{\Ltot}^{\mathrm{CPINN}}=
+\frac{1}{N_\taud+1}\sum_{i=0}^{N_\taud}w_i\widehat{\mathcal{L}}_{\mathrm{slice},i}
++\lambda_{\mathrm{reg}}\Lreg.
+\end{equation}
+
+This is the primary target equation set for \texttt{main\_module2\_cpinn\_electrostatics.m} or the equivalent Module 2 CPINN MATLAB driver.
+
+\section{Summary}
+
+The Module 2\_CPINN extension should be understood as a causality-respecting training strategy for ordered electrostatic solution families. The governing physics remains Poisson electrostatics. The new ingredient is an ordered loss weighting:
+\begin{equation}
+w_i=\exp\left[-\epsilon_c\sum_{k<i}\widehat{\mathcal{L}}_{\mathrm{slice},k}\right],
+\end{equation}
+which suppresses later states until earlier states have been learned. For genuinely time-dependent PDEs, this directly respects temporal causality. For Module 2, which is elliptic and quasi-static, the causal coordinate must come from outside the Poisson equation: dose, damage time, defect-evolution snapshots, voltage continuation, or multiphysics coupling iteration.
+
+The scientifically correct first implementation is not to claim that electrostatic Poisson physics evolves causally. Instead, train a neural surrogate over an ordered sequence of quasi-static Poisson problems and test whether causal residual weighting improves convergence, stability, and interpolation compared with the ordinary Module 2\_PINN.
+
+\begin{thebibliography}{9}
+
+\bibitem{raissi2019pinn}
+M. Raissi, P. Perdikaris, and G. E. Karniadakis,
+``Physics-informed neural networks: A deep learning framework for solving forward and inverse problems involving nonlinear partial differential equations,''
+\emph{Journal of Computational Physics}, vol. 378, pp. 686-707, 2019.
+
+\bibitem{wang2022causal}
+S. Wang, S. Sankaran, and P. Perdikaris,
+``Respecting causality is all you need for training physics-informed neural networks,''
+arXiv:2203.07404, 2022.
+
+\bibitem{wang2024causal}
+S. Wang, S. Sankaran, and P. Perdikaris,
+``Respecting causality for training physics-informed neural networks,''
+\emph{Computer Methods in Applied Mechanics and Engineering}, vol. 421, 116813, 2024.
+
+\bibitem{wang2023expert}
+S. Wang, S. Sankaran, H. Wang, and P. Perdikaris,
+``An expert's guide to training physics-informed neural networks,''
+arXiv:2308.08468, 2023.
+
+\bibitem{karniadakis2021piml}
+G. E. Karniadakis, I. G. Kevrekidis, L. Lu, P. Perdikaris, S. Wang, and L. Yang,
+``Physics-informed machine learning,''
+\emph{Nature Reviews Physics}, vol. 3, pp. 422-440, 2021.
+
+\bibitem{griewank2008ad}
+A. Griewank and A. Walther,
+\emph{Evaluating Derivatives: Principles and Techniques of Algorithmic Differentiation},
+SIAM, 2008.
+
+\end{thebibliography}
+
+\end{document}

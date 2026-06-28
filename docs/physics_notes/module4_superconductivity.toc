@@ -1,0 +1,59 @@
+\contentsline {section}{Symbols and acronyms used in this document}{4}{Doc-Start}%
+\contentsline {section}{\numberline {1}What Module 4 did before superconductivity}{6}{section.1}%
+\contentsline {section}{\numberline {2}The first correction: superconducting operation is not just low-temperature silicon}{7}{section.2}%
+\contentsline {section}{\numberline {3}Thermal carriers below the superconducting transition}{7}{section.3}%
+\contentsline {subsection}{\numberline {3.1}Phonons}{7}{subsection.3.1}%
+\contentsline {subsection}{\numberline {3.2}Electrons in a normal metal}{8}{subsection.3.2}%
+\contentsline {subsection}{\numberline {3.3}Electrons in a superconductor}{8}{subsection.3.3}%
+\contentsline {section}{\numberline {4}Energy gap and the pair-breaking threshold}{9}{section.4}%
+\contentsline {section}{\numberline {5}Why one temperature field is insufficient}{9}{section.5}%
+\contentsline {subsection}{\numberline {5.1}Local equilibrium assumption}{9}{subsection.5.1}%
+\contentsline {subsection}{\numberline {5.2}Near-equilibrium two-temperature approximation}{10}{subsection.5.2}%
+\contentsline {section}{\numberline {6}Radiation energy partition in a superconducting chip}{10}{section.6}%
+\contentsline {section}{\numberline {7}Phonon transport: diffusive, ballistic, and boundary-limited}{11}{section.7}%
+\contentsline {subsection}{\numberline {7.1}Phonon Boltzmann equation}{11}{subsection.7.1}%
+\contentsline {subsection}{\numberline {7.2}Ballistic-diffusive split for superconducting Module 4}{12}{subsection.7.2}%
+\contentsline {section}{\numberline {8}Interface thermal resistance and Kapitza boundaries}{12}{section.8}%
+\contentsline {section}{\numberline {9}Quasiparticle kinetics and the Rothwarf-Taylor model}{13}{section.9}%
+\contentsline {subsection}{\numberline {9.1}Why QP density is a thermal variable}{13}{subsection.9.1}%
+\contentsline {subsection}{\numberline {9.2}Minimal QP diffusion-recombination equation}{13}{subsection.9.2}%
+\contentsline {subsection}{\numberline {9.3}Rothwarf-Taylor equations}{14}{subsection.9.3}%
+\contentsline {subsection}{\numberline {9.4}Spatially extended RT model}{14}{subsection.9.4}%
+\contentsline {section}{\numberline {10}Energy conservation with QPs and phonons}{14}{section.10}%
+\contentsline {section}{\numberline {11}Superconducting heat capacity and thermal conductivity}{15}{section.11}%
+\contentsline {subsection}{\numberline {11.1}Substrate and dielectric regions}{15}{subsection.11.1}%
+\contentsline {subsection}{\numberline {11.2}Superconducting film regions}{15}{subsection.11.2}%
+\contentsline {section}{\numberline {12}Cryogenic boundary conditions}{16}{section.12}%
+\contentsline {subsection}{\numberline {12.1}Bath boundary}{16}{subsection.12.1}%
+\contentsline {subsection}{\numberline {12.2}Superconducting film-substrate interface}{16}{subsection.12.2}%
+\contentsline {section}{\numberline {13}Connection to the existing ballistic-diffusive Module 4}{16}{section.13}%
+\contentsline {section}{\numberline {14}Weak form for FEM implementation}{17}{section.14}%
+\contentsline {subsection}{\numberline {14.1}Single phonon-temperature field with Kapitza terms}{17}{subsection.14.1}%
+\contentsline {subsection}{\numberline {14.2}Two-field phonon-QP weak form}{18}{subsection.14.2}%
+\contentsline {subsection}{\numberline {14.3}Surface-layer reduction for thin superconducting films}{18}{subsection.14.3}%
+\contentsline {section}{\numberline {15}A practical hierarchy for RadiationEffects\_proj2}{18}{section.15}%
+\contentsline {subsection}{\numberline {15.1}Level 0: cryogenic scalar thermal model}{19}{subsection.15.1}%
+\contentsline {subsection}{\numberline {15.2}Level 1: phonon energy plus pair-breaking efficiency}{19}{subsection.15.2}%
+\contentsline {subsection}{\numberline {15.3}Level 2: spatial QP diffusion-recombination}{19}{subsection.15.3}%
+\contentsline {subsection}{\numberline {15.4}Level 3: pair-breaking phonon and QP coupled RT model}{19}{subsection.15.4}%
+\contentsline {subsection}{\numberline {15.5}Level 4: spectral phonon transport}{19}{subsection.15.5}%
+\contentsline {section}{\numberline {16}Electron-phonon coupling and the danger of using warm-device constants}{20}{section.16}%
+\contentsline {section}{\numberline {17}Spectral phonon downconversion}{21}{section.17}%
+\contentsline {section}{\numberline {18}Timescale separation}{21}{section.18}%
+\contentsline {section}{\numberline {19}Design metrics produced by superconducting Module 4}{22}{section.19}%
+\contentsline {section}{\numberline {20}Common modeling errors to avoid}{23}{section.20}%
+\contentsline {section}{\numberline {21}Coupling to Module 2, Module 3, and Module 5}{23}{section.21}%
+\contentsline {subsection}{\numberline {21.1}Coupling to Module 2 electrostatics}{23}{subsection.21.1}%
+\contentsline {subsection}{\numberline {21.2}Coupling to Module 3 defect evolution}{23}{subsection.21.2}%
+\contentsline {subsection}{\numberline {21.3}Coupling to Module 5 carrier transport}{24}{subsection.21.3}%
+\contentsline {section}{\numberline {22}PINN and CPINN implications}{24}{section.22}%
+\contentsline {section}{\numberline {23}Verification tests for superconducting Module 4}{24}{section.23}%
+\contentsline {subsection}{\numberline {23.1}Energy conservation test}{24}{subsection.23.1}%
+\contentsline {subsection}{\numberline {23.2}Kapitza cooling test}{25}{subsection.23.2}%
+\contentsline {subsection}{\numberline {23.3}QP recombination test}{25}{subsection.23.3}%
+\contentsline {subsection}{\numberline {23.4}RT bottleneck test}{25}{subsection.23.4}%
+\contentsline {subsection}{\numberline {23.5}Ballistic-front test}{25}{subsection.23.5}%
+\contentsline {section}{\numberline {24}Suggested MATLAB data structure changes}{25}{section.24}%
+\contentsline {section}{\numberline {25}Recommended first implementation path}{26}{section.25}%
+\contentsline {section}{\numberline {26}Conceptual summary}{27}{section.26}%
+\contentsline {section}{References and source notes}{27}{Item.37}%

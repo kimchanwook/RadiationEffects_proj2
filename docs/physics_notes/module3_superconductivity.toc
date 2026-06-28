@@ -1,0 +1,75 @@
+\contentsline {section}{Symbols and acronyms used in this document}{4}{Doc-Start}%
+\contentsline {section}{\numberline {1}What Module 3 did before superconductivity}{6}{section.1}%
+\contentsline {section}{\numberline {2}What changes when the device enters the superconducting regime}{7}{section.2}%
+\contentsline {subsection}{\numberline {2.1}The material is no longer a single silicon-like continuum}{7}{subsection.2.1}%
+\contentsline {subsection}{\numberline {2.2}The temperature changes the kinetic hierarchy}{7}{subsection.2.2}%
+\contentsline {subsection}{\numberline {2.3}Superconductivity introduces new device sensitivities}{8}{subsection.2.3}%
+\contentsline {section}{\numberline {3}Timescale separation: structural defects are not quasiparticles}{9}{section.3}%
+\contentsline {subsection}{\numberline {3.1}Slow variables and fast variables}{9}{subsection.3.1}%
+\contentsline {subsection}{\numberline {3.2}A mathematical expression of timescale separation}{10}{subsection.3.2}%
+\contentsline {section}{\numberline {4}Material-resolved diffusion-reaction equations}{10}{section.4}%
+\contentsline {subsection}{\numberline {4.1}General multispecies balance law}{10}{subsection.4.1}%
+\contentsline {subsection}{\numberline {4.2}Cryogenic freeze-out limit}{11}{subsection.4.2}%
+\contentsline {subsection}{\numberline {4.3}Event-update form}{11}{subsection.4.3}%
+\contentsline {section}{\numberline {5}Radiation source terms at cryogenic temperature}{11}{section.5}%
+\contentsline {subsection}{\numberline {5.1}Energy deposition is not equal to permanent defect production}{12}{subsection.5.1}%
+\contentsline {subsection}{\numberline {5.2}Ionizing radiation can create traps without displacing atoms}{12}{subsection.5.2}%
+\contentsline {subsection}{\numberline {5.3}Partition of deposited energy}{13}{subsection.5.3}%
+\contentsline {section}{\numberline {6}Cryogenic diffusion, annealing, and local hot spots}{13}{section.6}%
+\contentsline {subsection}{\numberline {6.1}Arrhenius freeze-out derived from jump diffusion}{13}{subsection.6.1}%
+\contentsline {subsection}{\numberline {6.2}Radiation can create temporary local annealing windows}{13}{subsection.6.2}%
+\contentsline {subsection}{\numberline {6.3}Quantum tunneling of light defects}{14}{subsection.6.3}%
+\contentsline {section}{\numberline {7}Trapped charge and two-level systems at interfaces}{14}{section.7}%
+\contentsline {subsection}{\numberline {7.1}Why interface defects matter more in superconducting devices}{14}{subsection.7.1}%
+\contentsline {subsection}{\numberline {7.2}Trap occupation kinetics}{14}{subsection.7.2}%
+\contentsline {subsection}{\numberline {7.3}Two-level fluctuator model}{15}{subsection.7.3}%
+\contentsline {section}{\numberline {8}Defects inside superconducting films}{15}{section.8}%
+\contentsline {subsection}{\numberline {8.1}Structural disorder and electronic mean free path}{15}{subsection.8.1}%
+\contentsline {subsection}{\numberline {8.2}Dirty-limit superconducting length scales}{16}{subsection.8.2}%
+\contentsline {subsection}{\numberline {8.3}Critical temperature and superconducting gap suppression}{16}{subsection.8.3}%
+\contentsline {subsection}{\numberline {8.4}Gap inhomogeneity as a Module 3 output}{17}{subsection.8.4}%
+\contentsline {section}{\numberline {9}Josephson junction barrier defects}{17}{section.9}%
+\contentsline {subsection}{\numberline {9.1}Junction barriers are special material domains}{17}{subsection.9.1}%
+\contentsline {subsection}{\numberline {9.2}TLS density in the junction barrier}{18}{subsection.9.2}%
+\contentsline {section}{\numberline {10}Quasiparticles and pair-breaking phonons: auxiliary, not structural, species}{18}{section.10}%
+\contentsline {subsection}{\numberline {10.1}Minimal quasiparticle continuity equation}{18}{subsection.10.1}%
+\contentsline {subsection}{\numberline {10.2}Rothwarf-Taylor form}{18}{subsection.10.2}%
+\contentsline {section}{\numberline {11}Deriving the superconducting Module 3 state vector}{19}{section.11}%
+\contentsline {subsection}{\numberline {11.1}Baseline vector}{19}{subsection.11.1}%
+\contentsline {subsection}{\numberline {11.2}Superconducting-device state vector}{19}{subsection.11.2}%
+\contentsline {section}{\numberline {12}Coupling to Module 2: charged defects, trapped charge, and offset charge}{20}{section.12}%
+\contentsline {section}{\numberline {13}Coupling to Module 4: temperature, phonons, and local heating}{20}{section.13}%
+\contentsline {section}{\numberline {14}Coupling to Module 5: traps, recombination, and quasiparticle poisoning}{21}{section.14}%
+\contentsline {section}{\numberline {15}Boundary and interface conditions}{21}{section.15}%
+\contentsline {subsection}{\numberline {15.1}No-flux boundaries for frozen structural defects}{21}{subsection.15.1}%
+\contentsline {subsection}{\numberline {15.2}Interface transfer between regions}{21}{subsection.15.2}%
+\contentsline {subsection}{\numberline {15.3}Surface trap generation}{22}{subsection.15.3}%
+\contentsline {section}{\numberline {16}Finite-element weak form for superconducting Module 3}{22}{section.16}%
+\contentsline {subsection}{\numberline {16.1}Weak form for one material region}{22}{subsection.16.1}%
+\contentsline {subsection}{\numberline {16.2}Discrete matrix form}{22}{subsection.16.2}%
+\contentsline {subsection}{\numberline {16.3}Implicit Euler update}{23}{subsection.16.3}%
+\contentsline {section}{\numberline {17}Reduced model hierarchy for implementation}{23}{section.17}%
+\contentsline {subsection}{\numberline {17.1}Level 0: frozen structural damage plus trap charge}{23}{subsection.17.1}%
+\contentsline {subsection}{\numberline {17.2}Level 1: transient local heating activates diffusion or annealing}{23}{subsection.17.2}%
+\contentsline {subsection}{\numberline {17.3}Level 2: superconducting material-parameter maps}{24}{subsection.17.3}%
+\contentsline {subsection}{\numberline {17.4}Level 3: coupled structural-excitation dynamics}{24}{subsection.17.4}%
+\contentsline {section}{\numberline {18}PINN and CPINN implications}{24}{section.18}%
+\contentsline {section}{\numberline {19}Verification tests for Module 3 superconductivity}{25}{section.19}%
+\contentsline {subsection}{\numberline {19.1}Test 1: cryogenic freeze-out}{25}{subsection.19.1}%
+\contentsline {subsection}{\numberline {19.2}Test 2: event jump only}{25}{subsection.19.2}%
+\contentsline {subsection}{\numberline {19.3}Test 3: transient heating diffusion length}{25}{subsection.19.3}%
+\contentsline {subsection}{\numberline {19.4}Test 4: trapped-charge offset}{25}{subsection.19.4}%
+\contentsline {subsection}{\numberline {19.5}Test 5: disorder-to-gap map}{26}{subsection.19.5}%
+\contentsline {section}{\numberline {20}Recommended first implementation for the project}{26}{section.20}%
+\contentsline {section}{\numberline {21}Charge-state kinetics of defects at low temperature}{26}{section.21}%
+\contentsline {subsection}{\numberline {21.1}Structural concentration versus charge state}{26}{subsection.21.1}%
+\contentsline {subsection}{\numberline {21.2}Detailed balance limit}{27}{subsection.21.2}%
+\contentsline {section}{\numberline {22}Example reaction networks by material region}{27}{section.22}%
+\contentsline {subsection}{\numberline {22.1}Substrate defects}{27}{subsection.22.1}%
+\contentsline {subsection}{\numberline {22.2}Oxide and interface traps}{28}{subsection.22.2}%
+\contentsline {subsection}{\numberline {22.3}Superconducting film disorder}{28}{subsection.22.3}%
+\contentsline {section}{\numberline {23}Non-dimensionalization and stiffness}{28}{section.23}%
+\contentsline {section}{\numberline {24}Suggested MATLAB data structure for the future code}{29}{section.24}%
+\contentsline {section}{\numberline {25}Where this note should influence later modules}{30}{section.25}%
+\contentsline {section}{\numberline {26}Summary of how Module 3 changes}{30}{section.26}%
+\contentsline {section}{\numberline {27}References for the physics model}{32}{section.27}%

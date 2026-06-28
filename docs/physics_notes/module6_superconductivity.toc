@@ -1,0 +1,41 @@
+\contentsline {section}{Symbols and acronyms used in this document}{3}{Doc-Start}%
+\contentsline {section}{\numberline {1}What Module 6 did before superconductivity}{5}{section.1}%
+\contentsline {section}{\numberline {2}Why superconductivity changes the coupling problem}{6}{section.2}%
+\contentsline {subsection}{\numberline {2.1}Module 2: electrostatics becomes hybrid electrostatics plus island charge}{6}{subsection.2.1}%
+\contentsline {subsection}{\numberline {2.2}Module 3: defects split into structural disorder, traps, and TLSs}{7}{subsection.2.2}%
+\contentsline {subsection}{\numberline {2.3}Module 4: thermal transport becomes phonon and excitation transport}{7}{subsection.2.3}%
+\contentsline {subsection}{\numberline {2.4}Module 5: carrier response becomes QP/device response}{7}{subsection.2.4}%
+\contentsline {section}{\numberline {3}The superconducting Module 6 state vector}{8}{section.3}%
+\contentsline {subsection}{\numberline {3.1}State-vector hierarchy}{8}{subsection.3.1}%
+\contentsline {section}{\numberline {4}Coupling graph in the superconducting region}{9}{section.4}%
+\contentsline {section}{\numberline {5}Event partition: the new front end of Module 6}{9}{section.5}%
+\contentsline {section}{\numberline {6}Coupled residual formulation}{10}{section.6}%
+\contentsline {subsection}{\numberline {6.1}Module 2 residual inside Module 6}{11}{subsection.6.1}%
+\contentsline {subsection}{\numberline {6.2}Module 3 residual inside Module 6}{11}{subsection.6.2}%
+\contentsline {subsection}{\numberline {6.3}Module 4 residual inside Module 6}{12}{subsection.6.3}%
+\contentsline {subsection}{\numberline {6.4}Module 5 residual inside Module 6}{12}{subsection.6.4}%
+\contentsline {section}{\numberline {7}Time-scale separation}{13}{section.7}%
+\contentsline {section}{\numberline {8}Fixed-point iteration strategy}{14}{section.8}%
+\contentsline {section}{\numberline {9}Monolithic residual strategy}{14}{section.9}%
+\contentsline {section}{\numberline {10}Energy conservation across Modules 4 and 5}{15}{section.10}%
+\contentsline {section}{\numberline {11}Charge conservation and offset-charge consistency}{16}{section.11}%
+\contentsline {section}{\numberline {12}Material-parameter coupling closures}{17}{section.12}%
+\contentsline {section}{\numberline {13}Boundary and interface coupling}{17}{section.13}%
+\contentsline {subsection}{\numberline {13.1}Electrostatic interfaces}{17}{subsection.13.1}%
+\contentsline {subsection}{\numberline {13.2}Thermal interfaces}{17}{subsection.13.2}%
+\contentsline {subsection}{\numberline {13.3}QP interfaces}{18}{subsection.13.3}%
+\contentsline {section}{\numberline {14}Recommended superconducting Module 6 algorithm}{18}{section.14}%
+\contentsline {subsection}{\numberline {14.1}Pseudocode}{18}{subsection.14.1}%
+\contentsline {section}{\numberline {15}PINN and causal-PINN implications}{19}{section.15}%
+\contentsline {section}{\numberline {16}Verification tests for superconducting Module 6}{20}{section.16}%
+\contentsline {subsection}{\numberline {16.1}Test 1: zero-radiation equilibrium}{20}{subsection.16.1}%
+\contentsline {subsection}{\numberline {16.2}Test 2: pure trapped-charge event}{20}{subsection.16.2}%
+\contentsline {subsection}{\numberline {16.3}Test 3: pure phonon-only event}{21}{subsection.16.3}%
+\contentsline {subsection}{\numberline {16.4}Test 4: energy-conservation check}{21}{subsection.16.4}%
+\contentsline {subsection}{\numberline {16.5}Test 5: spatial footprint check}{21}{subsection.16.5}%
+\contentsline {subsection}{\numberline {16.6}Test 6: coupling convergence check}{21}{subsection.16.6}%
+\contentsline {section}{\numberline {17}Suggested MATLAB data structures}{21}{section.17}%
+\contentsline {section}{\numberline {18}Connection to Modules 7 and 8}{22}{section.18}%
+\contentsline {section}{\numberline {19}What should change in the project architecture}{23}{section.19}%
+\contentsline {section}{\numberline {20}Summary}{23}{section.20}%
+\contentsline {section}{References and source anchors}{24}{equation.20.1}%
