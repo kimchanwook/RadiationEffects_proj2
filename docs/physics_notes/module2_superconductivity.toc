@@ -1,0 +1,74 @@
+\contentsline {section}{Symbols and acronyms used in this document}{4}{Doc-Start}%
+\contentsline {section}{\numberline {1}Where this note fits in the project}{6}{section.1}%
+\contentsline {subsection}{\numberline {1.1}The realistic geometry: hybrid superconducting device}{7}{subsection.1.1}%
+\contentsline {section}{\numberline {2}Recap: ordinary Module 2 Poisson physics}{7}{section.2}%
+\contentsline {section}{\numberline {3}What actually changes below the superconducting transition}{8}{section.3}%
+\contentsline {subsection}{\numberline {3.1}Superconductivity does not replace Maxwell's equations}{8}{subsection.3.1}%
+\contentsline {subsection}{\numberline {3.2}Three regions must be separated}{8}{subsection.3.2}%
+\contentsline {section}{\numberline {4}Electrochemical potential and why superconductors screen electric fields}{9}{section.4}%
+\contentsline {subsection}{\numberline {4.1}Electrostatic potential versus electrochemical potential}{9}{subsection.4.1}%
+\contentsline {subsection}{\numberline {4.2}Linear screening derivation}{9}{subsection.4.2}%
+\contentsline {subsection}{\numberline {4.3}Equipotential limit}{10}{subsection.4.3}%
+\contentsline {section}{\numberline {5}Condensate, quasiparticles, and charge density}{11}{section.5}%
+\contentsline {subsection}{\numberline {5.1}BCS picture in the minimal language needed for Module 2}{11}{subsection.5.1}%
+\contentsline {subsection}{\numberline {5.2}Equilibrium quasiparticle density}{11}{subsection.5.2}%
+\contentsline {subsection}{\numberline {5.3}Quasiparticle charge is not the same as ordinary semiconductor charge}{12}{subsection.5.3}%
+\contentsline {section}{\numberline {6}Ginzburg-Landau viewpoint and electromagnetic variables}{12}{section.6}%
+\contentsline {subsection}{\numberline {6.1}Order parameter and free energy}{12}{subsection.6.1}%
+\contentsline {subsection}{\numberline {6.2}Gauge-invariant phase relation and voltage}{13}{subsection.6.2}%
+\contentsline {section}{\numberline {7}Reformulating Module 2 for superconducting geometries}{13}{section.7}%
+\contentsline {subsection}{\numberline {7.1}Domain decomposition}{13}{subsection.7.1}%
+\contentsline {subsection}{\numberline {7.2}Model A: equipotential superconducting island}{14}{subsection.7.2}%
+\contentsline {subsection}{\numberline {7.3}Model B: screened-Poisson superconductor}{14}{subsection.7.3}%
+\contentsline {section}{\numberline {8}Interface conditions}{15}{section.8}%
+\contentsline {subsection}{\numberline {8.1}Potential continuity}{15}{subsection.8.1}%
+\contentsline {subsection}{\numberline {8.2}Displacement-field jump}{15}{subsection.8.2}%
+\contentsline {subsection}{\numberline {8.3}Thin-film and surface-charge interpretation}{15}{subsection.8.3}%
+\contentsline {section}{\numberline {9}Floating superconducting islands and capacitance constraints}{16}{section.9}%
+\contentsline {subsection}{\numberline {9.1}Fixed-potential versus floating-potential islands}{16}{subsection.9.1}%
+\contentsline {subsection}{\numberline {9.2}Capacitance matrix form}{16}{subsection.9.2}%
+\contentsline {section}{\numberline {10}Weak form for the superconducting Module 2 equations}{17}{section.10}%
+\contentsline {subsection}{\numberline {10.1}Ordinary dielectric Poisson weak form}{17}{subsection.10.1}%
+\contentsline {subsection}{\numberline {10.2}Screened-Poisson weak form}{17}{subsection.10.2}%
+\contentsline {subsection}{\numberline {10.3}Equipotential island as a constrained FEM problem}{18}{subsection.10.3}%
+\contentsline {section}{\numberline {11}How radiation-induced charge enters superconducting electrostatics}{18}{section.11}%
+\contentsline {subsection}{\numberline {11.1}Trapped charge and offset charge}{19}{subsection.11.1}%
+\contentsline {subsection}{\numberline {11.2}Radiation-generated quasiparticles}{19}{subsection.11.2}%
+\contentsline {subsection}{\numberline {11.3}Charge noise and interface defects}{19}{subsection.11.3}%
+\contentsline {section}{\numberline {12}Comparison with the normal Module 2 source model}{20}{section.12}%
+\contentsline {section}{\numberline {13}Boundary conditions for Josephson junctions and tunnel barriers}{21}{section.13}%
+\contentsline {subsection}{\numberline {13.1}Tunnel barrier as a dielectric capacitor}{21}{subsection.13.1}%
+\contentsline {subsection}{\numberline {13.2}Static Poisson cannot replace Josephson dynamics}{21}{subsection.13.2}%
+\contentsline {section}{\numberline {14}Nondimensionalization and numerical scale separation}{21}{section.14}%
+\contentsline {subsection}{\numberline {14.1}Standard Poisson scaling}{22}{subsection.14.1}%
+\contentsline {subsection}{\numberline {14.2}Screened-Poisson scaling}{22}{subsection.14.2}%
+\contentsline {section}{\numberline {15}Recommended modeling hierarchy for this project}{22}{section.15}%
+\contentsline {subsection}{\numberline {15.1}Level 0: keep original Module 2 for non-superconducting silicon}{22}{subsection.15.1}%
+\contentsline {subsection}{\numberline {15.2}Level 1: superconducting islands as Dirichlet/equipotential conductors}{22}{subsection.15.2}%
+\contentsline {subsection}{\numberline {15.3}Level 2: floating islands and offset charge}{23}{subsection.15.3}%
+\contentsline {subsection}{\numberline {15.4}Level 3: screened-Poisson superconducting regions}{23}{subsection.15.4}%
+\contentsline {subsection}{\numberline {15.5}Level 4: dynamic superconducting electrodynamics}{23}{subsection.15.5}%
+\contentsline {section}{\numberline {16}Implementation consequences for MATLAB Module 2}{23}{section.16}%
+\contentsline {subsection}{\numberline {16.1}Data structures}{23}{subsection.16.1}%
+\contentsline {subsection}{\numberline {16.2}Matrix assembly changes}{24}{subsection.16.2}%
+\contentsline {subsection}{\numberline {16.3}Postprocessing changes}{24}{subsection.16.3}%
+\contentsline {section}{\numberline {17}What should not be overclaimed}{25}{section.17}%
+\contentsline {section}{\numberline {18}Summary of the superconducting Module 2 equation set}{25}{section.18}%
+\contentsline {section}{\numberline {19}Connection to later superconducting notes}{25}{section.19}%
+\contentsline {section}{\numberline {20}Minimal equations to carry into code}{26}{section.20}%
+\contentsline {section}{\numberline {21}Derivation of offset-charge weighting potentials}{26}{section.21}%
+\contentsline {subsection}{\numberline {21.1}Why a trapped charge can be converted into an island charge}{26}{subsection.21.1}%
+\contentsline {subsection}{\numberline {21.2}Green's identity derivation}{27}{subsection.21.2}%
+\contentsline {section}{\numberline {22}Variational interpretation of screened electrostatics}{28}{section.22}%
+\contentsline {subsection}{\numberline {22.1}Energy functional}{28}{subsection.22.1}%
+\contentsline {subsection}{\numberline {22.2}Equipotential limit from the energy}{29}{subsection.22.2}%
+\contentsline {section}{\numberline {23}One-dimensional screening example}{29}{section.23}%
+\contentsline {subsection}{\numberline {23.1}Potential decay into a superconducting half-space}{29}{subsection.23.1}%
+\contentsline {subsection}{\numberline {23.2}Numerical implication}{30}{subsection.23.2}%
+\contentsline {section}{\numberline {24}How Module 2 superconductivity changes the PINN/CPINN interpretation}{30}{section.24}%
+\contentsline {section}{\numberline {25}Verification tests for a future superconducting Module 2 code}{31}{section.25}%
+\contentsline {subsection}{\numberline {25.1}Test 1: grounded plane above a point-like trapped charge}{31}{subsection.25.1}%
+\contentsline {subsection}{\numberline {25.2}Test 2: parallel-plate capacitance}{31}{subsection.25.2}%
+\contentsline {subsection}{\numberline {25.3}Test 3: floating island charge neutrality}{31}{subsection.25.3}%
+\contentsline {subsection}{\numberline {25.4}Test 4: screened-Poisson exponential decay}{31}{subsection.25.4}%
+\contentsline {subsection}{\numberline {25.5}Test 5: offset-charge weighting potential}{31}{subsection.25.5}%

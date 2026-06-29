@@ -1,0 +1,1130 @@
+\documentclass[11pt]{article}
+\input{../shared/project_style.tex}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,shapes.geometric}
+
+\newcommand{\Evec}{\mathbf{E}}
+\newcommand{\Dvec}{\mathbf{D}}
+\newcommand{\Bvec}{\mathbf{B}}
+\newcommand{\Avec}{\mathbf{A}}
+\newcommand{\Jvec}{\mathbf{J}}
+\newcommand{\nvecb}{\mathbf{n}}
+\newcommand{\Om}{\Omega}
+\newcommand{\Omd}{\Omega_{\mathrm{d}}}
+\newcommand{\Oms}{\Omega_{\mathrm{sc}}}
+\newcommand{\Gint}{\Gamma_{\mathrm{int}}}
+\newcommand{\epsd}{\varepsilon_{\mathrm{d}}}
+\newcommand{\epssc}{\varepsilon_{\mathrm{sc}}}
+\newcommand{\rhoext}{\rho_{\mathrm{ext}}}
+\newcommand{\rhoind}{\rho_{\mathrm{ind}}}
+\newcommand{\rhotrap}{\rho_{\mathrm{trap}}}
+\newcommand{\rhodef}{\rho_{\mathrm{def}}}
+\newcommand{\rhoqp}{\rho_{\mathrm{qp}}}
+\newcommand{\rhos}{\rho_{s}}
+\newcommand{\phis}{\phi_{\mathrm{sc}}}
+\newcommand{\lams}{\lambda_{\mathrm{scr}}}
+\newcommand{\lamTF}{\lambda_{\mathrm{TF}}}
+\newcommand{\lamL}{\lambda_{L}}
+\newcommand{\DeltaSC}{\Delta}
+\newcommand{\Psisc}{\Psi}
+\newcommand{\thetaSC}{\theta}
+\newcommand{\muchem}{\mu}
+\newcommand{\muec}{\mu_{\mathrm{ec}}}
+\newcommand{\Tc}{T_{c}}
+\newcommand{\Tq}{T_{\mathrm{q}}}
+\newcommand{\kBT}{k_{\mathrm{B}}T}
+\newcommand{\qel}{e}
+\newcommand{\PhiZero}{\Phi_{0}}
+\newcommand{\Cmat}{\mathbf{C}}
+\newcommand{\Vvec}{\mathbf{V}}
+\newcommand{\Qvec}{\mathbf{Q}}
+\newcommand{\Rsc}{\mathcal{R}_{\mathrm{sc}}}
+\newcommand{\Rpoisson}{\mathcal{R}_{\mathrm{P}}}
+\newcommand{\Lphi}{\mathcal{L}_{\phi}}
+\rhead{Module 2 Superconductivity Note}
+
+\begin{document}
+
+\DocTitle{Module 2 Superconductivity Extension: Electrostatics in the Superconducting Regime}{Textbook-Style Physics Note for \texttt{RadiationEffects\_proj2}}{How the Module 2 Poisson/electric-field model changes when superconducting films, condensate screening, quasiparticles, and radiation-induced charge perturbations are introduced}
+
+\hrule
+\vspace{0.8em}
+
+\begin{overviewbox}
+\textbf{Purpose of this note.} The original Module 2 solves electrostatic Poisson physics in a semiconductor-like silicon device: radiation-induced defect charge, dopant charge, and mobile electron/hole charge determine the potential $\phi(x,y)$ and electric field $\Evec=-\nabla\phi$. This note derives how that picture changes when the device is operated in the superconducting regime. The main correction is not that ordinary silicon automatically becomes superconducting. The realistic superconducting-device geometry is a hybrid structure: a silicon or dielectric substrate, oxide/interface layers, and superconducting metal films such as Al, Nb, Ta, or related multilayers. In this regime, Module 2 remains an electrostatic module, but the charge response and boundary conditions change qualitatively. Superconducting regions strongly screen electric fields, behave approximately as equipotential islands in the static limit, support condensate and quasiparticle degrees of freedom, and convert radiation-induced energy deposition into offset-charge shifts, trapped charge, pair-breaking phonons, and quasiparticle poisoning pathways.
+\end{overviewbox}
+
+\ProjectTOC
+
+\SymbolsAcronymsSection
+
+\renewcommand{\arraystretch}{1.22}
+\begin{longtable}{p{0.22\textwidth} p{0.55\textwidth} p{0.17\textwidth}}
+\toprule
+\textbf{Symbol / acronym} & \textbf{Meaning} & \textbf{Typical units} \\
+\midrule
+\endhead
+$\Om$ & Full computational domain & m$^2$ or m$^3$ \\
+$\Omd$ & Dielectric, semiconductor, substrate, or oxide region & m$^2$ or m$^3$ \\
+$\Oms$ & Superconducting film or superconducting island region & m$^2$ or m$^3$ \\
+$\Gint$ & Interface between dielectric/semiconductor and superconductor & m or m$^2$ \\
+$\phi$ & Electrostatic scalar potential & V \\
+$\phis$ & Constant potential of a superconducting island & V \\
+$\Evec$ & Electric field, $\Evec=-\nabla\phi$ in the electrostatic limit & V/m \\
+$\Dvec$ & Electric displacement field, $\Dvec=\varepsilon\Evec$ in a linear dielectric & C/m$^2$ \\
+$\rho$ & Total charge density entering Gauss's law & C/m$^3$ \\
+$\rhoext$ & External or fixed charge: defects, trapped charge, dopants, ionization charge & C/m$^3$ \\
+$\rhoind$ & Induced screening charge from mobile metallic or superconducting degrees of freedom & C/m$^3$ \\
+$\rhotrap$ & Trapped charge density in substrate, oxide, or interface states & C/m$^3$ \\
+$\rhodef$ & Radiation-induced defect charge density & C/m$^3$ \\
+$\rhoqp$ & Quasiparticle charge-imbalance density & C/m$^3$ \\
+$\varepsilon$ & Permittivity & F/m \\
+$\epsd$ & Effective dielectric/substrate permittivity & F/m \\
+$\epssc$ & Effective permittivity used inside a screened superconductor model & F/m \\
+$\lams$ & Electrostatic screening length in a superconducting/metallic region & m \\
+$\lamTF$ & Thomas-Fermi screening length & m \\
+$\lamL$ & London magnetic penetration depth & m \\
+$\DeltaSC$ & Superconducting energy gap & J or eV \\
+$\Tc$ & Critical temperature & K \\
+$\Psisc=|\Psisc|e^{i\thetaSC}$ & Ginzburg-Landau order parameter & material dependent \\
+$\thetaSC$ & Superconducting phase & rad \\
+$\muchem$ & Chemical potential & J \\
+$\muec$ & Electrochemical potential & J \\
+$n_s$ & Superfluid or condensate electron density, depending on convention & m$^{-3}$ \\
+$n_{\mathrm{qp}}$ & Quasiparticle density & m$^{-3}$ \\
+$\PhiZero=h/(2e)$ & Superconducting flux quantum & Wb \\
+$V_i$ & Electrostatic potential of superconducting island $i$ & V \\
+$Q_i$ & Net charge on superconducting island $i$ & C \\
+$\Cmat$ & Capacitance matrix for island network & F \\
+$N_i$ & FEM shape function & -- \\
+$K_{ij}$ & FEM stiffness matrix contribution & problem dependent \\
+$M_{ij}$ & FEM mass-like screening matrix contribution & problem dependent \\
+\bottomrule
+\end{longtable}
+
+\section{Where this note fits in the project}
+
+The present project began with a semiconductor radiation-effects chain:
+\begin{equation}
+\text{energy deposition}\rightarrow \text{defect evolution}\rightarrow \text{electrostatics}\rightarrow \text{carrier transport}\rightarrow \text{device response}.
+\end{equation}
+Module 2 occupies the electrostatic step. In its normal-state form, it solves
+\begin{equation}
+\nabla\cdot\left(\varepsilon\nabla\phi\right)=-\rho,
+\qquad
+\Evec=-\nabla\phi,
+\end{equation}
+with a semiconductor charge density of the form
+\begin{equation}
+\rho = e(p-n+N_D^+-N_A^-)+\rhodef.
+\label{eq:semiconductor_charge_recap}
+\end{equation}
+This is a natural model when the active material is silicon treated as a semiconductor with electrons, holes, dopants, and charged defect states.
+
+A superconducting-device extension changes the physical interpretation of the electrostatic problem. At cryogenic temperature, a superconducting film is not just another semiconductor region with ordinary $n$ and $p$. It is a charged quantum condensate plus a quasiparticle population, sitting on or near a dielectric or semiconducting substrate. Its static electric response is closer to a metal than to a depleted semiconductor: it screens electric fields over an atomic-to-nanometric length scale, and most of its bulk acts as an equipotential conductor. The substrate, oxide, and interface still hold trapped charge and radiation-induced charge. Those charges alter the potential landscape seen by the superconducting island, shift offset charge, and can modulate device response.
+
+\begin{physicsbox}
+\textbf{Main conceptual shift.} In the normal Module 2 model, charge density in the active silicon volume creates the field. In the superconducting extension, the superconductor usually does \emph{not} allow a large static electric field inside its bulk. Instead, external charge in the substrate/oxide is screened by surface and near-surface charge in the superconducting film. Therefore, Module 2 becomes partly a Poisson problem in the dielectric/substrate and partly a conductor/screening/capacitance problem for superconducting islands.
+\end{physicsbox}
+
+\subsection{The realistic geometry: hybrid superconducting device}
+
+A typical superconducting quantum-device geometry is not pure superconducting silicon. It is closer to
+\begin{equation}
+\text{vacuum/air} \; | \; \text{superconducting metal film} \; | \; \text{native oxide/interface} \; | \; \text{silicon or sapphire substrate}.
+\end{equation}
+Radiation can deposit energy in any of these regions. Module 1 can produce spatial energy-deposition maps. Module 3 can represent radiation-created defects, traps, or charge centers. Module 4 will later need phonon and thermal transport in the cryogenic regime. Module 5 will later need a superconducting replacement for ordinary drift-diffusion carrier transport. But Module 2 is the first place where the low-temperature superconducting environment changes the mathematics: the potential is no longer determined by ordinary semiconductor charge alone.
+
+\begin{center}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabularx}{0.92\textwidth}{>{\centering\arraybackslash}X}
+\rowcolor{SoftBlue}\textbf{vacuum / package environment}\\
+\rowcolor{SoftTeal}\textbf{superconducting film or island: screened, nearly equipotential}\\
+\rowcolor{SoftGray}\textbf{oxide/interface: traps, TLS-like charge fluctuators, fixed surface charge}\\
+\textbf{substrate: dielectric or semiconductor Poisson region with radiation-induced charge}\\
+\end{tabularx}
+\end{center}
+\begin{equation}
+\text{Module 1 energy deposition and Module 3 defect/trap source}
+\longrightarrow
+\text{Module 2 }\{\phi,\Evec,Q_{\mathrm{off}}\}.
+\end{equation}
+
+\section{Recap: ordinary Module 2 Poisson physics}
+
+The original Module 2 note begins from Gauss's law in matter,
+\begin{equation}
+\nabla\cdot\Dvec=\rho,
+\qquad
+\Dvec=\varepsilon\Evec,
+\qquad
+\Evec=-\nabla\phi.
+\end{equation}
+Substitution gives
+\begin{equation}
+\nabla\cdot(\varepsilon\nabla\phi)=-\rho.
+\label{eq:original_poisson}
+\end{equation}
+The source term is built from mobile carriers, ionized dopants, and charged defect populations:
+\begin{equation}
+\rho=e(p-n+N_D^+-N_A^-)+e\sum_{a} z_a C_a.
+\label{eq:original_rho}
+\end{equation}
+Here $C_a$ is the concentration of radiation-induced defect species $a$ and $z_a$ is its effective charge number. In the normal semiconductor model, the unknown potential affects carrier density and transport. The electric field obtained from Module 2 is then passed to Module 5:
+\begin{equation}
+\phi \longrightarrow \Evec=-\nabla\phi \longrightarrow \text{drift-diffusion currents}.
+\end{equation}
+
+This framework remains valid in non-superconducting regions of the superconducting-device geometry. The substrate, the oxide, and the vacuum gap still obey Gauss's law. What changes is the constitutive response inside the superconducting region and the boundary condition imposed by the superconducting metal.
+
+\section{What actually changes below the superconducting transition}
+
+\subsection{Superconductivity does not replace Maxwell's equations}
+
+The first correction is conceptual. Superconductivity does not invalidate Gauss's law. The electrostatic equation remains
+\begin{equation}
+\nabla\cdot\Dvec=\rho.
+\end{equation}
+What changes is the relation between $\rho$ and $\phi$ in the superconducting material. In a semiconductor, $\rho$ is often expressed through carrier densities $n(\phi)$ and $p(\phi)$ plus dopants and defects. In a superconductor, most electronic charge belongs to a condensate that rearranges to keep the interior nearly charge neutral and the electrochemical potential nearly uniform. A static electric field is therefore screened out of the bulk.
+
+Thus the correct question for Module 2 is not
+\begin{equation}
+\text{``Does Poisson's equation still hold?''}
+\end{equation}
+but rather
+\begin{equation}
+\text{``What charge response should be inserted into Poisson's equation in a superconducting region?''}
+\end{equation}
+
+\subsection{Three regions must be separated}
+
+A practical superconducting-device Module 2 should distinguish at least three classes of regions:
+\begin{enumerate}[leftmargin=2em]
+\item \textbf{Dielectric or substrate regions} $\Omd$. These still use Poisson's equation with fixed/trapped/defect charge sources.
+\item \textbf{Superconducting metal regions} $\Oms$. These are either approximated as equipotential conductors or resolved with a screened-Poisson equation.
+\item \textbf{Interfaces and tunnel barriers}. These are thin regions where trapped charge, oxide defects, electric fields, and Josephson-junction capacitance matter strongly.
+\end{enumerate}
+
+This separation is not cosmetic. It determines whether a charge source creates a field throughout a region, is screened locally, or appears only as an effective offset charge on a superconducting island.
+
+\section{Electrochemical potential and why superconductors screen electric fields}
+
+\subsection{Electrostatic potential versus electrochemical potential}
+
+For charged particles, the relevant equilibrium quantity is not only the chemical potential $\muchem$. It is the electrochemical potential. For electrons with charge $-e$, a common convention is
+\begin{equation}
+\muec = \muchem - e\phi.
+\label{eq:electron_electrochemical}
+\end{equation}
+At equilibrium, $\muec$ is spatially constant:
+\begin{equation}
+\nabla \muec = 0.
+\end{equation}
+Therefore,
+\begin{equation}
+\nabla\muchem = e\nabla\phi = -e\Evec.
+\end{equation}
+A spatially varying electrostatic potential must be balanced by a spatially varying chemical potential, which means a spatial redistribution of electronic density.
+
+For a metal or superconductor, the electronic compressibility is large. A small potential perturbation causes a redistribution of charge that screens the perturbation. This is the origin of short-range electrostatic screening.
+
+\subsection{Linear screening derivation}
+
+Let $n$ denote the electronic density responding to a weak electrostatic perturbation. Linearize the chemical potential around equilibrium:
+\begin{equation}
+\delta \muchem = \left(\frac{\partial \muchem}{\partial n}\right)_0 \delta n.
+\end{equation}
+Equilibrium requires $\delta\muec=0$, so from Eq.~\eqref{eq:electron_electrochemical},
+\begin{equation}
+\delta\muchem - e\delta\phi = 0.
+\end{equation}
+Thus
+\begin{equation}
+\delta n = \left(\frac{\partial n}{\partial \muchem}\right)_0 e\delta\phi.
+\end{equation}
+The induced charge density from electrons is
+\begin{equation}
+\rhoind = -e\delta n
+= -e^2\left(\frac{\partial n}{\partial \muchem}\right)_0\delta\phi.
+\end{equation}
+Define the screening length by
+\begin{equation}
+\frac{\varepsilon}{\lams^2}
+= e^2\left(\frac{\partial n}{\partial \muchem}\right)_0.
+\label{eq:screening_length_definition}
+\end{equation}
+Then
+\begin{equation}
+\rhoind = -\frac{\varepsilon}{\lams^2}\phi,
+\label{eq:induced_charge_linear}
+\end{equation}
+where the equilibrium reference potential has been chosen as $\phi=0$.
+
+Substitute $\rho=\rhoext+\rhoind$ into Poisson's equation:
+\begin{equation}
+\nabla\cdot(\varepsilon\nabla\phi)
+= -\rhoext - \rhoind
+= -\rhoext + \frac{\varepsilon}{\lams^2}\phi.
+\end{equation}
+Rearranging gives the screened-Poisson equation
+\begin{equation}
+\boxed{\nabla\cdot(\varepsilon\nabla\phi) - \frac{\varepsilon}{\lams^2}\phi = -\rhoext.}
+\label{eq:screened_poisson}
+\end{equation}
+For uniform $\varepsilon$,
+\begin{equation}
+\boxed{\nabla^2\phi - \frac{1}{\lams^2}\phi = -\frac{\rhoext}{\varepsilon}.}
+\label{eq:screened_poisson_uniform}
+\end{equation}
+This is a Helmholtz-type electrostatic equation. Unlike ordinary Poisson's equation, a local charge perturbation does not create a long-range potential inside the superconductor. It is screened over $\lams$.
+
+\begin{physicsbox}
+\textbf{Important distinction: electrostatic versus magnetic screening.} The electrostatic screening length $\lams$ is not the London penetration depth $\lamL$. The London penetration depth controls how magnetic field penetrates a superconductor. Electrostatic potential in a metal or superconductor is screened on a Thomas-Fermi-like length scale, usually much shorter than $\lamL$. For Module 2, which is electrostatic, the relevant screening is electric/charge screening, not magnetic Meissner screening.
+\end{physicsbox}
+
+\subsection{Equipotential limit}
+
+If $\lams$ is much smaller than the mesh scale or film thickness, then resolving Eq.~\eqref{eq:screened_poisson} is numerically inefficient and physically unnecessary for a device-scale electrostatic solver. In the limit
+\begin{equation}
+\lams \ll h_{\mathrm{mesh}}, \quad \lams \ll t_{\mathrm{film}},
+\end{equation}
+the superconductor can be treated as an equipotential conductor:
+\begin{equation}
+\phi(\mathbf{x})=V_j, \qquad \mathbf{x}\in \Omega_{\mathrm{sc},j},
+\label{eq:equipotential_sc}
+\end{equation}
+where $V_j$ is the island potential of superconducting region $j$. The electric field is then zero in the superconducting bulk,
+\begin{equation}
+\Evec\approx \mathbf{0}, \qquad \mathbf{x}\in \Omega_{\mathrm{sc},j}\;\text{away from surfaces and junction barriers}.
+\end{equation}
+The required screening charge appears as surface charge at the boundary.
+
+\section{Condensate, quasiparticles, and charge density}
+
+\subsection{BCS picture in the minimal language needed for Module 2}
+
+Below $\Tc$, the electronic ground state is not a normal Fermi sea. Electrons near the Fermi surface form correlated Cooper pairs. The low-energy excitation spectrum has an energy gap $\DeltaSC$. In the simplest BCS weak-coupling limit, the zero-temperature gap obeys approximately
+\begin{equation}
+\DeltaSC(0) \approx 1.76\,k_{\mathrm{B}}\Tc.
+\end{equation}
+The minimum energy to break a Cooper pair and create two quasiparticles is approximately
+\begin{equation}
+E_{\mathrm{pair\;break}}\approx 2\DeltaSC.
+\end{equation}
+This matters for radiation effects because energy deposition can generate high-energy phonons or photons with energy above $2\DeltaSC$, which can break Cooper pairs and create quasiparticles.
+
+For Module 2, the BCS picture changes the charge model in two ways:
+\begin{enumerate}[leftmargin=2em]
+\item The condensate is a stiff charged quantum fluid that screens electric fields.
+\item Quasiparticles are the remaining excitations above the superconducting ground state. Their equilibrium density is exponentially small at $T\ll\Tc$, but radiation can produce nonequilibrium quasiparticles.
+\end{enumerate}
+
+\subsection{Equilibrium quasiparticle density}
+
+At low temperature, the equilibrium quasiparticle density has the qualitative form
+\begin{equation}
+ n_{\mathrm{qp}}^{\mathrm{eq}}(T)
+ \propto N_0 \sqrt{\DeltaSC k_{\mathrm{B}}T}\,
+ \exp\left(-\frac{\DeltaSC}{k_{\mathrm{B}}T}\right),
+\label{eq:equilibrium_qp_density}
+\end{equation}
+where $N_0$ is the normal-state electronic density of states near the Fermi level. The exact prefactor depends on convention, spin degeneracy, and material model. The essential physics is the exponential factor. Deep below $\Tc$, thermal quasiparticles should be rare. Therefore, a large quasiparticle population in a superconducting device is usually a nonequilibrium population.
+
+\subsection{Quasiparticle charge is not the same as ordinary semiconductor charge}
+
+In a semiconductor, electrons and holes carry definite charges and drift/diffuse in a band structure. In a superconductor, quasiparticles are Bogoliubov excitations: coherent mixtures of electron-like and hole-like components. A quasiparticle at energy $E$ has coherence factors $u$ and $v$, and its effective charge expectation depends on electron-hole imbalance. Near the gap edge, quasiparticle charge can be small or sign-dependent in a way that is not captured by ordinary electron/hole drift-diffusion.
+
+For Module 2, this means we should not blindly replace Eq.~\eqref{eq:semiconductor_charge_recap} by
+\begin{equation}
+\rho=-e n_{\mathrm{qp}}.
+\end{equation}
+That would be physically wrong in general. A safer reduced electrostatic representation is
+\begin{equation}
+\rhoqp = q_{\mathrm{qp}}^{\mathrm{eff}} n_{\mathrm{qp}}^{\mathrm{imb}},
+\label{eq:qp_charge_density}
+\end{equation}
+where $n_{\mathrm{qp}}^{\mathrm{imb}}$ is a charge-imbalance component of the quasiparticle distribution and $q_{\mathrm{qp}}^{\mathrm{eff}}$ is an effective charge parameter. If the quasiparticle population is electron-hole symmetric, it may strongly affect dissipation and qubit relaxation while contributing little to static space charge.
+
+\begin{notebox}
+\textbf{Practical consequence.} In a first superconducting Module 2 extension, quasiparticles should usually enter indirectly through device-response parameters, island parity, or coupling to Module 5, not as a large ordinary Poisson charge density. Static electrostatic offsets are more likely to come from trapped substrate/oxide charge and surface charge than from a neutral quasiparticle population.
+\end{notebox}
+
+\section{Ginzburg-Landau viewpoint and electromagnetic variables}
+
+\subsection{Order parameter and free energy}
+
+A useful macroscopic description of a superconductor is the Ginzburg-Landau order parameter
+\begin{equation}
+\Psisc(\mathbf{x})=|\Psisc(\mathbf{x})|e^{i\thetaSC(\mathbf{x})}.
+\end{equation}
+The simplest Ginzburg-Landau free energy density is
+\begin{equation}
+f = \alpha |\Psisc|^2 + \frac{\beta}{2}|\Psisc|^4
++ \frac{1}{2m^*}\left|\left(-i\hbar\nabla-q^*\Avec\right)\Psisc\right|^2
++ \frac{|\Bvec|^2}{2\mu_0},
+\label{eq:gl_free_energy}
+\end{equation}
+where $q^*=-2e$ and $m^*$ are the Cooper-pair charge and effective mass. Varying this functional with respect to $\Psisc^*$ gives the first Ginzburg-Landau equation,
+\begin{equation}
+\alpha\Psisc + \beta |\Psisc|^2\Psisc
++ \frac{1}{2m^*}\left(-i\hbar\nabla-q^*\Avec\right)^2\Psisc = 0.
+\label{eq:gl_equation}
+\end{equation}
+Varying with respect to $\Avec$ gives the superconducting current density,
+\begin{equation}
+\Jvec_s = \frac{q^*\hbar}{2m^* i}\left(\Psisc^*\nabla\Psisc-\Psisc\nabla\Psisc^*\right)
+-\frac{(q^*)^2}{m^*}|\Psisc|^2\Avec.
+\label{eq:gl_current}
+\end{equation}
+If $|\Psisc|$ is approximately constant, this can be written as
+\begin{equation}
+\Jvec_s = \frac{q^* |\Psisc|^2}{m^*}\left(\hbar\nabla\thetaSC-q^*\Avec\right).
+\label{eq:phase_current}
+\end{equation}
+This equation is mostly magnetic/phase physics, but it is important context for Module 2 because the electrostatic potential is connected to time evolution of the superconducting phase.
+
+\subsection{Gauge-invariant phase relation and voltage}
+
+The Josephson voltage relation connects voltage to the time derivative of superconducting phase difference:
+\begin{equation}
+V = \frac{\hbar}{2e}\frac{d\varphi}{dt},
+\label{eq:josephson_voltage}
+\end{equation}
+where $\varphi$ is the gauge-invariant phase difference across a junction. Therefore, a truly static electrostatic solution with no DC voltage across a superconducting element corresponds to a time-independent phase difference:
+\begin{equation}
+V=0 \quad \Rightarrow \quad \frac{d\varphi}{dt}=0.
+\end{equation}
+A DC voltage across a Josephson junction is not a static electrostatic state of the superconducting phase; it drives phase evolution. This is why a static Module 2 Poisson model can compute capacitance fields and offset potentials, but it should not be treated as a full Josephson dynamics solver.
+
+\section{Reformulating Module 2 for superconducting geometries}
+
+\subsection{Domain decomposition}
+
+Split the computational domain into dielectric/substrate regions and superconducting regions:
+\begin{equation}
+\Om = \Omd \cup \Oms,
+\qquad
+\Omd\cap\Oms=\varnothing.
+\end{equation}
+The dielectric region may include silicon substrate, oxide, vacuum gaps, and tunnel barriers. The superconducting region may include films, islands, resonators, ground planes, or leads.
+
+In $\Omd$, the electrostatic equation remains an ordinary Poisson equation:
+\begin{equation}
+\boxed{\nabla\cdot(\epsd\nabla\phi_d)=-\rho_d, \qquad \mathbf{x}\in\Omd.}
+\label{eq:dielectric_poisson}
+\end{equation}
+The source may include
+\begin{equation}
+\rho_d = \rhodef + \rhotrap + \rho_{\mathrm{dop}} + \rho_{\mathrm{ion}} + \rho_{\mathrm{mobile}},
+\end{equation}
+where the last terms are included only if the substrate is being treated as a semiconductor rather than a pure dielectric.
+
+In $\Oms$, two modeling options are useful.
+
+\subsection{Model A: equipotential superconducting island}
+
+The simplest superconducting approximation is
+\begin{equation}
+\boxed{\phi_s(\mathbf{x}) = V_j,\qquad \mathbf{x}\in\Omega_{\mathrm{sc},j}.}
+\label{eq:model_a_equipotential}
+\end{equation}
+The potential $V_j$ is constant over island $j$. If the island is connected to an ideal voltage source, $V_j$ is prescribed. If it is floating, $V_j$ is an unknown determined by charge neutrality or capacitance constraints.
+
+This is usually the right first model for Module 2 because device-scale meshes cannot resolve the microscopic electric screening length. It also matches common electrostatic capacitance modeling of superconducting circuits.
+
+\subsection{Model B: screened-Poisson superconductor}
+
+If one wants to resolve charge penetration near a superconducting surface, use
+\begin{equation}
+\boxed{\nabla\cdot(\epssc\nabla\phi_s)-\frac{\epssc}{\lams^2}(\phi_s-V_j)=-\rho_{s,\mathrm{ext}},\qquad \mathbf{x}\in\Omega_{\mathrm{sc},j}.}
+\label{eq:model_b_screened}
+\end{equation}
+Here $V_j$ is the reference island potential and $\rho_{s,\mathrm{ext}}$ denotes any externally imposed charge inside the superconducting material. In most device-scale radiation problems, $\rho_{s,\mathrm{ext}}$ should be small or treated as localized near interfaces; the major external charges are in the substrate, oxide, or barrier.
+
+Equation~\eqref{eq:model_b_screened} forces $\phi_s$ back toward $V_j$ over the screening length $\lams$. In the limit $\lams\rightarrow 0$, it reduces to Model A.
+
+\section{Interface conditions}
+
+\subsection{Potential continuity}
+
+At an ideal interface without an explicit dipole sheet, electrostatic potential is continuous:
+\begin{equation}
+\boxed{\phi_d = \phi_s,\qquad \mathbf{x}\in\Gint.}
+\label{eq:interface_potential_continuity}
+\end{equation}
+If an interface dipole layer or work-function offset is represented explicitly, the model may instead use a potential jump:
+\begin{equation}
+\phi_s-\phi_d = \Delta\phi_{\mathrm{dipole}}.
+\end{equation}
+For the first project implementation, potential continuity is cleaner.
+
+\subsection{Displacement-field jump}
+
+The normal component of $\Dvec$ jumps by the free surface charge density:
+\begin{equation}
+\boxed{\nvecb\cdot(\Dvec_d-\Dvec_s)=\sigma_{\mathrm{int}},\qquad \mathbf{x}\in\Gint,}
+\label{eq:interface_D_jump}
+\end{equation}
+where $\nvecb$ is a chosen normal and $\sigma_{\mathrm{int}}$ is interface charge density. With $\Dvec=-\varepsilon\nabla\phi$,
+\begin{equation}
+\nvecb\cdot\left(-\epsd\nabla\phi_d+\epssc\nabla\phi_s\right)=\sigma_{\mathrm{int}}.
+\end{equation}
+In the equipotential-conductor limit, $\nabla\phi_s\approx 0$ inside the superconductor, and the interface charge becomes the surface charge required to terminate the dielectric field:
+\begin{equation}
+\sigma_{\mathrm{sc}} \approx -\nvecb\cdot\Dvec_d.
+\end{equation}
+
+\subsection{Thin-film and surface-charge interpretation}
+
+A superconducting film can be much thinner than the lateral dimensions of the device. If the film thickness is not resolved, it can be represented as a conducting boundary with surface charge. The dielectric/substrate Poisson problem is then solved with Dirichlet boundary conditions on superconducting islands:
+\begin{equation}
+\phi_d=V_j \quad \text{on the surface of island }j.
+\end{equation}
+The induced charge on the island is computed afterward from the electric displacement field:
+\begin{equation}
+Q_j = \int_{\Gamma_j} \sigma_j\,dA
+= -\int_{\Gamma_j} \nvecb\cdot\epsd\nabla\phi_d\,dA.
+\label{eq:island_charge_surface_integral}
+\end{equation}
+This is often more useful for superconducting circuits than the bulk potential itself, because island charge determines offset charge and capacitance energy.
+
+\section{Floating superconducting islands and capacitance constraints}
+
+\subsection{Fixed-potential versus floating-potential islands}
+
+A superconducting region connected to a voltage source has prescribed potential:
+\begin{equation}
+V_j=V_j^{\mathrm{bias}}.
+\end{equation}
+A floating island is different. Its potential is not externally fixed. It is determined by total charge balance. If island $j$ has specified net charge $Q_j^{\mathrm{given}}$, then
+\begin{equation}
+Q_j^{\mathrm{given}} = -\int_{\Gamma_j}\nvecb\cdot\varepsilon\nabla\phi\,dA.
+\label{eq:floating_charge_constraint}
+\end{equation}
+This integral constraint replaces a simple Dirichlet condition. The unknown $V_j$ becomes an additional degree of freedom.
+
+\subsection{Capacitance matrix form}
+
+For multiple superconducting islands, electrostatics can often be reduced to a capacitance matrix relation:
+\begin{equation}
+\boxed{Q_i = \sum_j C_{ij} V_j + Q_{i,\mathrm{off}}.}
+\label{eq:capacitance_matrix}
+\end{equation}
+Here $Q_{i,\mathrm{off}}$ is offset charge induced by trapped substrate/oxide charge, radiation-generated charge, or nearby defects. More explicitly, one can compute capacitance by solving basis electrostatic problems:
+\begin{equation}
+\phi^{(j)}=1\;\text{on island }j,\qquad
+\phi^{(j)}=0\;\text{on all other conductors},
+\end{equation}
+and then integrating displacement flux to obtain $C_{ij}$.
+
+The electrostatic energy is
+\begin{equation}
+U = \frac{1}{2}\int_{\Omd}\varepsilon |\nabla\phi|^2\,dV
+= \frac{1}{2}\Vvec^{T}\Cmat\Vvec
+\end{equation}
+for the ideal conductor problem without fixed space charge. With offset charges, circuit models often rewrite the energy in charge variables. For a single island with total capacitance $C_\Sigma$,
+\begin{equation}
+U = \frac{(Q-Q_{\mathrm{off}})^2}{2C_\Sigma}.
+\label{eq:charging_energy_classical}
+\end{equation}
+In superconducting qubit notation, $Q=2eN$ and $Q_{\mathrm{off}}=2e n_g$, so the charging energy becomes
+\begin{equation}
+U = 4E_C (N-n_g)^2,
+\qquad
+E_C=\frac{e^2}{2C_\Sigma}.
+\label{eq:transmon_charging_energy}
+\end{equation}
+This is the direct bridge between Module 2 electrostatics and superconducting-device response: radiation-induced trapped charge changes $Q_{\mathrm{off}}$, which changes $n_g$.
+
+\begin{physicsbox}
+\textbf{Module 2 output changes.} In the normal semiconductor version, Module 2 primarily outputs $\phi(x,y)$ and $\Evec(x,y)$. In a superconducting-device version, Module 2 should additionally output island charge, capacitance, and offset charge:
+\begin{equation}
+\phi,\; \Evec,\; Q_j,\; C_{ij},\; Q_{j,\mathrm{off}},\; n_{g,j}=Q_{j,\mathrm{off}}/(2e).
+\end{equation}
+\end{physicsbox}
+
+\section{Weak form for the superconducting Module 2 equations}
+
+\subsection{Ordinary dielectric Poisson weak form}
+
+In a dielectric/substrate region $\Omd$, multiply Eq.~\eqref{eq:dielectric_poisson} by a test function $v$ and integrate:
+\begin{equation}
+\int_{\Omd} v\,\nabla\cdot(\epsd\nabla\phi)\,d\Omega
+= -\int_{\Omd} v\rho_d\,d\Omega.
+\end{equation}
+Integrating by parts gives
+\begin{equation}
+-\int_{\Omd}\epsd\nabla v\cdot\nabla\phi\,d\Omega
++\int_{\partial\Omd}v\epsd\nabla\phi\cdot\nvecb\,d\Gamma
+= -\int_{\Omd}v\rho_d\,d\Omega.
+\end{equation}
+Multiplying by $-1$ gives the standard weak form:
+\begin{equation}
+\boxed{\int_{\Omd}\epsd\nabla v\cdot\nabla\phi\,d\Omega
+= \int_{\Omd}v\rho_d\,d\Omega
++ \int_{\partial\Omd}v\left(-\epsd\nabla\phi\cdot\nvecb\right)d\Gamma.}
+\label{eq:dielectric_weak_form}
+\end{equation}
+Dirichlet conditions are applied strongly or by penalty/Nitsche methods. Neumann fluxes enter through the boundary integral.
+
+\subsection{Screened-Poisson weak form}
+
+For a screened superconductor, start from
+\begin{equation}
+\nabla\cdot(\epssc\nabla\phi_s)-\frac{\epssc}{\lams^2}(\phi_s-V_j)=-\rho_{s,\mathrm{ext}}.
+\end{equation}
+Multiply by $v$ and integrate over $\Omega_{\mathrm{sc},j}$:
+\begin{equation}
+\int v\nabla\cdot(\epssc\nabla\phi_s)d\Omega
+-\int v\frac{\epssc}{\lams^2}(\phi_s-V_j)d\Omega
+= -\int v\rho_{s,\mathrm{ext}}d\Omega.
+\end{equation}
+After integration by parts and multiplying by $-1$,
+\begin{equation}
+\boxed{
+\int_{\Omega_{\mathrm{sc},j}}\epssc\nabla v\cdot\nabla\phi_s\,d\Omega
++\int_{\Omega_{\mathrm{sc},j}}v\frac{\epssc}{\lams^2}(\phi_s-V_j)\,d\Omega
+=\int_{\Omega_{\mathrm{sc},j}}v\rho_{s,\mathrm{ext}}\,d\Omega
++\text{boundary terms}.}
+\label{eq:screened_weak_form}
+\end{equation}
+The new term is a mass-like screening term. With finite-element basis functions $N_i$ and $N_j$, the element matrix becomes
+\begin{equation}
+K_{ij}^{(e)}
+=\int_{\Omega_e}\varepsilon\nabla N_i\cdot\nabla N_j\,d\Omega
++\int_{\Omega_e}\frac{\varepsilon}{\lams^2}N_iN_j\,d\Omega.
+\label{eq:screened_fem_matrix}
+\end{equation}
+The right-hand side gains
+\begin{equation}
+b_i^{(e)}=\int_{\Omega_e}N_i\rho_{\mathrm{ext}}\,d\Omega
++\int_{\Omega_e}\frac{\varepsilon}{\lams^2}N_iV_j\,d\Omega.
+\label{eq:screened_fem_rhs}
+\end{equation}
+This is a direct code-level change relative to the existing Module 2 Poisson FEM implementation.
+
+\subsection{Equipotential island as a constrained FEM problem}
+
+If a superconducting island is treated as an equipotential conductor, all nodes on the island share a single unknown $V_j$ rather than independent nodal potentials. There are three practical ways to implement this:
+\begin{enumerate}[leftmargin=2em]
+\item \textbf{Prescribed island potential.} Apply Dirichlet condition $\phi=V_j$ on the island boundary.
+\item \textbf{Floating island with charge constraint.} Add unknown $V_j$ and enforce Eq.~\eqref{eq:floating_charge_constraint} as a global constraint.
+\item \textbf{Capacitance postprocessing.} Solve multiple basis problems with prescribed island voltages, compute the capacitance matrix, then evaluate floating potentials and offset charge in circuit form.
+\end{enumerate}
+The third approach is usually the cleanest first step because it separates field solving from circuit interpretation.
+
+\section{How radiation-induced charge enters superconducting electrostatics}
+
+\subsection{Trapped charge and offset charge}
+
+Radiation creates electron-hole pairs, phonons, excitations, and defect states. At cryogenic temperature, many carriers may become trapped rather than thermally released. Trapped charge in a substrate or oxide enters Module 2 as
+\begin{equation}
+\rhotrap(\mathbf{x},t)=e\sum_a z_a C_a^{\mathrm{trap}}(\mathbf{x},t).
+\end{equation}
+This charge may be spatially separated from a superconducting island but capacitively coupled to it. The induced offset charge on island $j$ can be written schematically as a linear functional of trapped charge:
+\begin{equation}
+Q_{j,\mathrm{off}}(t)=\int_{\Omd} W_j(\mathbf{x})\,\rhotrap(\mathbf{x},t)\,d\Omega,
+\label{eq:weighting_potential_offset_charge}
+\end{equation}
+where $W_j(\mathbf{x})$ is a weighting potential determined by electrostatic geometry. A practical way to compute $W_j$ is to solve the basis problem with island $j$ at unit potential and all other conductors grounded. This is the same idea used in capacitance extraction.
+
+\subsection{Radiation-generated quasiparticles}
+
+Ionizing radiation or cosmic-ray-like events can generate energetic phonons in the substrate. If those phonons reach superconducting films with energy exceeding $2\DeltaSC$, they can break Cooper pairs and produce quasiparticles. This pathway is not primarily an electrostatic Poisson source; it is a superconducting excitation and dissipation source. However, it affects Module 2 indirectly through two mechanisms:
+\begin{enumerate}[leftmargin=2em]
+\item Nonequilibrium quasiparticles can produce parity changes and effective offset-charge jumps on superconducting islands.
+\item The same radiation event that generates quasiparticles can also create substrate/oxide charge that appears directly in $\rhotrap$.
+\end{enumerate}
+Thus the electrostatic and quasiparticle problems are coupled but not identical.
+
+\subsection{Charge noise and interface defects}
+
+At oxide and substrate interfaces, defects may switch between charge configurations. A two-level fluctuator with charge displacement $\Delta q$ creates a change in electrostatic potential. If the fluctuator couples to island $j$, it changes $n_{g,j}$. In reduced form,
+\begin{equation}
+\delta n_{g,j}=\frac{1}{2e}\int_{\Omd}W_j(\mathbf{x})\,\delta\rho_{\mathrm{TLS}}(\mathbf{x})\,d\Omega.
+\end{equation}
+This formula shows how Module 2 can become the bridge from microscopic radiation-induced/interface defects to superconducting qubit offset-charge noise.
+
+\section{Comparison with the normal Module 2 source model}
+
+The normal-state Module 2 charge density was
+\begin{equation}
+\rho_{\mathrm{normal}}=e(p-n+N_D^+-N_A^-)+\rhodef.
+\end{equation}
+A superconducting-device charge model should instead be region dependent:
+\begin{equation}
+\rho(\mathbf{x})=
+\begin{cases}
+\rho_d(\mathbf{x})=\rhodef+\rhotrap+\rho_{\mathrm{dop}}+\rho_{\mathrm{mobile}}, & \mathbf{x}\in\Omd,\\[0.5em]
+\rho_s(\mathbf{x})=\rho_{s,\mathrm{ext}}-\dfrac{\epssc}{\lams^2}(\phi_s-V_j), & \mathbf{x}\in\Omega_{\mathrm{sc},j}.
+\end{cases}
+\label{eq:region_dependent_charge_model}
+\end{equation}
+This equation captures the essential change. In the dielectric/substrate, external charge remains a source. In the superconductor, induced charge is primarily a response that screens the potential.
+
+\begin{center}
+\renewcommand{\arraystretch}{1.25}
+\begin{tabularx}{0.96\textwidth}{p{0.27\textwidth}X X}
+\toprule
+\textbf{Physics item} & \textbf{Normal semiconductor Module 2} & \textbf{Superconducting Module 2 extension} \\
+\midrule
+Active charge carriers & Electrons and holes with densities $n,p$ & Condensate plus quasiparticles; static bulk charge strongly screened \\
+Main PDE in active material & Poisson equation with semiconductor charge density & Equipotential conductor or screened-Poisson equation \\
+Defect charge role & Direct volume source in silicon & Direct source mainly in substrate/oxide/interface; screened inside superconducting metal \\
+Boundary behavior & Contacts impose voltage or flux & Superconducting islands are equipotential; floating islands require charge constraints \\
+Important outputs & $\phi(x,y)$ and $\Evec(x,y)$ & $\phi$, $\Evec$, island charge, capacitance, offset charge $n_g$ \\
+Radiation signature & Field distortion and recombination/trapping effects & Offset-charge jumps, trapped-charge fields, quasiparticle generation, parity events \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\section{Boundary conditions for Josephson junctions and tunnel barriers}
+
+\subsection{Tunnel barrier as a dielectric capacitor}
+
+A Josephson junction contains two superconducting electrodes separated by a thin insulating barrier. Electrostatics across the barrier is ordinary dielectric electrostatics:
+\begin{equation}
+\nabla\cdot(\varepsilon_b\nabla\phi_b)=-\rho_b,
+\qquad \mathbf{x}\in\Omega_b.
+\end{equation}
+If the barrier is thin and approximately uniform, the junction capacitance is approximately
+\begin{equation}
+C_J\approx \frac{\varepsilon_b A_J}{d_b},
+\end{equation}
+where $A_J$ is junction area and $d_b$ is barrier thickness. The voltage across the junction is
+\begin{equation}
+V_J=V_1-V_2.
+\end{equation}
+The electrostatic energy stored in the junction capacitance is
+\begin{equation}
+U_C=\frac{1}{2}C_J V_J^2.
+\end{equation}
+This is still Module 2 physics. Josephson tunneling and phase dynamics are not solved by static Poisson, but the capacitance and electric field energy are.
+
+\subsection{Static Poisson cannot replace Josephson dynamics}
+
+The Josephson current relation is
+\begin{equation}
+I_s=I_c\sin\varphi.
+\end{equation}
+The voltage relation is Eq.~\eqref{eq:josephson_voltage}. These equations involve the superconducting phase difference. Static Module 2 can supply capacitance, electric field energy, island voltages, and offset charge. It cannot by itself predict coherent Josephson oscillations, qubit transition frequencies, or phase-slip dynamics. Those belong to a later superconducting device-response model.
+
+\section{Nondimensionalization and numerical scale separation}
+
+\subsection{Standard Poisson scaling}
+
+For a characteristic length $L$, potential scale $\phi_0$, and charge scale $\rho_0$, define
+\begin{equation}
+\hat{\mathbf{x}}=\frac{\mathbf{x}}{L},
+\qquad
+\hat{\phi}=\frac{\phi}{\phi_0},
+\qquad
+\hat{\rho}=\frac{\rho}{\rho_0}.
+\end{equation}
+Ordinary Poisson becomes
+\begin{equation}
+\hat{\nabla}\cdot(\hat{\varepsilon}\hat{\nabla}\hat{\phi})
+= -\eta\hat{\rho},
+\qquad
+\eta=\frac{\rho_0 L^2}{\varepsilon_0\phi_0}.
+\end{equation}
+
+\subsection{Screened-Poisson scaling}
+
+The screened-Poisson equation becomes
+\begin{equation}
+\hat{\nabla}\cdot(\hat{\varepsilon}\hat{\nabla}\hat{\phi})
+-\hat{\varepsilon}\left(\frac{L}{\lams}\right)^2\hat{\phi}
+= -\eta\hat{\rho}_{\mathrm{ext}}.
+\label{eq:dimensionless_screened_poisson}
+\end{equation}
+The dimensionless number
+\begin{equation}
+S=\left(\frac{L}{\lams}\right)^2
+\end{equation}
+measures stiffness. For device-scale $L$ and microscopic $\lams$, $S$ can be enormous. This is why the equipotential-conductor approximation is not merely a convenience; it is the correct reduced model when the mesh cannot resolve the screening layer.
+
+\section{Recommended modeling hierarchy for this project}
+
+\subsection{Level 0: keep original Module 2 for non-superconducting silicon}
+
+If the geometry is still purely silicon and no superconducting film or superconducting boundary is represented, keep the existing Module 2 equation:
+\begin{equation}
+\nabla\cdot(\varepsilon_{\mathrm{Si}}\nabla\phi)=-\rho.
+\end{equation}
+Do not claim superconductivity has been added merely because the temperature is low. Ordinary silicon at cryogenic temperature is not a conventional superconducting metal in the relevant device sense.
+
+\subsection{Level 1: superconducting islands as Dirichlet/equipotential conductors}
+
+Represent superconducting films as conductor boundaries:
+\begin{equation}
+\phi=V_j \quad \text{on superconducting island }j.
+\end{equation}
+Solve Poisson only in the substrate, oxide, barrier, and vacuum regions. Compute induced island charge using Eq.~\eqref{eq:island_charge_surface_integral}. This is the most stable first extension.
+
+\subsection{Level 2: floating islands and offset charge}
+
+Add charge constraints for floating islands and compute offset charge from trapped radiation-induced charge:
+\begin{equation}
+Q_{j,\mathrm{off}}=\int W_j(\mathbf{x})\rho_{\mathrm{trap}}(\mathbf{x})\,d\Omega.
+\end{equation}
+This connects radiation-induced defects to superconducting qubit variables.
+
+\subsection{Level 3: screened-Poisson superconducting regions}
+
+Use Eq.~\eqref{eq:model_b_screened} only if the mesh and physics goals require resolving near-surface screening. In most finite-element device models, this level should be used cautiously because of severe scale separation.
+
+\subsection{Level 4: dynamic superconducting electrodynamics}
+
+If voltage pulses, microwave drive, Josephson phase dynamics, quasiparticle diffusion, or nonequilibrium charge imbalance are required, Module 2 alone is insufficient. The project then needs additional dynamic equations:
+\begin{equation}
+\text{Poisson/capacitance} + \text{Josephson phase dynamics} + \text{quasiparticle transport} + \text{phonon transport}.
+\end{equation}
+This will belong partly to Module 4, Module 5, and Module 7 rather than only Module 2.
+
+\section{Implementation consequences for MATLAB Module 2}
+
+\subsection{Data structures}
+
+A superconducting Module 2 implementation should add material/region labels:
+\begin{equation}
+\texttt{regionType} \in \{\texttt{dielectric},\texttt{semiconductor},\texttt{superconductor},\texttt{barrier}\}.
+\end{equation}
+Each region needs properties:
+\begin{equation}
+\varepsilon_r,
+\qquad
+\rho_{\mathrm{fixed}},
+\qquad
+\lams\;\text{if screened},
+\qquad
+V_j\;\text{if conductor/equipotential}.
+\end{equation}
+
+\subsection{Matrix assembly changes}
+
+For ordinary Poisson elements, the local matrix is
+\begin{equation}
+K_{ij}^{(e)}=\int_{\Omega_e}\varepsilon \nabla N_i\cdot\nabla N_j\,d\Omega.
+\end{equation}
+For screened superconducting elements, add
+\begin{equation}
+M_{ij}^{(e)}=\int_{\Omega_e}\frac{\varepsilon}{\lams^2}N_iN_j\,d\Omega.
+\end{equation}
+Therefore,
+\begin{equation}
+K_{ij}^{(e)}\leftarrow K_{ij}^{(e)}+M_{ij}^{(e)}.
+\end{equation}
+The right-hand side adds the reference-potential term
+\begin{equation}
+b_i^{(e)}\leftarrow b_i^{(e)}+\int_{\Omega_e}\frac{\varepsilon}{\lams^2}N_iV_j\,d\Omega.
+\end{equation}
+For equipotential islands, no screening matrix is assembled inside the island; the island is imposed as a boundary or global constraint.
+
+\subsection{Postprocessing changes}
+
+The normal Module 2 postprocessing computes
+\begin{equation}
+\Evec=-\nabla\phi.
+\end{equation}
+The superconducting extension should additionally compute
+\begin{align}
+Q_j &= -\int_{\Gamma_j}\nvecb\cdot\varepsilon\nabla\phi\,dA,\\
+C_{ij} &= \text{island charge response to basis voltage }V_j=1,\\
+n_{g,j} &= \frac{Q_{j,\mathrm{off}}}{2e},\\
+U_E &= \frac{1}{2}\int \varepsilon |\nabla\phi|^2\,dV.
+\end{align}
+These outputs are the bridge to superconducting circuit response.
+
+\section{What should not be overclaimed}
+
+\begin{notebox}
+\textbf{Avoid these modeling mistakes.}
+\begin{enumerate}[leftmargin=2em]
+\item Do not model a superconducting film as ordinary silicon with lower temperature.
+\item Do not use the London penetration depth as the electrostatic screening length.
+\item Do not insert total quasiparticle density as if every quasiparticle were an ordinary electron charge density in Poisson's equation.
+\item Do not use static Poisson to model Josephson phase dynamics.
+\item Do not resolve Thomas-Fermi screening with a device-scale mesh unless the project specifically targets microscopic surface physics.
+\end{enumerate}
+\end{notebox}
+
+\section{Summary of the superconducting Module 2 equation set}
+
+The clean reduced model for Module 2 in a superconducting-device geometry is:
+\begin{align}
+\nabla\cdot(\epsd\nabla\phi_d)&=-\rho_d, && \mathbf{x}\in\Omd,\\
+\phi_s&=V_j, && \mathbf{x}\in\Omega_{\mathrm{sc},j}\quad\text{(equipotential model)},\\
+\phi_d&=\phi_s, && \mathbf{x}\in\Gint,\\
+\nvecb\cdot(\Dvec_d-\Dvec_s)&=\sigma_{\mathrm{int}}, && \mathbf{x}\in\Gint,\\
+Q_j&=-\int_{\Gamma_j}\nvecb\cdot\epsd\nabla\phi_d\,dA,&&\text{island charge},\\
+n_{g,j}&=\frac{Q_{j,\mathrm{off}}}{2e},&&\text{dimensionless offset charge}.
+\end{align}
+If screening inside the superconductor is explicitly resolved, replace the equipotential equation with
+\begin{equation}
+\nabla\cdot(\epssc\nabla\phi_s)-\frac{\epssc}{\lams^2}(\phi_s-V_j)=-\rho_{s,\mathrm{ext}}.
+\end{equation}
+
+\section{Connection to later superconducting notes}
+
+This note only modifies Module 2. It prepares the foundation for the next superconducting physics notes:
+\begin{itemize}[leftmargin=2em]
+\item \textbf{Module 3 superconductivity:} defect/trap evolution at cryogenic temperature, charge-state freeze-out, trap occupancy, interface fluctuators, and radiation-created defect populations relevant to offset charge.
+\item \textbf{Module 4 superconductivity:} cryogenic phonon transport, pair-breaking phonons, quasiparticle generation, phonon downconversion, Kapitza/interface thermal resistance, and electron-phonon bottlenecks.
+\item \textbf{Module 5 superconductivity:} replacement of ordinary electron/hole drift-diffusion with quasiparticle transport, charge imbalance, recombination, trapping, parity switching, and coupling to superconducting circuit variables.
+\end{itemize}
+
+\section{Minimal equations to carry into code}
+
+For implementation planning, the most useful compact set is:
+\begin{align}
+\text{Dielectric/substrate:}\qquad
+&\nabla\cdot(\varepsilon\nabla\phi)=-\left(\rhodef+\rhotrap+\rho_{\mathrm{mobile}}\right),\\
+\text{Superconducting island:}\qquad
+&\phi=V_j\quad\text{or}\quad
+\nabla\cdot(\varepsilon\nabla\phi)-\frac{\varepsilon}{\lams^2}(\phi-V_j)=-\rho_{s,\mathrm{ext}},\\
+\text{Island charge:}\qquad
+&Q_j=-\int_{\Gamma_j}\nvecb\cdot\varepsilon\nabla\phi\,dA,\\
+\text{Offset charge:}\qquad
+&Q_{j,\mathrm{off}}=\int W_j(\mathbf{x})\rho_{\mathrm{trap}}(\mathbf{x})\,d\Omega,\\
+\text{Qubit-relevant offset:}\qquad
+&n_{g,j}=Q_{j,\mathrm{off}}/(2e).
+\end{align}
+
+\begin{physicsbox}
+\textbf{Bottom line.} The superconducting extension of Module 2 is not a replacement of Poisson's equation. It is a replacement of the charge-response model and boundary-condition model. Poisson remains the field equation in the dielectric/substrate. Superconductors enter as screened, nearly equipotential islands whose induced surface charge, capacitance, and offset-charge response are the important outputs.
+\end{physicsbox}
+
+
+\section{Derivation of offset-charge weighting potentials}
+
+\subsection{Why a trapped charge can be converted into an island charge}
+
+Suppose a trapped charge distribution $\rho_t(\mathbf{x})$ sits in the dielectric/substrate while superconducting islands are held at fixed potentials. The electrostatic potential satisfies
+\begin{equation}
+\nabla\cdot(\varepsilon\nabla\phi)=-\rho_t.
+\end{equation}
+The induced charge on island $j$ is a surface-flux integral,
+\begin{equation}
+Q_j=-\int_{\Gamma_j}\nvecb\cdot\varepsilon\nabla\phi\,dA.
+\end{equation}
+Directly recomputing this for every possible trapped-charge distribution can be expensive. A more useful formulation uses a weighting potential.
+
+Define $w_j(\mathbf{x})$ by the basis problem
+\begin{align}
+\nabla\cdot(\varepsilon\nabla w_j)&=0, && \mathbf{x}\in\Omd,\\
+w_j&=1, && \mathbf{x}\in\Gamma_j,\\
+w_j&=0, && \mathbf{x}\in\Gamma_k,\quad k\ne j,\\
+\nvecb\cdot\varepsilon\nabla w_j&=0, && \text{on insulating external boundaries.}
+\end{align}
+This is a purely geometric electrostatic solve. Once $w_j$ is known, Green's identity gives the induced island charge from trapped charge:
+\begin{equation}
+\boxed{Q_{j,\mathrm{off}}=\int_{\Omd} w_j(\mathbf{x})\rho_t(\mathbf{x})\,d\Omega,}
+\label{eq:weighting_potential_final}
+\end{equation}
+up to the sign convention used for outward normals and island charge. The important point is that the same trapped charge has a different effect depending on where it is located relative to the island. The function $w_j$ is the electrostatic sensitivity map.
+
+\subsection{Green's identity derivation}
+
+Let $\phi_t$ be the potential produced by trapped charge with all conductors grounded:
+\begin{equation}
+\nabla\cdot(\varepsilon\nabla\phi_t)=-\rho_t,
+\qquad
+\phi_t=0\;\text{on all conductor surfaces}.
+\end{equation}
+Let $w_j$ solve the weighting-potential problem. Green's second identity for the operator $\nabla\cdot\varepsilon\nabla$ gives
+\begin{equation}
+\int_{\Omd}\left[w_j\nabla\cdot(\varepsilon\nabla\phi_t)-\phi_t\nabla\cdot(\varepsilon\nabla w_j)\right]d\Omega
+=\int_{\partial\Omd}\left[w_j\varepsilon\nabla\phi_t\cdot\nvecb-\phi_t\varepsilon\nabla w_j\cdot\nvecb\right]dA.
+\end{equation}
+Because $\nabla\cdot(\varepsilon\nabla w_j)=0$ and $\nabla\cdot(\varepsilon\nabla\phi_t)=-\rho_t$, the left side is
+\begin{equation}
+-\int_{\Omd}w_j\rho_t\,d\Omega.
+\end{equation}
+On conductor surfaces, $\phi_t=0$, so the second boundary term vanishes. Since $w_j=1$ on conductor $j$ and zero on other grounded conductors, the boundary term reduces to
+\begin{equation}
+\int_{\Gamma_j}\varepsilon\nabla\phi_t\cdot\nvecb\,dA.
+\end{equation}
+With island charge defined as $Q_j=-\int_{\Gamma_j}\varepsilon\nabla\phi_t\cdot\nvecb\,dA$, we obtain Eq.~\eqref{eq:weighting_potential_final}. This derivation is useful because it turns a field problem into a precomputed sensitivity function.
+
+\section{Variational interpretation of screened electrostatics}
+
+\subsection{Energy functional}
+
+The screened-Poisson equation can also be derived by minimizing an electrostatic free-energy functional. For a superconducting region whose potential is screened toward a reference island potential $V_j$, define
+\begin{equation}
+\mathcal{F}[\phi]
+=\int_{\Omega_{\mathrm{sc},j}}\left[\frac{1}{2}\varepsilon |\nabla\phi|^2
++\frac{1}{2}\frac{\varepsilon}{\lams^2}(\phi-V_j)^2
+-\rho_{\mathrm{ext}}\phi\right]d\Omega.
+\label{eq:screened_energy_functional}
+\end{equation}
+The first term is ordinary electric-field energy. The second term is the energetic penalty for charge imbalance away from the superconducting electrochemical equilibrium. The third term couples the potential to fixed external charge.
+
+Take a variation $\phi\rightarrow\phi+\eta v$ and require
+\begin{equation}
+\left.\frac{d\mathcal{F}[\phi+\eta v]}{d\eta}\right|_{\eta=0}=0.
+\end{equation}
+The variation is
+\begin{equation}
+\delta\mathcal{F}
+=\int \left[\varepsilon\nabla\phi\cdot\nabla v
++\frac{\varepsilon}{\lams^2}(\phi-V_j)v
+-\rho_{\mathrm{ext}}v\right]d\Omega.
+\end{equation}
+Integrating the first term by parts gives
+\begin{equation}
+\delta\mathcal{F}
+=\int\left[-\nabla\cdot(\varepsilon\nabla\phi)
++\frac{\varepsilon}{\lams^2}(\phi-V_j)-\rho_{\mathrm{ext}}\right]v\,d\Omega
++\int_{\partial\Omega}v\varepsilon\nabla\phi\cdot\nvecb\,dA.
+\end{equation}
+For arbitrary $v$ in the interior, the Euler-Lagrange equation is
+\begin{equation}
+-\nabla\cdot(\varepsilon\nabla\phi)
++\frac{\varepsilon}{\lams^2}(\phi-V_j)-\rho_{\mathrm{ext}}=0,
+\end{equation}
+which is equivalent to
+\begin{equation}
+\nabla\cdot(\varepsilon\nabla\phi)-\frac{\varepsilon}{\lams^2}(\phi-V_j)=-\rho_{\mathrm{ext}}.
+\end{equation}
+This confirms the weak form and the positive-definite FEM matrix contribution in Eq.~\eqref{eq:screened_fem_matrix}.
+
+\subsection{Equipotential limit from the energy}
+
+The screening penalty term scales as
+\begin{equation}
+\int \frac{\varepsilon}{2\lams^2}(\phi-V_j)^2d\Omega.
+\end{equation}
+As $\lams\rightarrow 0$, any finite-energy solution must satisfy
+\begin{equation}
+\phi\rightarrow V_j
+\end{equation}
+inside the superconducting region. Thus the equipotential conductor model is not an ad hoc shortcut. It is the asymptotic limit of the screened electrostatic free energy.
+
+\section{One-dimensional screening example}
+
+\subsection{Potential decay into a superconducting half-space}
+
+Consider a flat superconducting half-space $x>0$ with a surface potential perturbation $\phi(0)=\phi_0$ and no external volume charge. The screened-Poisson equation is
+\begin{equation}
+\frac{d^2\phi}{dx^2}-\frac{\phi}{\lams^2}=0.
+\end{equation}
+The solution that remains finite as $x\rightarrow\infty$ is
+\begin{equation}
+\phi(x)=\phi_0 e^{-x/\lams}.
+\end{equation}
+The electric field is
+\begin{equation}
+E_x(x)=-\frac{d\phi}{dx}=\frac{\phi_0}{\lams}e^{-x/\lams}.
+\end{equation}
+The induced charge density follows from Eq.~\eqref{eq:induced_charge_linear}:
+\begin{equation}
+\rhoind(x)=-\frac{\varepsilon}{\lams^2}\phi_0 e^{-x/\lams}.
+\end{equation}
+The integrated surface screening charge per unit area is
+\begin{equation}
+\sigma_{\mathrm{scr}}=\int_0^\infty \rhoind(x)\,dx
+=-\frac{\varepsilon\phi_0}{\lams}.
+\end{equation}
+This simple solution explains why the bulk of a superconductor is field-free while the surface can carry the charge required to satisfy boundary conditions.
+
+\subsection{Numerical implication}
+
+If $\lams$ is far smaller than the smallest mesh element, a finite-element solver cannot accurately represent $e^{-x/\lams}$. Attempting to do so creates a stiff, ill-conditioned problem. For a device-scale solver, replacing the screened layer by an equipotential conductor with surface charge is the correct reduced description.
+
+\section{How Module 2 superconductivity changes the PINN/CPINN interpretation}
+
+The existing Module 2 PINN and CPINN extensions use a neural approximation to the potential and penalize the Poisson residual. In the superconducting extension, the residual must become region dependent:
+\begin{equation}
+\Rpoisson(\mathbf{x})=
+\begin{cases}
+\nabla\cdot(\epsd\nabla\phi_\theta)+\rho_d, & \mathbf{x}\in\Omd,\\[0.6em]
+\nabla\cdot(\epssc\nabla\phi_\theta)-\dfrac{\epssc}{\lams^2}(\phi_\theta-V_j)+\rho_{s,\mathrm{ext}}, & \mathbf{x}\in\Omega_{\mathrm{sc},j} \text{ if screened},\\[0.8em]
+\phi_\theta-V_j, & \mathbf{x}\in\Omega_{\mathrm{sc},j} \text{ if equipotential penalty is used}.
+\end{cases}
+\end{equation}
+Boundary/interface losses must also change. A superconducting island is not just another boundary segment with arbitrary Neumann flux. Its potential is constrained, and its net charge may be a global output or constraint.
+
+For CPINN specifically, the causal or continuation coordinate should not be interpreted as physical time for a static Poisson problem. Better ordered coordinates are
+\begin{equation}
+\alpha\in[0,1]
+\end{equation}
+where $\alpha$ may represent increasing trapped-charge amplitude, increasing radiation dose, increasing defect population, or increasing coupling iteration index. The superconducting version can use a continuation from zero trapped charge to full radiation-induced trapped charge:
+\begin{equation}
+\rho_t(\mathbf{x};\alpha)=\alpha\rho_t^{\mathrm{final}}(\mathbf{x}).
+\end{equation}
+The model then learns how island offset charge and field patterns evolve as radiation-induced charge is introduced.
+
+\section{Verification tests for a future superconducting Module 2 code}
+
+A future MATLAB implementation should not begin with the full hybrid radiation problem. It should pass simple tests first.
+
+\subsection{Test 1: grounded plane above a point-like trapped charge}
+
+Place a localized charge in the dielectric below a grounded superconducting plane. The plane should remain $\phi=0$, and induced charge should appear on the plane. The field pattern should resemble an image-charge solution in the appropriate geometry.
+
+\subsection{Test 2: parallel-plate capacitance}
+
+Model two superconducting plates separated by a dielectric. With $V_1=V$ and $V_2=0$, the capacitance should approach
+\begin{equation}
+C=\frac{\varepsilon A}{d}
+\end{equation}
+when fringing is negligible.
+
+\subsection{Test 3: floating island charge neutrality}
+
+Place a floating superconducting island near a fixed trapped-charge distribution. If the island has zero prescribed net charge, the solved island potential should adjust so that
+\begin{equation}
+Q_j=-\int_{\Gamma_j}\nvecb\cdot\varepsilon\nabla\phi\,dA=0.
+\end{equation}
+This test verifies the global constraint implementation.
+
+\subsection{Test 4: screened-Poisson exponential decay}
+
+In a one-dimensional superconducting slab, impose a surface potential perturbation. The numerical solution should converge to
+\begin{equation}
+\phi(x)=\phi_0 e^{-x/\lams}.
+\end{equation}
+This test should be used only when the mesh resolves $\lams$.
+
+\subsection{Test 5: offset-charge weighting potential}
+
+Compute $w_j$ for an island and verify that direct trapped-charge solves and the weighting-potential integral give the same $Q_{j,\mathrm{off}}$.
+
+
+\begin{thebibliography}{99}
+
+\bibitem{Tinkham}
+M. Tinkham, \textit{Introduction to Superconductivity}, 2nd ed., Dover Publications, 2004.
+
+\bibitem{deGennes}
+P. G. de Gennes, \textit{Superconductivity of Metals and Alloys}, Westview Press, 1999.
+
+\bibitem{Annett}
+J. F. Annett, \textit{Superconductivity, Superfluids and Condensates}, Oxford University Press, 2004.
+
+\bibitem{Schrieffer}
+J. R. Schrieffer, \textit{Theory of Superconductivity}, Westview Press, 1999.
+
+\bibitem{DevoretSchoelkopf}
+M. H. Devoret and R. J. Schoelkopf, ``Superconducting Circuits for Quantum Information: An Outlook,'' \textit{Science}, vol. 339, pp. 1169-1174, 2013.
+
+\bibitem{CatelaniReview}
+G. Catelani and L. I. Glazman, ``Quasiparticle poisoning in superconducting qubits,'' related review literature on quasiparticle effects in Josephson devices.
+
+\bibitem{Pan2022}
+X. Pan et al., ``Engineering superconducting qubits to reduce quasiparticles and charge noise,'' \textit{Nature Communications}, 2022.
+
+\bibitem{Yelton2024}
+E. Yelton et al., ``Modeling phonon-mediated quasiparticle poisoning in superconducting qubit arrays,'' arXiv:2402.15471, 2024.
+
+\bibitem{Larson2025}
+C. P. Larson et al., ``Quasiparticle poisoning of superconducting qubits with active gamma irradiation,'' arXiv:2503.07354, 2025.
+
+\bibitem{Ponce2023}
+F. Ponce, J. L. Orrell, and Z. Wang, ``Radiation-induced secondary emissions in solid-state devices as a possible contribution to quasiparticle poisoning of superconducting circuits,'' arXiv:2301.08239, 2023.
+
+\end{thebibliography}
+
+\end{document}
