@@ -253,9 +253,17 @@ Wire bonds connect on-chip bond pads to package traces, PCBs, coaxial launches, 
 
 The wire bond is not a DC power cable for the transmon island. In superconducting qubit operation, the device is controlled and read out by microwave electromagnetic fields. The physical path is approximately
 \begin{equation}
-\text{room-temperature source} \rightarrow \text{coaxial line} \rightarrow \text{attenuators/filters} \rightarrow \text{package launch} \rightarrow \text{wire bond} \rightarrow \text{on-chip CPW or control line}.
+\begin{aligned}
+&\text{room-temperature source}
+\rightarrow \text{coaxial line}
+\rightarrow \text{attenuators/filters} \\
+&\rightarrow \text{package launch}
+\rightarrow \text{wire bond}
+\rightarrow \text{on-chip CPW/feedline/control line}.
+\end{aligned}
+\label{eq:wire_signal_path}
 \end{equation}
-At the chip, the microwave field couples to a resonator, feedline, drive line, or flux line.
+At the chip, the microwave field couples to a resonator, feedline, drive line, or flux line. Equation~\eqref{eq:wire_signal_path} is deliberately split across two lines so the signal path remains visible in the PDF and does not run past the page margin.
 
 For Module 9 thermal modeling, the important effect is that wiring can add a local heat source or a thermal link. Possible terms include
 \begin{equation}
@@ -270,21 +278,227 @@ for local dissipative heating, or a boundary flux
 \end{equation}
 The wire-bond arc itself is above the substrate. In the first 2D MATLAB model, do not mesh the arc. Instead, mesh or tag the bond pad and apply a source, flux, or thermal-link condition there if wiring heating is being studied.
 
-\section{Material choices and why they matter}
-\begin{longtable}{>{\RaggedRight\arraybackslash}p{0.18\linewidth} >{\RaggedRight\arraybackslash}p{0.20\linewidth} >{\RaggedRight\arraybackslash}p{0.52\linewidth}}
+\section{Material choices and solid-state physics rationale}
+The material choices in Module 9 are not arbitrary labels for drawing regions. Each material is selected because its electronic structure, bonding chemistry, superconducting behavior, microwave loss, thermal transport, and fabrication compatibility support a specific role in the transmon package. A useful way to read the geometry is therefore not as ``many rectangles,'' but as a deliberately arranged solid-state system:
+\begin{equation}
+\begin{aligned}
+\text{Module 9 material stack}
+&= \text{dielectric substrate}
+ + \text{superconducting Al circuit} \\
+&\quad + \text{AlOx tunnel barrier}
+ + \text{normal-metal relaxation paths} \\
+&\quad + \text{package thermalization paths}.
+\end{aligned}
+\end{equation}
+The first MATLAB model does not need atomistic material physics, but it does need material-aware coefficients. In later modules these choices determine dielectric permittivity, loss tangent, heat capacity, thermal conductivity, quasiparticle diffusivity, quasiparticle recombination/trapping rates, carrier mobility, defect-generation rates, and boundary thermal conductance.
+
+\subsection{Periodic-table view of the baseline material set}
+The baseline transmon package uses a small set of elements with very different electronic roles:
+\begin{itemize}[leftmargin=1.5em]
+    \item \textbf{Aluminum, Al, atomic number 13}: a group-13 simple metal with three valence electrons. In the thin films of the qubit circuit it is a superconductor at dilution-refrigerator temperature and forms the native oxide used as the Josephson tunnel barrier.
+    \item \textbf{Silicon, Si, atomic number 14}: a group-14 covalent semiconductor with diamond-cubic bonding. In high-resistivity form it behaves as a low-loss dielectric/mechanical substrate rather than as an ordinary conducting semiconductor.
+    \item \textbf{Sapphire, $\mathrm{Al_2O_3}$}: a crystalline ionic/covalent oxide composed of Al and O. It is not a metal; it is a wide-band-gap insulating substrate with good microwave and cryogenic properties when high purity and well prepared.
+    \item \textbf{Oxygen, O, atomic number 8}: not used as a metal region, but chemically central because oxygen turns aluminum into aluminum oxide, $\mathrm{AlO_x}$ or approximately $\mathrm{Al_2O_3}$, which is the tunnel barrier.
+    \item \textbf{Copper, Cu, atomic number 29}: a group-11 normal metal with high electrical and thermal conductivity. It is useful for thermalization and quasiparticle trapping because it remains a normal metallic reservoir at the temperatures of interest.
+    \item \textbf{Gold, Au, atomic number 79}: a noble group-11 metal with excellent chemical stability, high conductivity, and good wire-bond/package compatibility. Its chemical inertness is valuable because uncontrolled oxides and surface chemistry can create microwave loss and poor contacts.
+    \item \textbf{Palladium, Pd, atomic number 46}: a transition metal with a large density of electronic states near the Fermi level and useful contact/proximity behavior in normal-metal trap stacks.
+\end{itemize}
+The geometry therefore combines three material classes: superconductors, insulators/dielectrics, and normal metals. The transmon needs all three. The superconductor supplies a coherent condensate and low microwave loss; the insulator supplies capacitance and the tunnel barrier; the normal metals supply dissipative relaxation and thermalization channels that the superconducting condensate itself cannot efficiently provide.
+
+\subsection{Substrate: sapphire or high-resistivity silicon}
+The substrate is the largest volume in the geometry. It supports the metal pattern mechanically, sets much of the microwave dielectric environment, stores and transports phonons, and receives a large fraction of the radiation-induced energy deposition in many scenarios.
+
+\subsubsection{Why an insulating or high-resistivity substrate is needed}
+A transmon should not sit on a lossy conducting slab. If the substrate had significant microwave conductivity, the resonator and qubit fields would drive currents in the substrate, converting microwave energy into heat. That loss would lower resonator quality factor and qubit coherence. Therefore the substrate must act primarily as a dielectric at the qubit frequency. In an electromagnetic model, the substrate enters through
+\begin{equation}
+    \mathbf{D}=\epsilon \mathbf{E},
+    \qquad
+    P_{\mathrm{diel}} \propto \omega \epsilon'' |\mathbf{E}|^2,
+\end{equation}
+where $\epsilon''$ is the lossy part of the dielectric response. The engineering objective is small dielectric loss in the regions where the microwave electric field is large, especially pad gaps, substrate surfaces, and metal-substrate interfaces.
+
+\subsubsection{Sapphire as a substrate}
+Sapphire is crystalline $\mathrm{Al_2O_3}$. From a bonding perspective it is an oxide: aluminum atoms are electropositive relative to oxygen, and the resulting solid has a large band gap and no free-electron sea. This makes sapphire a dielectric rather than a metal. Its useful properties for superconducting microwave circuits are:
+\begin{itemize}[leftmargin=1.5em]
+    \item \textbf{Low free-carrier density.} With no intentional carriers, sapphire does not provide an easy ohmic path for microwave dissipation.
+    \item \textbf{Good crystalline order.} A high-quality crystal has fewer bulk disorder sites than an amorphous dielectric, reducing one source of TLS-like loss.
+    \item \textbf{Mechanical and thermal stability.} It is a rigid substrate that can support thin films and survive processing.
+    \item \textbf{Dielectric participation control.} Its dielectric constant and geometry shape the CPW resonator velocity, transmon capacitance, and electric-field participation.
+\end{itemize}
+The weakness of sapphire for this project is that it is not the original silicon radiation-effects substrate. A sapphire model is excellent for transmon relevance, but high-resistivity silicon gives a more direct bridge to the earlier defect, carrier, and electrostatic modules.
+
+\subsubsection{High-resistivity silicon as a substrate}
+Silicon is a group-IV covalent semiconductor. Each Si atom forms four tetrahedral bonds in the diamond-cubic lattice. In ordinary electronics, silicon is useful because doping can tune its carrier density. For a qubit substrate, the opposite is desired: high resistivity, low carrier density, and low microwave loss. High-resistivity silicon is therefore treated as a dielectric-like body at low temperature, not as a conducting device channel.
+
+Silicon is especially useful for RadiationEffects\_proj2 because the existing project already models silicon radiation damage. Radiation can create electron-hole pairs, lattice defects, trapped charge, and local phonons. Thus high-resistivity Si lets Module 9 inherit the earlier language of defect concentrations $c_j$, carrier densities $n,p$, electrostatic fields $\varphi$, and recombination/trapping terms. The penalty is that Si surfaces, native oxide, impurity residues, and interface states can contribute to charge noise and microwave loss if not controlled.
+
+\subsubsection{Substrate role in the FEM model}
+For MATLAB FEM, the substrate should be the main 2D or 3D domain. It receives material parameters such as
+\begin{equation}
+    \epsilon_r,\quad k(T),\quad C(T),\quad \rho_{\mathrm{mass}},\quad D_j(T),\quad \mu_n(T),\quad \mu_p(T),
+\end{equation}
+with the understanding that not every module uses every coefficient. In the prompt qubit-error problem, substrate phonons and trapped charge are often more important than slow thermally activated lattice-defect diffusion at millikelvin temperature. In long-term accumulated-damage studies, defect populations and trapped charge become more important.
+
+\subsection{Aluminum for capacitor pads, junction leads, CPW, and JJ electrodes}
+Aluminum is the central superconducting material in the baseline geometry. It is used for the large capacitor pads, narrow junction leads, CPW resonator, coupling structures, and the two JJ electrodes.
+
+\subsubsection{Al as a simple metal}
+Aluminum is a light group-13 metal with three valence electrons. In a normal-metal picture, these valence electrons form broad conduction bands and a Fermi sea. This makes Al easy to use as a low-resistance thin-film conductor before considering superconductivity. It can be evaporated or sputtered, patterned by liftoff or etching, and integrated with standard planar microfabrication.
+
+\subsubsection{Al as a superconductor}
+At dilution-refrigerator temperatures aluminum is superconducting. The key microscopic fact is that below its superconducting transition temperature $T_c$ the electrons near the Fermi surface form Cooper pairs. In BCS language, the excitation spectrum develops an energy gap $\Delta$:
+\begin{equation}
+    E_k = \sqrt{\xi_k^2+\Delta^2}.
+\end{equation}
+The gap matters because a phonon or other excitation with energy greater than approximately $2\Delta$ can break a Cooper pair and generate quasiparticles. For aluminum, typical values are
+\begin{equation}
+    T_c \approx 1.2\,\mathrm{K},
+    \qquad
+    \Delta_{\mathrm{Al}} \sim 180\text{--}200\,\mu\mathrm{eV},
+    \qquad
+    2\Delta_{\mathrm{Al}} \sim 360\text{--}400\,\mu\mathrm{eV}.
+\end{equation}
+This is good for making a superconducting microwave circuit at $10$--$30\,\mathrm{mK}$, but it also creates a radiation vulnerability: pair-breaking phonons can populate the Al films with quasiparticles.
+
+\subsubsection{Why Al is used for pads and leads}
+The capacitor pads must be superconducting conductors with low microwave loss. Their large area creates the shunt capacitance $C_{\Sigma}$, which lowers
+\begin{equation}
+    E_C=\frac{e^2}{2C_{\Sigma}}.
+\end{equation}
+The narrow leads must be continuous with the pads and JJ electrodes. They define the geometric bottleneck between the large quasiparticle reservoirs and the JJ-sensitive region. Using the same Al film for pads and leads gives clean superconducting continuity and avoids extra interfaces that could add microwave loss, contact resistance, or uncontrolled proximity effects.
+
+\subsubsection{Why Al is used for the Josephson-junction electrodes}
+The strongest practical reason for Al is not merely that it superconducts. It is that aluminum forms a controllable native oxide. A standard tunnel junction can be fabricated as
+\begin{equation}
+    \mathrm{Al}\,/\,\mathrm{AlO_x}\,/\,\mathrm{Al}.
+\end{equation}
+The oxide thickness and oxidation conditions control the normal-state tunnel resistance, which controls the critical current $I_c$ and therefore
+\begin{equation}
+    E_J=\frac{\Phi_0 I_c}{2\pi}.
+\end{equation}
+This material stack gives the nonlinear Josephson current-phase relation
+\begin{equation}
+    I_s=I_c\sin\phi.
+\end{equation}
+Without the AlOx barrier, the left and right superconducting nodes would be directly shorted and the transmon would lose its nonlinear element.
+
+\subsubsection{Al is not chosen primarily as a heat sink}
+Aluminum is not thermally ideal in the superconducting state. Once Al becomes superconducting, the electronic heat capacity and normal electronic thermal conductivity are strongly suppressed at low temperature because most electrons are in the condensate. Heat can still move through phonons and quasiparticles, but the superconducting film is not a robust dissipative thermal dump. This is why Module 9 includes normal-metal traps and backside thermal sinks. In model language,
+\begin{equation}
+\begin{aligned}
+\text{Al regions} &\rightarrow \text{low-loss superconducting circuit}, \\
+\text{Cu/Au/Pd regions} &\rightarrow \text{relaxation and thermalization channels}.
+\end{aligned}
+\end{equation}
+
+\subsection{Aluminum oxide tunnel barrier: small chemically, dominant physically}
+The AlOx barrier is geometrically tiny but physically decisive. Chemically it is an aluminum-oxygen compound, approximately related to $\mathrm{Al_2O_3}$ but often written $\mathrm{AlO_x}$ because real tunnel barriers can be nonstoichiometric and disordered. Electronically it is an insulator. Its role is to block ordinary metallic conduction while allowing quantum tunneling of Cooper pairs.
+
+A useful solid-state picture is a barrier of height $U_0$ and thickness $d$. The tunneling amplitude depends approximately exponentially on barrier thickness,
+\begin{equation}
+    \mathcal{T} \sim \exp(-2\kappa d),
+    \qquad
+    \kappa \approx \frac{\sqrt{2m(U_0-E)}}{\hbar}.
+\end{equation}
+That exponential sensitivity is why oxidation control is so important. A change of only an atomic-scale thickness can noticeably change $I_c$ and $E_J$. The barrier also introduces a materials problem: amorphous or defective oxides can host TLSs. Those TLSs can couple to microwave electric fields in the junction or nearby surfaces and produce loss or noise. Thus AlOx is simultaneously the enabling element of the Josephson junction and one of the most sensitive material regions.
+
+For Module 9 FEM, the oxide is not meshed explicitly in the first implementation. Instead, $\Omega_{\mathrm{JJ}}$ is an effective region where radiation, quasiparticle, thermal, charge, and defect exposure are scored.
+
+\subsection{Normal-metal quasiparticle trap: Cu/Au/Pd}
+The normal-metal trap is deliberately not superconducting. Its purpose is to provide a place where quasiparticles in the Al film can relax before reaching the Josephson junction. In a reduced model this appears as a local sink term,
+\begin{equation}
+    -\Gamma_{\mathrm{trap}}(\mathbf{r})n_{\mathrm{qp}}.
+\end{equation}
+The trap only works as a quasiparticle trap if it is electrically or proximity-coupled to the superconducting metal. A normal-metal rectangle floating on bare substrate is not an efficient Al quasiparticle drain; it is at most a phonon or thermal absorber.
+
+\subsubsection{Why copper helps}
+Copper is a highly conductive normal metal with mobile electrons at the Fermi level. It does not become superconducting in the ordinary operating range relevant here, so it retains a continuous quasiparticle density of states at low energy. When a quasiparticle reaches a Cu-coupled trap, it can enter or relax into normal-metal electronic states rather than remaining in the superconducting Al excitation spectrum. Copper is also a strong thermal conductor, which helps spread and remove dissipated energy if it is well thermalized.
+
+In the FEM model, Cu-like behavior motivates large electronic/thermal diffusivity and a trap coefficient $\Gamma_{\mathrm{trap}}$ in the trap region or at the trap-pad interface. The exact value is not determined by the element name alone; it depends on interface transparency, oxide thickness, trap geometry, disorder, and temperature.
+
+\subsubsection{Why gold helps}
+Gold is chemically noble. It resists forming a thick native insulating oxide under ordinary processing conditions. That matters because uncontrolled oxides at metal interfaces can block electrical/thermal contact, create TLS-like defects, and make properties drift. Gold is also ductile and bondable, which is why it is common in wire bonds, pads, and package metallization. Its high atomic number and strong electron system make it useful as a robust normal-metal thermalization layer.
+
+Gold's advantage is therefore not that it is superconducting; it is useful precisely as a stable normal metal. In a trap or backside metallization stack, Au can protect surfaces, improve contact to package structures, and provide a chemically stable conducting layer. The caution is that any normal metal placed in a high microwave-field region can add loss if it is not placed carefully.
+
+\subsubsection{Why palladium may be used}
+Palladium is a transition metal with a large density of electronic states near the Fermi level. It is often used in multilayer normal-metal structures because it can provide good contact/proximity behavior with superconducting films and can help tailor quasiparticle relaxation. In simplified Module 9 language, Pd represents a normal-metal layer that can improve the trap's ability to absorb excitations from the Al without becoming a superconducting short across the qubit nodes.
+
+The exact stack Cu/Au/Pd should not be interpreted as a universal recipe. It is a placeholder for a normal-metal trap family. The model should allow the user to change $\Gamma_{\mathrm{trap}}$, trap geometry, and interface transparency independently.
+
+\subsubsection{Why the trap is placed on one pad and away from the JJ}
+The trap is placed on a superconducting pad because that is where it can couple to the Al quasiparticle population. It is placed away from the JJ because the JJ is the most microwave- and coherence-sensitive region. A normal metal close to the junction could introduce excess loss, alter the local electromagnetic environment, or create uncontrolled proximity effects. The trap must also not bridge the left and right pads; otherwise it would create a dissipative shunt across the qubit nodes.
+
+Thus the design rule is
+\begin{equation}
+    \text{strong enough coupling to drain quasiparticles}
+    \quad + \quad
+    \text{far enough from the JJ to avoid added loss}.
+\end{equation}
+This tradeoff is one of the natural geometry sweeps for RadiationEffects\_proj2.
+
+\subsection{Backside heat sink: Cu/Au thermalization patch}
+The backside heat sink is a thermalization feature on the bottom surface of the substrate. It should not be interpreted as a top-side normal trap. Its function is to remove substrate heat and provide a simplified representation of the chip-to-package thermal path.
+
+\subsubsection{Why copper and gold are natural backside metals}
+Copper and gold are normal metals with high thermal conductivity at low temperature when clean and well connected. The relevant solid-state mechanism is the mobile electron gas: in a normal metal, electrons carry both charge and heat. At low temperature, the relation between electrical and electronic thermal conductivity is often organized by the Wiedemann-Franz idea,
+\begin{equation}
+    \frac{k_e}{\sigma T} \approx L_0,
+\end{equation}
+where $L_0$ is the Lorenz number, $\sigma$ is electrical conductivity, and $k_e$ is electronic thermal conductivity. This is not a full cryogenic package model, but it explains why good normal metals are attractive thermal links.
+
+Copper is usually valued for high thermal conductivity. Gold is valued for chemical stability, contact reliability, and compatibility with bonding/metallization. In a multilayer thermalization patch, Cu may provide strong thermal conduction while Au may provide a stable surface and reliable contact.
+
+\subsubsection{How the backside sink enters the FEM model}
+The first FEM model should usually treat the backside sink as a boundary condition rather than a fully resolved $1\,\mu\mathrm{m}$ layer. A Robin condition,
+\begin{equation}
+    -k\nabla T\cdot\mathbf{n}=h_{\mathrm{sink}}(T-T_0),
+\end{equation}
+is more realistic than an ideal fixed-temperature patch because real die attach, interface roughness, acoustic mismatch, Kapitza boundary resistance, and package geometry all limit heat transfer. A Dirichlet condition $T=T_0$ is useful as a strong-sink limit.
+
+The backside sink can also represent phonon removal or phonon downconversion in a coarse model. Radiation events in the substrate can generate high-energy phonons. A bottom thermalization patch gives those phonons or their thermalized descendants a path out of the substrate, reducing energy available to generate quasiparticles in the top Al films.
+
+\subsection{Bond pads and wire bonds: Al/Au package interfaces}
+Bond pads and wire bonds are package-interface materials, not qubit-island power supplies. The transmon is driven and read out by microwave electromagnetic fields. The wires and package traces deliver AC signals, DC/low-frequency bias if present, ground connections, and thermal links.
+
+\subsubsection{Al bond pads}
+Al bond pads are natural when the on-chip wiring and CPW metal are patterned in the same Al layer. This avoids adding unnecessary metal interfaces and preserves process simplicity. In an FEM thermal model, a bond pad is a localized metal patch where heat can enter from package wiring or be removed to a thermalized package ground.
+
+\subsubsection{Au wire bonds}
+Gold wire is widely used because it is ductile, chemically stable, and bondable. The wire bond is not included as a meshed curved domain in the first 2D model because it lies above the substrate surface and belongs to the package domain. Its effect should enter through the bond pad as
+\begin{equation}
+    P_{\mathrm{wire}} = G_{\mathrm{wire}}(T_{\mathrm{pkg}}-T_{\mathrm{pad}})+P_{\mathrm{diss}}(t).
+\end{equation}
+The same physical wire can be a microwave conductor, a thermal conductor, and a source of parasitic inductance. For microwave accuracy, wire-bond inductance and package geometry matter. For the first RadiationEffects\_proj2 transport model, the most important effect is localized heat or thermal leakage at the bond pads.
+
+\subsection{CPW resonator and coupling capacitor materials}
+The CPW resonator and coupling capacitor are drawn in the full microwave-aware figure but are mostly outside the centerline 2D transport target. They are still important for understanding the physical device.
+
+The CPW resonator uses superconducting Al because microwave currents should flow with minimal ohmic loss. The resonance frequency is not set by Al alone; it is set by geometry and dielectric environment:
+\begin{equation}
+    f_r \sim \frac{v_p}{2L},
+    \qquad
+    v_p\approx \frac{c}{\sqrt{\epsilon_{\mathrm{eff}}}}.
+\end{equation}
+The coupling capacitor is also Al because it is a patterned superconducting conductor. Its function is geometric and electromagnetic: it permits capacitive microwave coupling while avoiding a DC short. For Module 9, the important lesson is that the microwave structure should be superconducting and low loss, but the thermal and quasiparticle mitigation structures are often normal-metal regions placed carefully away from high-field regions.
+
+\subsection{Material roles summarized for implementation}
+\begin{longtable}{>{\RaggedRight\arraybackslash}p{0.15\linewidth} >{\RaggedRight\arraybackslash}p{0.15\linewidth} >{\RaggedRight\arraybackslash}p{0.31\linewidth} >{\RaggedRight\arraybackslash}p{0.29\linewidth}}
 \toprule
-\textbf{Region} & \textbf{Material choice} & \textbf{Physics reason}\\
+\textbf{Region} & \textbf{Baseline material} & \textbf{Solid-state reason} & \textbf{Modeling implication}\\
 \midrule
-Substrate & Sapphire or high-resistivity silicon & Low microwave loss is desired. The substrate sets dielectric participation, capacitance, CPW phase velocity, thermal spreading, and radiation-damage volume. High-resistivity Si also connects naturally to the original silicon radiation-effects framework.\\
-Capacitor pads & Al & Aluminum is superconducting at dilution-refrigerator temperatures and is standard for Al/AlOx/Al junction fabrication. Large Al pads supply the transmon shunt capacitance.\\
-Junction leads & Al & Leads must be superconducting and continuous with the pads/JJ electrodes. Their geometry controls local inductance and quasiparticle transport to the JJ.\\
-JJ electrodes/barrier & Al/AlOx/Al & The AlOx barrier creates the nonlinear tunnel junction. Without the oxide barrier, the two pads would be shorted and the device would lose the Josephson nonlinearity.\\
-Normal trap & Cu/Au/Pd & Normal metals supply quasiparticle relaxation channels. They must be coupled to the superconducting metal but placed so they do not short the qubit nodes or introduce excessive microwave loss.\\
-Backside heat sink & Cu/Au & Normal-metal thermalization patch or boundary that removes heat to the package/cold stage. Cu/Au are useful thermal conductors.\\
-Bond pads and wire bonds & Al/Au & Bond pads provide on-chip contact regions; Au wire bonds connect to package traces. They carry microwave/control signals and can also conduct or dissipate heat.\\
-CPW resonator & Al & Superconducting microwave transmission-line element for readout/filtering with reduced ohmic loss at cryogenic temperature.\\
+Substrate & Sapphire or high-resistivity Si & Low free-carrier density, dielectric behavior, mechanical support, phonon host. & Main domain for heat, phonons, charge trapping, defects, and electrostatics.\\
+Pads, leads, CPW & Al & Superconducting thin film, low microwave loss, mature fabrication. & Superconducting domains; QP generation/diffusion regions; thin-film or surface regions.\\
+JJ barrier & AlOx & Insulating tunnel barrier formed by controlled oxidation of Al. & Do not mesh atomistically initially; use effective JJ scoring domain.\\
+Normal trap & Cu/Au/Pd & Normal-metal density of states and relaxation; chemical/contact stability. & QP sink term or trap boundary/interface on one pad.\\
+Backside sink & Cu/Au & High-conductivity normal-metal thermalization path to package/cold stage. & Bottom Robin/Dirichlet thermal boundary or thin sink patch.\\
+Bond pads/wires & Al/Au & Process-compatible pads and ductile, stable, conductive package wires. & Bond pads are top regions; wire arcs become boundary/source terms.\\
 \bottomrule
 \end{longtable}
+
+\begin{notebox}
+\textbf{Modeling caution.} Material names alone do not determine all coefficients. The quasiparticle trap rate, microwave loss, thermal boundary conductance, and defect/trap density are dominated by interfaces, disorder, oxidation, fabrication history, and geometry. Module 9 should therefore treat material choice as a physically informed starting point, while leaving coefficients sweepable.
+\end{notebox}
 
 \section{Code-ready 2D geometry convention}
 The final image is a schematic. For the MATLAB geometry builder, the most important requirement is topological correctness. The code geometry should enforce continuous metal connectivity between pads, leads, and the effective JJ region. The following coordinate convention is recommended for the first MATLAB implementation.
@@ -547,6 +761,10 @@ These omissions are acceptable for the first transport model. The purpose is to 
     \item M. Tinkham, \emph{Introduction to Superconductivity}, 2nd ed., Dover (2004).
     \item D. M. Pozar, \emph{Microwave Engineering}, 4th ed., Wiley (2011).
     \item J. M. Martinis et al., ``Decoherence in Josephson qubits from dielectric loss,'' \emph{Physical Review Letters} \textbf{95}, 210503 (2005).
+    \item C. Kittel, \emph{Introduction to Solid State Physics}, 8th ed., Wiley (2005).
+    \item N. W. Ashcroft and N. D. Mermin, \emph{Solid State Physics}, Brooks/Cole (1976).
+    \item S. M. Sze and K. K. Ng, \emph{Physics of Semiconductor Devices}, 3rd ed., Wiley (2006).
+    \item W. A. Little, ``The transport of heat between dissimilar solids at low temperatures,'' \emph{Canadian Journal of Physics} \textbf{37}, 334--349 (1959).
 \end{enumerate}
 
 \end{document}

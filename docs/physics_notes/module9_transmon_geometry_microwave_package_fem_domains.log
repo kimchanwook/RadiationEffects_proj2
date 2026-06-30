@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.26 (TeX Live 2025/dev/Debian) (preloaded format=pdflatex 2026.2.6)  29 JUN 2026 23:52
+This is pdfTeX, Version 3.141592653-2.6-1.40.26 (TeX Live 2025/dev/Debian) (preloaded format=pdflatex 2026.2.6)  30 JUN 2026 05:54
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -1139,7 +1139,9 @@ c/dvips/lm/lm-ec.enc}
 
 ]
 
-[2])
+[2]
+
+[3])
 \tf@toc=\write5
 \openout5 = `module9_transmon_geometry_microwave_package_fem_domains.toc'.
 
@@ -1148,15 +1150,15 @@ Underfull \hbox (badness 2205) in paragraph at lines 31--32
 []|\T1/lmr/m/n/10.95 (+20) Normal metal some-times used in 
  []
 
-[3{/usr/share/texmf/fonts/enc/dvips/lm/lm-mathit.enc}] [4{/usr/share/texmf/font
+[4{/usr/share/texmf/fonts/enc/dvips/lm/lm-mathit.enc}] [5{/usr/share/texmf/font
 s/enc/dvips/lm/lm-rm.enc}]
 
-[5{/usr/share/texmf/fonts/enc/dvips/lm/lm-mathsy.enc}]
-
-[6]
+[6{/usr/share/texmf/fonts/enc/dvips/lm/lm-mathsy.enc}]
 
 [7]
-<figures/mod9_Transmon_RF_Wire.png, id=283, 1541.76pt x 1027.84pt>
+
+[8]
+<figures/mod9_Transmon_RF_Wire.png, id=418, 1541.76pt x 1027.84pt>
 File: figures/mod9_Transmon_RF_Wire.png Graphic file (type png)
 <use figures/mod9_Transmon_RF_Wire.png>
 Package pdftex.def Info: figures/mod9_Transmon_RF_Wire.png  used on input line 
@@ -1168,8 +1170,8 @@ LaTeX Warning: Float too large for page by 15.24657pt on input line 93.
 
 
 
-[8 <./figures/mod9_Transmon_RF_Wire.png>]
-<figures/mod9_Transmon_2D_wire.png, id=290, 1622.06pt x 976.64874pt>
+[9 <./figures/mod9_Transmon_RF_Wire.png (PNG copy)>]
+<figures/mod9_Transmon_2D_wire.png, id=423, 1622.06pt x 976.64874pt>
 File: figures/mod9_Transmon_2D_wire.png Graphic file (type png)
 <use figures/mod9_Transmon_2D_wire.png>
 Package pdftex.def Info: figures/mod9_Transmon_2D_wire.png  used on input line 
@@ -1177,49 +1179,33 @@ Package pdftex.def Info: figures/mod9_Transmon_2D_wire.png  used on input line
 (pdftex.def)             Requested size: 630.9179pt x 379.87811pt.
 
 
-[9 <./figures/mod9_Transmon_2D_wire.png>]
+[10 <./figures/mod9_Transmon_2D_wire.png>]
 
-[10
+[11
 
 
 
 
 {/usr/share/texmf/fonts/enc/dvips/lm/lm-mathex.enc}]
 
-[11]
-
 [12]
 
 [13]
 
 [14]
-Overfull \hbox (136.44786pt too wide) detected at line 257
-[][][][] \OMS/lmsy/m/n/10.95 ! [] ! [] ! [] ! [] ! []\OML/lmm/m/it/10.95 :
- []
-
-
-Underfull \hbox (badness 1173) in paragraph at lines 281--281
-[]|\T1/lmr/m/n/10.95 (+20) JJ elec- 
- []
 
 [15]
 
 [16]
-LaTeX Font Info:    Trying to load font information for TS1+lmr on input line 3
-10.
+LaTeX Font Info:    Trying to load font information for TS1+lmr on input line 2
+98.
  (/usr/share/texmf/tex/latex/lm/ts1lmr.fd
 File: ts1lmr.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
 )
-Underfull \hbox (badness 2035) in paragraph at lines 330--331
-[]|\T1/lmr/m/n/10.95 (+20) Main di-elec- 
- []
 
+[17{/usr/share/texmf/fonts/enc/dvips/lm/lm-ts1.enc}]
 
-Overfull \hbox (1.02876pt too wide) in alignment at lines 326--343
- [] [] [] [] 
- []
-
-[17{/usr/share/texmf/fonts/enc/dvips/lm/lm-ts1.enc}] [18]
+[18]
 
 [19]
 
@@ -1232,26 +1218,57 @@ Overfull \hbox (1.02876pt too wide) in alignment at lines 326--343
 [23]
 
 [24]
+Overfull \hbox (1.01442pt too wide) in alignment at lines 486--497
+ [] [] [] [] 
+ []
 
 [25]
 
-[26] (./module9_transmon_geometry_microwave_package_fem_domains.aux)
+[26]
+Underfull \hbox (badness 2035) in paragraph at lines 544--545
+[]|\T1/lmr/m/n/10.95 (+20) Main di-elec- 
+ []
+
+
+Overfull \hbox (1.02876pt too wide) in alignment at lines 540--557
+ [] [] [] [] 
+ []
+
+[27]
+
+[28]
+
+[29]
+
+[30]
+
+[31]
+
+[32]
+
+[33]
+
+[34]
+
+[35]
+
+[36] (./module9_transmon_geometry_microwave_package_fem_domains.aux)
  ***********
 LaTeX2e <2024-11-01> patch level 2
 L3 programming layer <2025-01-18>
  ***********
 Package rerunfilecheck Info: File `module9_transmon_geometry_microwave_package_
 fem_domains.out' has not changed.
-(rerunfilecheck)             Checksum: C146633B14CD051F0B99BC22B0F24C80;10337.
+(rerunfilecheck)             Checksum: 5B96EE7DB1E2F275A8F34AFD3E14D183;17483.
  ) 
 Here is how much of TeX's memory you used:
- 33866 strings out of 473197
- 680504 string characters out of 5718606
- 1083375 words of memory out of 5000000
- 56272 multiletter control sequences out of 15000+600000
- 654899 words of font info for 200 fonts, out of 8000000 for 9000
+ 33976 strings out of 473197
+ 682142 string characters out of 5718606
+ 1082471 words of memory out of 5000000
+ 56305 multiletter control sequences out of 15000+600000
+ 655831 words of font info for 210 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 121i,13n,124p,1052b,1207s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ 121i,13n,124p,1052b,1240s stack positions out of 10000i,1000n,20000p,200000b,200000s
 </usr/share/texmf/fonts/type1/public/lm/lmbx10.pfb></usr/share/texmf/fonts/ty
 pe1/public/lm/lmbx12.pfb></usr/share/texmf/fonts/type1/public/lm/lmex10.pfb></u
 sr/share/texmf/fonts/type1/public/lm/lmmi10.pfb></usr/share/texmf/fonts/type1/p
@@ -1260,12 +1277,13 @@ e/texmf/fonts/type1/public/lm/lmr10.pfb></usr/share/texmf/fonts/type1/public/lm
 /lmr12.pfb></usr/share/texmf/fonts/type1/public/lm/lmr6.pfb></usr/share/texmf/f
 onts/type1/public/lm/lmr8.pfb></usr/share/texmf/fonts/type1/public/lm/lmri10.pf
 b></usr/share/texmf/fonts/type1/public/lm/lmsy10.pfb></usr/share/texmf/fonts/ty
-pe1/public/lm/lmsy8.pfb>
+pe1/public/lm/lmsy8.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfo
+nts/symbols/msbm10.pfb>
 Output written on module9_transmon_geometry_microwave_package_fem_domains.pdf (
-26 pages, 3313915 bytes).
+36 pages, 3449060 bytes).
 PDF statistics:
- 526 PDF objects out of 1000 (max. 8388607)
- 460 compressed objects within 5 object streams
- 128 named destinations out of 1000 (max. 500000)
- 53639 words of extra memory for PDF output out of 61914 (max. 10000000)
+ 736 PDF objects out of 1000 (max. 8388607)
+ 657 compressed objects within 7 object streams
+ 185 named destinations out of 1000 (max. 500000)
+ 53847 words of extra memory for PDF output out of 61914 (max. 10000000)
 
