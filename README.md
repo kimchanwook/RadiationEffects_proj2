@@ -8,7 +8,7 @@ This repository builds a physics-based framework linking radiation energy deposi
 - `docs/physics_notes/` - textbook-style module notes with derivations and symbol definitions
 - `docs/implementation_notes/` - implementation specifications and coding notes
 - `geant4/` - Geant4-side radiation deposition setup and exported damage-source products
-- `matlab/` - MATLAB codebase for Modules 2-7 and coupled studies
+- `matlab/` - MATLAB codebase for Modules 2-7 and coupled studies; Module 9 geometry is documented for the next MATLAB FEM extension
 
 ## Module architecture
 
@@ -19,6 +19,8 @@ This repository builds a physics-based framework linking radiation energy deposi
 - Module 5 - 2D drift-diffusion carrier transport with defect-assisted recombination using a first linear-triangle FEM path
 - Module 6 - coupled multiphysics integration of Modules 2, 3, 4, and 5 using a first staggered linear-triangle FEM coupling scaffold
 - Module 7 - multiscale extrapolation and scalable prediction methods
+- Module 8 - reduced-fidelity and importance-based physics selection
+- Module 9 - transmon geometry, microwave-package context, and 2D MATLAB FEM target domains
 
 
 ## Module 1 interaction-resolved campaign update
@@ -74,6 +76,8 @@ This package now includes:
 - Module 4 expanded FEM documentation, superconductivity thermal-transport extension note, linear-triangle thermal matrix assembly, and first implicit FEM ballistic-diffusive thermal path
 - Module 5 expanded physics note, superconductivity carrier-response extension note, FEM weak form, mass/diffusion/drift/recombination matrices, backward-Euler time stepping, first executable linear-triangle carrier-transport path, and carrier-transport verification tests
 - Module 6 expanded physics note defining the coupled multiphysics integration of defect, electrostatic, thermal, and carrier maps, superconductivity coupling-architecture extension note, including shared-mesh FEM discretization, block residual structure, and a first staggered MATLAB FEM coupling path
+- Module 8 reduced-fidelity and importance-scoring physics note
+- Module 9 transmon-geometry physics note defining the microwave-aware full model and the reduced 2D FEM target with substrate, Al pads/leads/JJ, normal trap, backside heat sink, bond pads, and wire-bond boundary treatment
 - shared 2D grid/plotting conventions aligned with Module 3
 - Module 2 FEM implementation note in `docs/implementation_notes/module2_fem_implementation_note.md`
 - Module 3 FEM implementation note in `docs/implementation_notes/module3_fem_implementation_note.md`
@@ -90,12 +94,13 @@ This package now includes:
 5. Use the defect field in Module 2 to compute electrostatics.
 6. Use electrostatics, thermal fields, and defect fields in Module 5 for carrier transport.
 7. Couple Modules 2-5 in Module 6.
-8. Use Module 7 for reduced-fidelity scaling, statistical extrapolation, or hybrid multiresolution prediction.
+8. Use Module 7/8 for reduced-fidelity scaling, statistical extrapolation, importance scoring, or hybrid multiresolution prediction.
+9. Use Module 9 as the superconducting transmon geometry baseline when moving from rectangular silicon cross sections to qubit-relevant FEM domains.
 
 ## Immediate next technical objective
 
-The next technical objective is to decide the first executable superconducting-region implementation path. The physics-note sequence for superconducting Modules 2-6 is now in place, so the natural next implementation target is a reduced superconducting Module 6 scaffold that couples offset charge, trapped charge, pair-breaking phonon population, quasiparticle density, and superconducting device metrics. In parallel, run the new Module 2 FEM/PINN/causal-PINN verification tests plus the Module 3, Module 4, Module 5, and Module 6 FEM verification tests in MATLAB. After that, refine the Module 6 staggered coupling path by replacing the reduced thermal update with the full Module 4 ballistic-diffusive FEM update, adding stronger defect-field drift coupling, and tightening the Poisson/drift-diffusion fixed-point loop.
+The next technical objective is to convert the Module 9 2D transmon geometry into a MATLAB FEM geometry/tagging function and then decide the first executable superconducting-region implementation path. The physics-note sequence for superconducting Modules 2-6 is now in place, so the natural next implementation target is a reduced superconducting Module 6 scaffold that couples offset charge, trapped charge, pair-breaking phonon population, quasiparticle density, and superconducting device metrics. In parallel, run the new Module 2 FEM/PINN/causal-PINN verification tests plus the Module 3, Module 4, Module 5, and Module 6 FEM verification tests in MATLAB. After that, refine the Module 6 staggered coupling path by replacing the reduced thermal update with the full Module 4 ballistic-diffusive FEM update, adding stronger defect-field drift coupling, and tightening the Poisson/drift-diffusion fixed-point loop.
 
 ## Important note
 
-This archive now includes the earlier Module 4 ballistic-diffusive thermal architecture update, the Module 2 finite-element electrostatics update, the Module 3 finite-element defect-evolution update, the Module 4 finite-element thermal-transport update, the Module 5 finite-element drift-diffusion carrier-transport update, the Module 6 staggered finite-element coupling update, and the Module 2-6 superconducting-region physics-note sequence. The Module 2, Module 3, Module 4, Module 5, and Module 6 FEM paths are first reduced solvers and coupling scaffolds, not yet a full production semiconductor TCAD simulator.
+This archive now includes the earlier Module 4 ballistic-diffusive thermal architecture update, the Module 2 finite-element electrostatics update, the Module 3 finite-element defect-evolution update, the Module 4 finite-element thermal-transport update, the Module 5 finite-element drift-diffusion carrier-transport update, the Module 6 staggered finite-element coupling update, and the Module 2-6 superconducting-region physics-note sequence, and the Module 9 transmon-geometry note. The Module 2, Module 3, Module 4, Module 5, and Module 6 FEM paths are first reduced solvers and coupling scaffolds, not yet a full production semiconductor TCAD simulator.
