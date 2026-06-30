@@ -23,7 +23,7 @@
 \ProjectTOC
 
 \begin{notebox}
-\textbf{Current architecture revision.} Module 1 is now planned as an \textbf{interaction-resolved Geant4 campaign} with separate photon and neutron runs across targeted energy bands so that different microscopic interaction mechanisms can be studied intentionally rather than mixed together in one broad source case. Modules 2--6 are now 2D-first. Module 2 now includes a first executable two-dimensional finite-element Poisson solver using linear triangular elements for defect-dependent space charge. Module 3 now also includes a linear triangular finite-element diffusion-reaction path with mass, diffusion, and reaction matrix assembly, in parallel with the earlier structured-grid implementation. Module 4 is now a single \textbf{two-dimensional ballistic-diffusive thermal-transport module} adapted from the ballistic-diffusive heat-conduction framework developed in the FEM\_BallisticDiffusion\_PINN project. Module 4 now includes both the first structured-grid ballistic-diffusive path and a linear triangular FEM path with heat-capacity matrix, thermal-conductivity matrix, source-vector assembly, and backward-Euler time stepping. Module 5 now includes a first linear triangular FEM drift-diffusion path with carrier mass, diffusion, electric-field drift, and linear recombination matrix assembly. Module 6 now includes a first staggered linear triangular FEM coupling scaffold that places defect concentration, electrostatic potential, temperature, electron density, and hole density on a shared mesh and iterates the coupled maps. The older Module 4a/4b thermal notes are archived as legacy baseline material. Module 7 remains the scaling and multiscale-prediction module.
+\textbf{Current architecture revision.} Module 1 is now planned as an \textbf{interaction-resolved Geant4 campaign} with separate photon and neutron runs across targeted energy bands so that different microscopic interaction mechanisms can be studied intentionally rather than mixed together in one broad source case. Modules 2--6 are now 2D-first. Module 2 now includes a first executable two-dimensional finite-element Poisson solver using linear triangular elements for defect-dependent space charge. Module 3 now also includes a linear triangular finite-element diffusion-reaction path with mass, diffusion, and reaction matrix assembly, in parallel with the earlier structured-grid implementation. Module 4 is now a single \textbf{two-dimensional ballistic-diffusive thermal-transport module} adapted from the ballistic-diffusive heat-conduction framework developed in the FEM\_BallisticDiffusion\_PINN project. Module 4 now includes both the first structured-grid ballistic-diffusive path and a linear triangular FEM path with heat-capacity matrix, thermal-conductivity matrix, source-vector assembly, and backward-Euler time stepping. Module 5 now includes a first linear triangular FEM drift-diffusion path with carrier mass, diffusion, electric-field drift, and linear recombination matrix assembly. Module 6 now includes a first staggered linear triangular FEM coupling scaffold that places defect concentration, electrostatic potential, temperature, electron density, and hole density on a shared mesh and iterates the coupled maps. The older Module 4a/4b thermal notes are archived as legacy baseline material. Module 7 remains the scaling and multiscale-prediction module, Module 8 records reduced-fidelity and importance-scoring logic, and Module 9 now defines the transmon geometry, microwave-package context, and reduced 2D FEM domains for the superconducting-device extension.
 \end{notebox}
 
 \section{Project objective}
@@ -54,6 +54,8 @@ The intended physics chain is:
 5 & Two-dimensional drift-diffusion carrier transport with defect-assisted recombination & Predict how the damaged device transports electrons and holes under the altered field, temperature, and trap landscape. The implementation now includes a first linear-triangle FEM path with mass, diffusion, drift, and linearized recombination matrix assembly.\\
 6 & Coupled two-dimensional multiphysics degradation model & Couple Modules 2, 3, 4, and 5 into a self-consistent simulator for defect evolution, field evolution, thermal evolution, and carrier-transport degradation. The current implementation adds a first staggered shared-mesh linear-triangle FEM coupling scaffold with convergence and charge-consistency diagnostics.\\
 7 & Multiscale extrapolation and scalable prediction & Develop methods for making predictions on much larger spatial, temporal, or statistical scales than the direct high-fidelity simulation can afford. This module covers controlled approximations, quantified error bars, statistical upscaling, and hybrid multiresolution workflows.\\
+8 & Reduced-fidelity and importance-based physics selection & Rank physics components by output impact per computational cost, define reduced-model error metrics, and guide which full-physics pathways should be retained in practical sweeps.\\
+9 & Transmon geometry, microwave package, and 2D FEM domains & Define the superconducting transmon-like device geometry, including the microwave-aware physical package picture and the reduced two-dimensional MATLAB FEM target with substrate, pads, leads, effective JJ region, normal-metal trap, backside heat sink, bond pads, and wiring boundary treatment.\\
 \bottomrule
 \end{longtable}
 }
@@ -96,6 +98,14 @@ This module integrates the previous physics pieces into a coupled framework. The
 \textbf{Module 7. Multiscale Extrapolation and Scalable Prediction}
 
 This module addresses the fact that direct high-fidelity simulations may be too expensive for large devices, long times, broad parameter sweeps, or population-level reliability predictions. It covers controlled reduced-fidelity approximations, statistical upscaling, and hybrid multiresolution workflows. A central requirement is that any speedup or approximation be accompanied by a quantitative error metric relative to a higher-fidelity reference.
+
+\textbf{Module 8. Reduced-Fidelity and Importance-Based Physics Selection}
+
+This module formalizes how the project selects which physics pathways are worth paying for computationally. It defines reduced-model error in output space, ablation-based impact measures, computational-cost estimates, and impact-per-cost importance scores. It supports practical decisions about when to keep or omit specific field solves, coupling terms, defect species, or fidelity upgrades.
+
+\textbf{Module 9. Transmon Geometry, Microwave Package, and 2D FEM Domains}
+
+This module defines the first qubit-relevant superconducting geometry for the project. It records the full microwave-aware transmon package picture, including CPW resonator, coupling capacitor, bond pads, wire bonds, normal-metal quasiparticle trap, and backside heat sink. It also defines the reduced 2D front cross-section selected for MATLAB FEM implementation. The first coding target will encode the substrate, aluminum pads, junction leads, effective JJ region, normal-metal trap, backside heat sink or sink boundary, and bond pads, while treating above-surface wire-bond arcs as boundary/source terms rather than meshed domains.
 
 
 \section{Module 3 kinetic-coefficient hierarchy}
@@ -187,7 +197,8 @@ arrow/.style={-{Latex[length=2.4mm]}, very thick, draw=accent}
     \item \textbf{Module 4:} 2D ballistic-diffusive thermal solver plus temperature-dependent coefficient handoff to later modules.
     \item \textbf{Module 5:} 2D drift-diffusion with prescribed electrostatic field, thermal field, and defect/trap fields; first linear-triangle FEM path now implemented.
     \item \textbf{Module 6:} weak coupling, then stronger feedback and iterative convergence.
-    \item \textbf{Module 7:} scalable-prediction methods after at least one credible high-fidelity coupled workflow exists.
+    \item \textbf{Module 7/8:} scalable-prediction methods and impact-per-cost physics selection after at least one credible high-fidelity coupled workflow exists.
+    \item \textbf{Module 9:} transmon geometry definition and 2D FEM target-domain tagging for the superconducting-device extension.
 \end{enumerate}
 
 \section{File-map overview}
@@ -200,7 +211,7 @@ arrow/.style={-{Latex[length=2.4mm]}, very thick, draw=accent}
 \path{docs/physics_notes/} & One large physics note per module, with derivations, symbol definitions, assumptions, and physical interpretation.\\
 \path{docs/implementation_notes/} & Module-by-module implementation specifications, solver notes, and interface notes.\\
 \path{geant4/} & Geant4-side setup, interaction-resolved campaign macros, and example outputs for Module 1.\\
-\path{matlab/} & MATLAB drivers, source code, tests, outputs, and cross-module interfaces for Modules 2--7.\\
+\path{matlab/} & MATLAB drivers, source code, tests, outputs, and cross-module interfaces for Modules 2--7; Module 9 currently supplies geometry documentation for the next MATLAB extension.\\
 \bottomrule
 \end{longtable}
 
