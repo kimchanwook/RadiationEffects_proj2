@@ -1,0 +1,552 @@
+
+\documentclass[11pt]{article}
+\input{../shared/project_style.tex}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{pdflscape}
+\usepackage{makecell}
+\newcolumntype{Y}{>{\RaggedRight\arraybackslash}X}
+\rhead{Module 9}
+
+\begin{document}
+
+\DocTitle{Module 9: Transmon Geometry, Microwave Package, and 2D FEM Domains}{Physics and geometry note for the superconducting-device extension}{Physics note for RadiationEffects\_proj2}
+
+\begin{overviewbox}
+\textbf{Purpose.} Module 9 defines the transmon-like superconducting device geometry that will be used as the first geometry-resolved target for the RadiationEffects\_proj2 superconducting extension. The module has two linked parts. First, it records the full microwave-aware physical picture: substrate, patterned aluminum transmon pads, Josephson junction, coplanar-waveguide resonator, coupling capacitor, normal-metal quasiparticle trap, backside thermal sink, bond pads, wire bonds, and package wiring. Second, it extracts a reduced two-dimensional front cross-section that can be encoded into the current MATLAB FEM framework. The current coding target is the 2D cross-section. The curved wire bond itself is above the top surface and should not be meshed in the first MATLAB FEM implementation; its on-chip bond pad and its thermal/electrical boundary effect can be represented.
+\end{overviewbox}
+
+\ProjectTOC
+
+\SymbolsAcronymsSection
+\begin{symtable}
+2D & Two-dimensional & Cross-section model resolving horizontal coordinate $x$ and vertical coordinate $z$; the out-of-plane coordinate $y$ is collapsed or treated parametrically. \\
+3D & Three-dimensional & Full spatial device and package geometry resolving $x$, $y$, and $z$. \\
+Al & Aluminum & Superconducting thin-film material used for the capacitor pads, junction leads, CPW resonator, coupling structures, and Josephson-junction electrodes. \\
+AlOx & Aluminum oxide & Thin tunnel barrier inside the Josephson junction. \\
+Au & Gold & Normal metal used for wire bonds or metallization layers in package/bond-pad connections. \\
+Cu & Copper & Normal metal used in thermal sinks or quasiparticle-trap stacks. \\
+Pd & Palladium & Normal metal sometimes used in quasiparticle-trap stacks because of good proximity/contact behavior and normal-metal relaxation channels. \\
+CPW & Coplanar waveguide & Planar microwave transmission-line structure with a center conductor and neighboring ground planes. \\
+JJ & Josephson junction & Nonlinear superconducting tunnel element, modeled locally as Al/AlOx/Al. \\
+SQUID & Superconducting quantum interference device & Superconducting loop interrupted by one or more Josephson junctions. The current Module 9 baseline is a single-JJ transmon, not a SQUID loop. \\
+Transmon & Transmission-line shunted plasma oscillation qubit & Superconducting qubit consisting of a Josephson junction shunted by a large capacitance. \\
+QP & Quasiparticle & Broken-Cooper-pair excitation in the superconducting film. \\
+TLS & Two-level system & Defect-like microscopic degree of freedom that can couple to microwave electric fields and cause loss or noise. \\
+$\Omega$ & Computational domain & Full spatial region included in a continuum solve. \\
+$\Omega_{\mathrm{sub}}$ & Substrate domain & Sapphire or high-resistivity silicon body. \\
+$\Omega_{\mathrm{pad}}$ & Capacitor-pad domain & Thin aluminum pad region providing most of the shunt capacitance. \\
+$\Omega_{\mathrm{lead}}$ & Junction-lead domain & Narrow aluminum conductor connecting pads to the JJ electrodes. \\
+$\Omega_{\mathrm{JJ}}$ & Effective JJ-sensitive domain & Small effective region used to score radiation, thermal, quasiparticle, defect, or trap exposure near the junction. \\
+$\Omega_{\mathrm{trap}}$ & Normal-metal trap domain & Cu/Au/Pd normal-metal region coupled to a superconducting pad to remove quasiparticles or act as a local relaxation sink. \\
+$\Gamma_{\mathrm{sink}}$ & Thermal-sink boundary & Backside thermalization patch, often more naturally modeled as a boundary condition than as a fully resolved thin metal. \\
+$\Gamma_{\mathrm{wire}}$ & Wiring boundary & Bond-pad or wiring-associated boundary where microwave dissipation, DC/flux-bias dissipation, or thermal leakage may enter the 2D thermal model. \\
+$C_{\Sigma}$ & Total qubit capacitance & Effective capacitance of the transmon node, dominated by the large pad geometry and electromagnetic environment. \\
+$E_C$ & Charging energy & Energy scale $e^2/(2C_{\Sigma})$. \\
+$E_J$ & Josephson energy & Energy scale associated with coherent Cooper-pair tunneling across the Josephson junction. \\
+$I_c$ & Critical current & Maximum Josephson supercurrent of the tunnel junction. \\
+$\phi$ & Superconducting phase difference & Gauge-invariant phase difference across the junction. \\
+$\Phi_0$ & Flux quantum & $h/(2e)$, the superconducting magnetic flux quantum. \\
+$n_{\mathrm{qp}}$ & Quasiparticle density & Nonequilibrium quasiparticle density field used for poisoning/exposure calculations. \\
+$T$ & Temperature & Lattice or effective thermal field. \\
+$c_j$ & Defect concentration & Concentration of radiation-induced defect species $j$. \\
+$Q_{\mathrm{rad}}$ & Radiation heat source & Volumetric or surface source derived from deposited energy. \\
+$Q_{\mathrm{wire}}$ & Wiring heat source & Effective local heat input associated with bond pads, wire bonds, feedlines, or package connections. \\
+$J_{\mathrm{JJ}}$ & Junction exposure metric & Integral of a damage-relevant field over the JJ-sensitive region and time. \\
+$t_m$ & Metal-film thickness & Baseline thin-film metal thickness, about $100\,\mathrm{nm}=10^{-4}\,\mathrm{mm}$. \\
+$t_{\mathrm{trap}}$ & Trap thickness & Baseline normal-trap thickness, about $80\,\mathrm{nm}=8\times10^{-5}\,\mathrm{mm}$. \\
+$t_{\mathrm{sink}}$ & Backside sink thickness & Effective heat-sink thickness, about $1\,\mu\mathrm{m}=10^{-3}\,\mathrm{mm}$ if represented as a thin domain. \\
+\end{symtable}
+
+\section{Why Module 9 is being added}
+RadiationEffects\_proj2 began as a silicon radiation-effects project: incident radiation deposits energy, defects form and evolve, electrostatics changes, carriers transport differently, and the device response degrades. The superconducting extension changes the most sensitive output quantity. Instead of only asking how a silicon device current or field changes, the superconducting device case asks how radiation-induced energy deposition, phonons, defects, trapped charge, quasiparticles, and thermal pathways affect a qubit-like structure.
+
+The project now needs a concrete geometry. Without a geometry, the superconducting notes in Modules 2--6 remain mostly physics couplings. Module 9 supplies the missing spatial object:
+\begin{physicsbox}
+\textbf{Module 9 geometry role.} Module 9 defines a planar transmon-like device region that can receive Module 1 deposited-energy maps and support Module 2 electrostatics, Module 3 defect/trap evolution, Module 4 thermal transport, Module 5 carrier/quasiparticle transport, Module 6 coupling, and Module 8 reduced scoring.
+\end{physicsbox}
+
+This module is not a MATLAB-code module yet. It is a physics-and-geometry note. The next coding step would be to convert the regions listed here into a MATLAB geometry/tagging function and then run the existing FEM machinery on that tagged domain.
+
+\section{Two geometry levels: microwave-aware full model and 2D MATLAB target}
+The two figures adopted for this module serve different purposes.
+
+\subsection{Full microwave-aware package geometry}
+The full model in Fig.~\ref{fig:mod9_full_rf} shows a microwave circuit context. It includes the transmon pads, Josephson junction, readout CPW resonator, coupling capacitor, normal-metal trap, backside heat sink, bond pads, and wire bonds. This geometry is the right mental model if the project later wants to compute microwave fields, resonator coupling, package parasitics, feedline dissipation, or bond-wire inductance.
+
+\subsection{Reduced 2D MATLAB FEM target}
+The reduced 2D model in Fig.~\ref{fig:mod9_2d_wire} is the immediate MATLAB FEM target. It resolves the front cross-section through the transmon centerline and contains the substrate, left/right capacitor pads, left/right junction leads, effective JJ region, exposed pad-gap substrate windows, normal-metal trap, backside heat sink, wire-bond pads, and drawn wire bonds.
+
+The current implementation decision is:
+\begin{notebox}
+\textbf{Coding convention.} Encode the substrate, pads, leads, effective JJ region, normal trap, backside heat sink or backside sink boundary, and wire-bond pads as geometric regions or boundary segments. Do \emph{not} mesh the curved wire-bond arcs in the first MATLAB FEM model because they lie above the top surface and are better represented as boundary heat fluxes, lumped thermal links, or package-coupling conditions at the bond pads.
+\end{notebox}
+
+\begin{landscape}
+\begin{figure}[p]
+    \centering
+    \includegraphics[width=0.97\linewidth]{figures/mod9_Transmon_RF_Wire.png}
+    \caption{Full microwave-aware transmon circuit geometry with wiring. This is the physical package-level picture: a patterned superconducting microwave chip with CPW resonator, coupling capacitor, transmon pads, Josephson junction, normal-metal quasiparticle trap, backside heat sink, bond pads, and wire bonds. It is not the first MATLAB FEM domain, but it defines the physical objects that the reduced 2D model is derived from.}
+    \label{fig:mod9_full_rf}
+\end{figure}
+\end{landscape}
+
+\begin{landscape}
+\begin{figure}[p]
+    \centering
+    \includegraphics[width=0.97\linewidth]{figures/mod9_Transmon_2D_wire.png}
+    \caption{Reduced two-dimensional front cross-section selected as the first MATLAB FEM target. The current plan is to encode all solid regions and surface/boundary patches except the curved wire-bond arcs. Wire-bond pads can be included as top metal regions; the bond-wire arcs themselves can be represented through boundary conditions or local heat/source terms applied at the bond pads.}
+    \label{fig:mod9_2d_wire}
+\end{figure}
+\end{landscape}
+
+\section{What physically makes this a transmon}
+A planar transmon can look deceptively simple: a dielectric substrate, patterned aluminum films, and a tiny AlOx tunnel barrier. That is not a weakness of the design. The physics comes from the circuit topology and the Josephson junction, not from using many different exotic materials.
+
+The transmon Hamiltonian, in its simplest single-junction form, is
+\begin{equation}
+    H = 4E_C(\hat{n}-n_g)^2 - E_J\cos\hat{\phi},
+    \label{eq:transmon_hamiltonian}
+\end{equation}
+where
+\begin{equation}
+    E_C = \frac{e^2}{2C_{\Sigma}},
+    \qquad
+    E_J = \frac{\Phi_0 I_c}{2\pi}.
+    \label{eq:EC_EJ}
+\end{equation}
+The large aluminum pads determine most of $C_{\Sigma}$, while the Al/AlOx/Al Josephson junction determines $E_J$ and supplies the nonlinear inductive element. The transmon regime is
+\begin{equation}
+    \frac{E_J}{E_C} \gg 1.
+    \label{eq:transmon_regime}
+\end{equation}
+Increasing $C_{\Sigma}$ lowers $E_C$ and suppresses charge dispersion. The junction nonlinearity keeps the energy levels weakly anharmonic so that the lowest two levels can be used as a qubit rather than behaving as a perfectly harmonic LC oscillator.
+
+\begin{physicsbox}
+\textbf{Key physical point.} If all aluminum regions were one continuous shorted conductor, the object would not be a transmon. The two superconducting nodes are separated by an AlOx tunnel barrier. That tunnel barrier allows coherent Cooper-pair tunneling while preventing the structure from becoming an ordinary metallic short.
+\end{physicsbox}
+
+\section{Single-JJ transmon, not a SQUID baseline}
+The Module 9 geometry uses one effective Josephson-junction region. Therefore the baseline is a single-JJ transmon-like device, not a DC SQUID. A DC SQUID would require two Josephson junctions in parallel around a superconducting loop:
+\begin{equation}
+    E_{J,\mathrm{eff}}(\Phi) \approx 2E_{J0}\cos\left(\pi\frac{\Phi}{\Phi_0}\right)
+\end{equation}
+for a symmetric loop. The present geometry has no loop and no second junction, so it should not be labeled a SQUID. A later Module 9 variant could replace the single JJ by a two-JJ loop if flux tunability becomes important.
+
+\section{Detailed physical role of each region}
+\subsection{Substrate}
+The substrate is the mechanical, dielectric, and thermal body that supports the patterned metal. The adopted material choices are sapphire or high-resistivity silicon. Both are common because they can have low microwave loss at cryogenic temperature when prepared well, and they are compatible with planar superconducting fabrication. In this project they also provide a bridge to the original radiation-effects model, where silicon is already central.
+
+For electromagnetic design, the substrate controls the effective dielectric constant of the CPW resonator and the capacitance between transmon pads. For thermal modeling, it is the main volume through which heat spreads from a radiation event or a dissipative wiring/bond-pad region. For defect modeling, it is the volume where radiation-induced lattice damage and trapped charge may be placed.
+
+In the 2D MATLAB target the substrate is a rectangle,
+\begin{equation}
+    \Omega_{\mathrm{sub}} = \{(x,z): -1.5\,\mathrm{mm}\le x\le 1.5\,\mathrm{mm},\; -0.5\,\mathrm{mm}\le z\le 0\}.
+\end{equation}
+The top surface is $z=0$ and the bottom surface is $z=-0.5\,\mathrm{mm}$.
+
+\subsection{Left and right capacitor pads}
+The large aluminum capacitor pads are not arbitrary metal blocks. They are the shunt capacitance of the transmon. Their area, separation, dielectric environment, nearby ground conductors, and package geometry help determine $C_{\Sigma}$.
+
+The electrostatic energy scale is
+\begin{equation}
+    E_C = \frac{e^2}{2C_{\Sigma}}.
+\end{equation}
+Large pads increase $C_{\Sigma}$ and reduce $E_C$. That reduction is why a transmon is much less sensitive to offset charge noise than a Cooper-pair box. In a radiation-effects model, the pads are also large superconducting reservoirs where quasiparticles can be generated, diffuse, relax, become trapped, or migrate toward the junction.
+
+The current material is Al because aluminum is a conventional superconducting thin film with a native oxide that can form AlOx tunnel barriers. The baseline thickness is about $100\,\mathrm{nm}$, which is thin compared with the $0.5\,\mathrm{mm}$ substrate thickness.
+
+\subsection{Pad gap and exposed substrate}
+The pad gap is exposed substrate separating the two large capacitor-pad nodes. It is not a separate inserted solid. It is a region of missing metal. In the microwave circuit, this exposed substrate contributes to the capacitance between the two superconducting nodes and can host dielectric participation. Dielectric participation matters because lossy interfaces or TLS-like defects in high-field regions can degrade the qubit.
+
+For the 2D FEM geometry, the pad-gap annotation should be interpreted as an exposed-substrate interval at the top surface. It should not break the electrical continuity of the narrow aluminum leads. The implemented lead/JJ topology must remain
+\begin{equation}
+    \text{left pad} \rightarrow \text{left lead} \rightarrow \Omega_{\mathrm{JJ}} \rightarrow \text{right lead} \rightarrow \text{right pad}.
+\end{equation}
+If an automated drawing or table suggests a disconnected lead, the connected topology overrides the drawing artifact.
+
+\subsection{Junction leads}
+The junction leads are narrow aluminum conductors that connect the capacitor pads to the junction electrodes. Their role is geometrically small but physically important. They make the circuit nodes continuous and define how quasiparticles can travel between a pad and the JJ-sensitive region.
+
+Because the leads are narrow, they can become bottlenecks for quasiparticle diffusion and local current density. In a radiation-induced quasiparticle model, lead geometry affects the time it takes quasiparticles generated in a pad to reach the junction. In a microwave model, lead geometry also contributes parasitic inductance and capacitance.
+
+The baseline lead width is $8\,\mu\mathrm{m}$ and the lead length is $40\,\mu\mathrm{m}$. In a 2D cross-section, the ``width'' shown along the cross-section is effectively the resolved in-plane length of the lead segment. The out-of-plane physical width is collapsed into the 2D reduction or represented by an effective thickness/area factor.
+
+\subsection{Effective Josephson-junction region}
+The real Josephson junction is an Al/AlOx/Al tunnel junction. The oxide barrier can be only about $1$--$2\,\mathrm{nm}$ thick, while the substrate is hundreds of micrometers thick. Directly meshing the barrier thickness in a full chip-scale 2D or 3D FEM model would create an extreme aspect-ratio problem.
+
+Therefore Module 9 uses an effective JJ-sensitive region:
+\begin{equation}
+    \Omega_{\mathrm{JJ}} = \text{small effective volume near the physical tunnel junction}.
+\end{equation}
+This region is not a literal resolved oxide mesh. It is the region where radiation, heat, quasiparticle, trap, and defect exposure are scored. The baseline effective dimension is about $1\,\mu\mathrm{m}$ laterally and $100\,\mathrm{nm}$ in effective vertical thickness.
+
+The Josephson physics is encoded by the current-phase relation
+\begin{equation}
+    I_s = I_c\sin\phi,
+    \label{eq:josephson_current}
+\end{equation}
+and the voltage-phase relation
+\begin{equation}
+    V = \frac{\Phi_0}{2\pi}\frac{d\phi}{dt}.
+    \label{eq:josephson_voltage}
+\end{equation}
+The nonlinearity in Eq.~\eqref{eq:josephson_current} is the source of the transmon's anharmonicity.
+
+\subsection{Local Cooper-pair flow through the junction}
+The JJ stack in the figure should be read as a local cross-section, not as a simple left-to-right metal block. The circuit path is lateral through the aluminum leads and electrodes, but the actual tunneling path is through the oxide barrier between the two superconducting electrodes. Conceptually,
+\begin{equation}
+    \text{left lead/electrode} \rightarrow \text{AlOx tunnel barrier} \rightarrow \text{right electrode/lead}.
+\end{equation}
+The local tunneling direction can be vertical through the overlap barrier, while the larger circuit connection remains left-to-right across the device.
+
+\subsection{Normal-metal quasiparticle trap}
+The normal trap is a Cu/Au/Pd region placed on or near a superconducting pad. Its purpose is to remove quasiparticles from the superconducting aluminum before they diffuse to the JJ. In a reduced diffusion-reaction equation, the trap contributes a local sink term,
+\begin{equation}
+    \frac{\partial n_{\mathrm{qp}}}{\partial t}
+    = \nabla\cdot(D_{\mathrm{qp}}\nabla n_{\mathrm{qp}})
+    - \Gamma_{\mathrm{trap}}(\mathbf{r}) n_{\mathrm{qp}}
+    - \Gamma_{\mathrm{rec}} n_{\mathrm{qp}}
+    + S_{\mathrm{qp}}(\mathbf{r},t).
+    \label{eq:qp_trap_model}
+\end{equation}
+The trap must be physically coupled to the superconducting metal. If it were placed only on bare substrate with no superconducting contact or tunneling/proximity coupling, it would not efficiently drain quasiparticles from the Al film. It might still act as a phonon or thermal absorber, but that is a different function.
+
+The baseline placement is on the right capacitor pad, away from the JJ. This placement is physically sensible because it gives quasiparticles a sink without directly contaminating the JJ region or bridging the two transmon nodes. The normal trap should not short the two capacitor pads.
+
+\subsection{Backside heat sink}
+The backside heat sink is a bottom-surface thermalization region, not a top-side quasiparticle trap. Its purpose is to represent coupling to a cold stage, package ground, backside metallization, or thermal anchor. The baseline material is Cu/Au and the baseline patch size is about $300\,\mu\mathrm{m}\times300\,\mu\mathrm{m}$ with $1\,\mu\mathrm{m}$ effective thickness if meshed.
+
+In the first MATLAB FEM thermal implementation, the heat sink can be represented more cleanly as a boundary condition on the bottom surface:
+\begin{equation}
+    -k\nabla T\cdot\mathbf{n} = h_{\mathrm{sink}}(T-T_0)
+    \qquad \text{on } \Gamma_{\mathrm{sink}},
+    \label{eq:robin_sink}
+\end{equation}
+where $h_{\mathrm{sink}}$ is an effective thermal boundary conductance. A stronger idealization is a Dirichlet cold patch,
+\begin{equation}
+    T=T_0 \qquad \text{on } \Gamma_{\mathrm{sink}}.
+    \label{eq:dirichlet_sink}
+\end{equation}
+The Robin form is usually more physical because real thermalization is finite.
+
+\subsection{CPW resonator and feedline structures}
+The full microwave-aware geometry contains a CPW resonator. A CPW consists of a center strip and two neighboring ground conductors patterned on the same surface. It supports microwave modes whose fields extend into the substrate and surrounding vacuum. The resonator is used for readout and can also mediate coupling between an external microwave line and the transmon.
+
+For a rough half-wave resonator,
+\begin{equation}
+    L \approx \frac{v_p}{2 f_r},
+\end{equation}
+where $v_p\approx c/\sqrt{\epsilon_{\mathrm{eff}}}$ is the phase velocity and $f_r$ is the resonator frequency. A few-GHz resonator on a dielectric substrate therefore naturally has a millimeter-scale electrical length. In the full drawing, the resonator is meandered so that this length fits on the chip.
+
+The CPW is not part of the first 2D transmon-centerline FEM geometry unless the chosen cross-section explicitly cuts through it. For microwave-accurate simulations, however, the CPW, ground planes, coupling capacitor, chip edges, wire bonds, package walls, and launch geometry all matter.
+
+\subsection{Coupling capacitor}
+The coupling capacitor $C_c$ connects the resonator/feedline electromagnetic mode to the transmon without creating a DC short. It sets the qubit-resonator coupling strength and readout access. In a circuit model, the relevant parameter is often the coupling rate $g$ or a dispersive shift $\chi$ derived from the qubit-resonator coupling.
+
+For thermal and radiation modeling, the coupling capacitor is also a patterned metal region where local fields and losses can occur. In the first 2D front cross-section, it is not included unless the section is chosen through the coupling feature. In a later full-chip EM/FEM model it should be represented.
+
+\subsection{Bond pads, wire bonds, and wiring}
+Wire bonds connect on-chip bond pads to package traces, PCBs, coaxial launches, ground, flux-bias lines, DC lines, or microwave readout/control lines. They carry AC microwave currents, DC or low-frequency currents if a bias line is present, and heat conducted from the package environment. They are therefore both electrical and thermal boundary features.
+
+The wire bond is not a DC power cable for the transmon island. In superconducting qubit operation, the device is controlled and read out by microwave electromagnetic fields. The physical path is approximately
+\begin{equation}
+\text{room-temperature source} \rightarrow \text{coaxial line} \rightarrow \text{attenuators/filters} \rightarrow \text{package launch} \rightarrow \text{wire bond} \rightarrow \text{on-chip CPW or control line}.
+\end{equation}
+At the chip, the microwave field couples to a resonator, feedline, drive line, or flux line.
+
+For Module 9 thermal modeling, the important effect is that wiring can add a local heat source or a thermal link. Possible terms include
+\begin{equation}
+    Q_{\mathrm{wire}}(\mathbf{r},t),
+    \label{eq:qwire}
+\end{equation}
+for local dissipative heating, or a boundary flux
+\begin{equation}
+    -k\nabla T\cdot\mathbf{n} = q_{\mathrm{wire}}(x,t)
+    \qquad \text{on } \Gamma_{\mathrm{wire}}.
+    \label{eq:wire_flux}
+\end{equation}
+The wire-bond arc itself is above the substrate. In the first 2D MATLAB model, do not mesh the arc. Instead, mesh or tag the bond pad and apply a source, flux, or thermal-link condition there if wiring heating is being studied.
+
+\section{Material choices and why they matter}
+\begin{longtable}{>{\RaggedRight\arraybackslash}p{0.18\linewidth} >{\RaggedRight\arraybackslash}p{0.20\linewidth} >{\RaggedRight\arraybackslash}p{0.52\linewidth}}
+\toprule
+\textbf{Region} & \textbf{Material choice} & \textbf{Physics reason}\\
+\midrule
+Substrate & Sapphire or high-resistivity silicon & Low microwave loss is desired. The substrate sets dielectric participation, capacitance, CPW phase velocity, thermal spreading, and radiation-damage volume. High-resistivity Si also connects naturally to the original silicon radiation-effects framework.\\
+Capacitor pads & Al & Aluminum is superconducting at dilution-refrigerator temperatures and is standard for Al/AlOx/Al junction fabrication. Large Al pads supply the transmon shunt capacitance.\\
+Junction leads & Al & Leads must be superconducting and continuous with the pads/JJ electrodes. Their geometry controls local inductance and quasiparticle transport to the JJ.\\
+JJ electrodes/barrier & Al/AlOx/Al & The AlOx barrier creates the nonlinear tunnel junction. Without the oxide barrier, the two pads would be shorted and the device would lose the Josephson nonlinearity.\\
+Normal trap & Cu/Au/Pd & Normal metals supply quasiparticle relaxation channels. They must be coupled to the superconducting metal but placed so they do not short the qubit nodes or introduce excessive microwave loss.\\
+Backside heat sink & Cu/Au & Normal-metal thermalization patch or boundary that removes heat to the package/cold stage. Cu/Au are useful thermal conductors.\\
+Bond pads and wire bonds & Al/Au & Bond pads provide on-chip contact regions; Au wire bonds connect to package traces. They carry microwave/control signals and can also conduct or dissipate heat.\\
+CPW resonator & Al & Superconducting microwave transmission-line element for readout/filtering with reduced ohmic loss at cryogenic temperature.\\
+\bottomrule
+\end{longtable}
+
+\section{Code-ready 2D geometry convention}
+The final image is a schematic. For the MATLAB geometry builder, the most important requirement is topological correctness. The code geometry should enforce continuous metal connectivity between pads, leads, and the effective JJ region. The following coordinate convention is recommended for the first MATLAB implementation.
+
+\subsection{Coordinate system}
+Use the 2D cross-section plane
+\begin{equation}
+    (x,z) \in [-1.5,1.5]\,\mathrm{mm}\times[-0.5,0]\,\mathrm{mm},
+\end{equation}
+with $z=0$ at the top surface and $z=-0.5\,\mathrm{mm}$ at the bottom surface. The out-of-plane coordinate $y$ is collapsed.
+
+Let
+\begin{equation}
+    t_m=10^{-4}\,\mathrm{mm},\qquad
+    t_{\mathrm{trap}}=8\times10^{-5}\,\mathrm{mm},\qquad
+    t_{\mathrm{sink}}=10^{-3}\,\mathrm{mm}.
+\end{equation}
+These thicknesses are much smaller than the substrate thickness. The first solver can either resolve them using thin elements or treat them as surface/interface regions with effective conductance/source terms.
+
+\subsection{Connected central transmon geometry}
+The following central geometry preserves the requested baseline values while keeping connectivity:
+\begin{itemize}[leftmargin=1.5em]
+    \item pad gap between large pad inner edges: $60\,\mu\mathrm{m}$;
+    \item left pad inner edge: $x=-0.030\,\mathrm{mm}$;
+    \item right pad inner edge: $x=+0.030\,\mathrm{mm}$;
+    \item effective JJ region: $x\in[-0.0005,+0.0005]$ mm;
+    \item left lead: $x\in[-0.0405,-0.0005]$ mm, so it touches the JJ and overlaps the left pad slightly;
+    \item right lead: $x\in[+0.0005,+0.0405]$ mm, so it touches the JJ and overlaps the right pad slightly;
+    \item left pad: $x\in[-0.630,-0.030]$ mm;
+    \item right pad: $x\in[+0.030,+0.630]$ mm.
+\end{itemize}
+The small lead-pad overlap is intentional. It prevents a numerical gap between the pad and the lead while preserving the $60\,\mu\mathrm{m}$ exposed pad-gap dimension between large pad edges.
+
+\begin{notebox}
+\textbf{Important correction for implementation.} The generated illustration is a visual target, but any inconsistent numeric table produced by an image generator should not be copied blindly. The MATLAB geometry must be connected: left pad touches left lead, left lead touches the JJ region, the JJ region touches the right lead, and the right lead touches the right pad.
+\end{notebox}
+
+\subsection{Recommended 2D region table}
+\begin{longtable}{>{\RaggedRight\arraybackslash}p{0.21\linewidth} >{\RaggedRight\arraybackslash}p{0.22\linewidth} >{\RaggedRight\arraybackslash}p{0.22\linewidth} >{\RaggedRight\arraybackslash}p{0.25\linewidth}}
+\toprule
+\textbf{Region} & \textbf{$x$ range (mm)} & \textbf{$z$ range (mm)} & \textbf{Implementation meaning}\\
+\midrule
+Substrate & $[-1.5,+1.5]$ & $[-0.5,0]$ & Main dielectric/semiconductor body.\\
+Left capacitor pad & $[-0.630,-0.030]$ & $[0,t_m]$ & Superconducting left node; shunt capacitance and QP reservoir.\\
+Right capacitor pad & $[+0.030,+0.630]$ & $[0,t_m]$ & Superconducting right node; shunt capacitance and QP reservoir.\\
+Pad gap & $[-0.030,+0.030]$ except where lead/JJ metal is present & top exposed surface & Exposed substrate gap; not a separate material and not a disconnected block.\\
+Left junction lead & $[-0.0405,-0.0005]$ & $[0,t_m]$ & Al lead connecting left pad to JJ; overlaps left pad over $10.5\,\mu\mathrm{m}$.\\
+Effective JJ region & $[-0.0005,+0.0005]$ & $[0,t_m]$ & Effective JJ-sensitive scoring region; not a fully resolved oxide mesh.\\
+Right junction lead & $[+0.0005,+0.0405]$ & $[0,t_m]$ & Al lead connecting JJ to right pad; overlaps right pad over $10.5\,\mu\mathrm{m}$.\\
+Normal-metal trap & e.g. $[+0.450,+0.550]$ & $[t_m,t_m+t_{\mathrm{trap}}]$ & Cu/Au/Pd trap on top of the right pad; can also be represented as a tagged surface sink on the right pad.\\
+Backside heat-sink patch & $[-0.150,+0.150]$ & $[-0.5,-0.5+t_{\mathrm{sink}}]$ or boundary only & Cu/Au bottom thermal patch or Robin/Dirichlet thermal boundary on $z=-0.5\,\mathrm{mm}$.\\
+Left bond pad & e.g. $[-1.48,-1.40]$ & $[0,t_m]$ & On-chip bond pad for package/wiring boundary condition.\\
+Right bond pad & e.g. $[+1.40,+1.48]$ & $[0,t_m]$ & On-chip bond pad for package/wiring boundary condition.\\
+Wire-bond arc & not meshed in first 2D model & above $z=0$ & Represent by boundary flux/source/thermal link at bond pad if needed.\\
+\bottomrule
+\end{longtable}
+
+\section{How Module 9 connects to existing modules}
+\subsection{Module 1: radiation source mapping}
+Module 1 supplies deposited energy. In the transmon geometry the source can be placed in the substrate, metal films, trap, heat sink, or near the JJ-sensitive region. A deposited-energy density $E_{\mathrm{dep}}(x,z)$ can be converted into a heat source
+\begin{equation}
+    Q_{\mathrm{rad}}(x,z,t) = \frac{E_{\mathrm{dep}}(x,z)}{\Delta t}
+\end{equation}
+or a defect-generation source
+\begin{equation}
+    G_d(x,z,t)=\eta_d \frac{Q_{\mathrm{rad}}(x,z,t)}{E_{d,\mathrm{form}}},
+\end{equation}
+where $\eta_d$ is an efficiency factor and $E_{d,\mathrm{form}}$ is an effective defect-formation energy scale.
+
+\subsection{Module 2: electrostatics and offset charge}
+In the superconducting transmon case, Module 2 can serve two roles. First, it can solve the electrostatic field in the substrate and gap regions due to trapped charge or radiation-induced charge. Second, it can estimate how trapped charge near high-field regions affects offset charge, surface participation, and local field stress. The full microwave capacitance matrix is not yet solved by the MATLAB 2D FEM scaffold, but the Module 9 geometry gives the spatial regions where such a later EM solve would be performed.
+
+The basic electrostatic equation is
+\begin{equation}
+    -\nabla\cdot(\epsilon\nabla\varphi)=\rho_{\mathrm{trap}}+\rho_{\mathrm{defect}}+\rho_{\mathrm{bias}}.
+\end{equation}
+For a full microwave-accurate model, the same geometry would be used in an eigenmode or driven-frequency EM solve rather than only a DC/low-frequency Poisson solve.
+
+\subsection{Module 3: defects and traps}
+Defect evolution in the substrate can still be represented by diffusion-reaction equations,
+\begin{equation}
+    \frac{\partial c_j}{\partial t}=\nabla\cdot(D_j\nabla c_j)+G_j-R_j,
+\end{equation}
+with material-dependent coefficients. In the superconducting geometry, special attention should be given to defects near surfaces, metal-substrate interfaces, pad-gap regions, and the JJ-sensitive region because they can act as TLSs, charge traps, or recombination centers.
+
+\subsection{Module 4: thermal transport}
+Module 4 becomes especially important because radiation, wiring, and microwave dissipation can create local heating. A baseline thermal equation is
+\begin{equation}
+    C(\mathbf{r})\frac{\partial T}{\partial t}=\nabla\cdot(k(\mathbf{r})\nabla T)+Q_{\mathrm{rad}}+Q_{\mathrm{wire}}+Q_{\mathrm{mw}}.
+\end{equation}
+The backside sink appears as a bottom boundary condition or thin thermal region. Bond pads can appear as localized heating or thermal leakage points.
+
+\subsection{Module 5: quasiparticle and carrier response}
+For a superconducting transmon, the most relevant mobile excitation may be quasiparticles rather than ordinary semiconductor electrons and holes. A reduced quasiparticle equation is
+\begin{equation}
+    \frac{\partial n_{\mathrm{qp}}}{\partial t}
+    = \nabla\cdot(D_{\mathrm{qp}}\nabla n_{\mathrm{qp}})
+    - \Gamma_{\mathrm{rec}}n_{\mathrm{qp}}
+    - \Gamma_{\mathrm{trap}}(\mathbf{r})n_{\mathrm{qp}}
+    + S_{\mathrm{qp}}(\mathbf{r},t).
+\end{equation}
+Here $S_{\mathrm{qp}}$ can be driven by pair-breaking phonons, radiation-induced energy deposition, or local microwave/thermal injection. The trap term is nonzero in $\Omega_{\mathrm{trap}}$ or at the trap-pad interface.
+
+\subsection{Module 6: coupled superconducting multiphysics}
+Module 6 can use Module 9 as a tagged geometry. The coupled state may include
+\begin{equation}
+    \mathbf{u}=\{T, c_j, \varphi, n_{\mathrm{qp}}, q_{\mathrm{trap}}, J_{\mathrm{JJ}}\}.
+\end{equation}
+The module then connects radiation source, thermal spreading, defect/trap evolution, charge offset, quasiparticle diffusion, and junction exposure.
+
+\section{Junction exposure and geometry-aware metrics}
+The central output metric for a transmon radiation-effects geometry should not be the maximum field anywhere in the chip. It should be an exposure metric weighted toward the junction and other sensitive regions. A generic JJ exposure score is
+\begin{equation}
+    J_{\mathrm{JJ}} = \int_0^{t_f}\int_{\Omega_{\mathrm{JJ}}} w_T\Delta T + w_{\mathrm{qp}}n_{\mathrm{qp}} + \sum_j w_j c_j + w_q |q_{\mathrm{trap}}|\, d\Omega\,dt.
+\end{equation}
+For a more focused quasiparticle-poisoning score,
+\begin{equation}
+    J_{\mathrm{qp,JJ}} = \int_0^{t_f}\int_{\Omega_{\mathrm{JJ}}} n_{\mathrm{qp}}(x,z,t)\,d\Omega\,dt.
+\end{equation}
+This metric is directly aligned with the geometry choice: the JJ-sensitive region is small, but it is the key failure-sensitive region.
+
+\section{Why the wire bond is treated specially}
+A bond wire has a real physical cross-section and can conduct heat and microwave current. However, it is not coplanar with the substrate cross-section. In a 2D $x$-$z$ substrate FEM model it would be an above-surface curved body that is difficult to represent meaningfully without adding a separate package-domain model.
+
+The first correct reduced treatment is to retain the bond pad and replace the wire arc by a boundary condition. For example, a heat leak from a warmer package line can be written as
+\begin{equation}
+    P_{\mathrm{wire}} = G_{\mathrm{wire}}(T_{\mathrm{pkg}}-T_{\mathrm{pad}}) + P_{\mathrm{diss}}(t),
+\end{equation}
+where $G_{\mathrm{wire}}$ is an effective thermal conductance and $P_{\mathrm{diss}}$ is local RF or bias dissipation. Distributed over a bond-pad contact area $A_{\mathrm{bp}}$, this gives
+\begin{equation}
+    q_{\mathrm{wire}} = \frac{P_{\mathrm{wire}}}{A_{\mathrm{bp}}}.
+\end{equation}
+This is both simpler and physically cleaner than meshing a curved wire in the first 2D device-domain solver.
+
+\section{Thin-film modeling choice}
+The metal thicknesses are $\sim100\,\mathrm{nm}$, while the substrate thickness is $0.5\,\mathrm{mm}$. The scale ratio is
+\begin{equation}
+    \frac{0.5\,\mathrm{mm}}{100\,\mathrm{nm}} = 5000.
+\end{equation}
+A uniform mesh that resolves the metal thickness and the full substrate thickness would be inefficient. The module therefore allows two implementation strategies.
+
+\subsection{Resolved thin-film strategy}
+Resolve the metal thickness with very fine elements near the top surface and coarser elements in the substrate. This is more faithful but more expensive. It requires graded meshing.
+
+\subsection{Surface-region strategy}
+Treat top metal as surface regions with effective thermal conductance, sheet heat capacity, quasiparticle sheet density, or boundary/source terms. This is the recommended first MATLAB strategy if the current mesh generator cannot robustly create graded thin layers.
+
+For example, a thin metal film with volumetric heat capacity $C_m$ and thickness $t_m$ can be represented by an areal heat capacity
+\begin{equation}
+    C_m^{\mathrm{sheet}} = C_m t_m.
+\end{equation}
+Likewise, a volumetric source $Q_m$ in a film can be converted to a surface source
+\begin{equation}
+    q_m^{\mathrm{sheet}} = Q_m t_m.
+\end{equation}
+
+\section{Microwave accuracy versus transport accuracy}
+A true microwave-accurate transmon model would solve Maxwell's equations or an equivalent frequency-domain/eigenmode problem over the full chip, package, and boundary environment. It would include CPW grounds, chip box, package walls, bond-wire inductance, launch geometry, dielectric interfaces, air/vacuum regions, and material loss tangents. Outputs would include resonator frequency, qubit capacitance, participation ratios, coupling rates, and field distributions.
+
+The first MATLAB FEM model is different. It is a geometry-resolved transport model for radiation, heat, defects, trapped charge, and quasiparticles. It is not expected to predict the resonator frequency or $S$-parameters. The 3D microwave geometry should therefore be used as a physical reference, while the 2D cross-section should be used as the executable transport geometry.
+
+\section{First recommended Module 9 implementation sequence}
+When coding begins, the recommended order is:
+\begin{enumerate}[leftmargin=1.5em]
+    \item Create a geometry parameter structure containing the dimensions in Table~\ref{tab:implementation_sequence_dims} and the connected-coordinate convention above.
+    \item Generate a 2D triangular mesh for the substrate rectangle.
+    \item Tag top-surface or thin-film regions for pads, leads, JJ, trap, bond pads, and backside sink.
+    \item Verify connectivity of the metal graph: left pad--left lead--JJ--right lead--right pad.
+    \item Add a thermal-only test with a heat source at one bond pad and a sink at the backside patch.
+    \item Add a quasiparticle diffusion-reaction test with a source on a pad, sink at the trap, and score in $\Omega_{\mathrm{JJ}}$.
+    \item Add a radiation source imported from Module 1 and compare JJ exposure with/without the normal trap.
+\end{enumerate}
+
+\begin{table}[H]
+\centering
+\caption{Baseline dimensions to carry into the MATLAB geometry parameter structure.}
+\label{tab:implementation_sequence_dims}
+\small
+\begin{tabularx}{\linewidth}{>{\RaggedRight\arraybackslash}p{0.28\linewidth} >{\RaggedRight\arraybackslash}p{0.22\linewidth} Y}
+\toprule
+\textbf{Quantity} & \textbf{Baseline} & \textbf{Comment}\\
+\midrule
+Substrate width & $3\,\mathrm{mm}$ & 2D target width.\\
+Substrate thickness & $0.5\,\mathrm{mm}$ & From top surface $z=0$ to bottom $z=-0.5\,\mathrm{mm}$.\\
+Pad width in cross-section & $600\,\mu\mathrm{m}$ each & Large Al shunt-capacitance regions.\\
+Pad gap & $60\,\mu\mathrm{m}$ & Exposed substrate between large pad inner edges.\\
+Lead length & $40\,\mu\mathrm{m}$ each & Lead segments should touch/overlap pads and touch JJ.\\
+Lead width & $8\,\mu\mathrm{m}$ & Out-of-plane width in physical layout; collapsed in 2D.\\
+Effective JJ lateral width & $1\,\mu\mathrm{m}$ & Scoring region, not resolved oxide barrier.\\
+Al thickness & $100\,\mathrm{nm}$ & Use resolved thin layer or effective surface region.\\
+Normal trap length & $100\,\mu\mathrm{m}$ & Place on one pad; do not bridge nodes.\\
+Normal trap thickness & $80\,\mathrm{nm}$ & Cu/Au/Pd normal-metal sink.\\
+Backside sink width & $300\,\mu\mathrm{m}$ & Centered thermal sink patch.\\
+Backside sink thickness & $1\,\mu\mathrm{m}$ effective & Prefer boundary condition initially.\\
+Bond pad width & $80$--$100\,\mu\mathrm{m}$ & Top metal patch for package/wire boundary.\\
+Wire diameter & about $25\,\mu\mathrm{m}$ & Do not mesh in first 2D model; represent by boundary condition.\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Verification tests for Module 9 geometry}
+Before any serious physics sweep, the geometry itself should be verified.
+
+\subsection{Connectivity check}
+Construct a graph where each metal region is a node and touching/overlap is an edge. The transmon metal graph should contain the path
+\begin{equation}
+    \Omega_{\mathrm{pad,L}} \leftrightarrow \Omega_{\mathrm{lead,L}} \leftrightarrow \Omega_{\mathrm{JJ}} \leftrightarrow \Omega_{\mathrm{lead,R}} \leftrightarrow \Omega_{\mathrm{pad,R}}.
+\end{equation}
+The normal trap should contact only its intended pad/trap interface and should not bridge the two transmon nodes.
+
+\subsection{Area and thickness checks}
+For every region, compare computed mesh area or tagged length against the analytical value. For example, the 2D substrate area should be
+\begin{equation}
+    A_{\mathrm{sub}} = (3\,\mathrm{mm})(0.5\,\mathrm{mm}) = 1.5\,\mathrm{mm}^2.
+\end{equation}
+The effective JJ cross-section area in a resolved thin-film model would be
+\begin{equation}
+    A_{\mathrm{JJ}} = (1\,\mu\mathrm{m})(100\,\mathrm{nm}) = 10^{-7}\,\mathrm{mm}^2.
+\end{equation}
+If using a surface model, this area should instead become a tagged segment with effective thickness.
+
+\subsection{Thermal sanity check}
+Apply a heat pulse on a bond pad and a backside sink boundary. The temperature maximum should start near the bond pad and relax toward the sink. If the heat sink is Dirichlet, the sink patch should remain at $T_0$. If the sink is Robin, the temperature should approach $T_0$ only in the strong-coupling limit.
+
+\subsection{Trap sanity check}
+Initialize a quasiparticle source on the right pad. The integrated $n_{\mathrm{qp}}$ near the JJ should decrease when the trap rate $\Gamma_{\mathrm{trap}}$ is increased, assuming the trap is located between the source region and the dominant diffusion path to the JJ or is sufficiently coupled to the pad reservoir.
+
+\section{Limitations of Module 9 as currently defined}
+The first Module 9 geometry is intentionally reduced. It does not yet include:
+\begin{itemize}[leftmargin=1.5em]
+    \item a full 3D graded mesh of the metal/substrate/package stack;
+    \item an explicit nanometer-scale AlOx barrier mesh;
+    \item a two-JJ SQUID loop;
+    \item full CPW eigenmode or driven microwave field solves in MATLAB;
+    \item package cavity modes, seam loss, or detailed coaxial launch structure;
+    \item microscopic TLS distributions;
+    \item first-principles material-specific quasiparticle trapping physics.
+\end{itemize}
+These omissions are acceptable for the first transport model. The purpose is to define a tractable geometry for radiation-induced thermal, defect, trap, charge, and quasiparticle exposure studies.
+
+\section{Summary of Module 9 design decisions}
+\begin{physicsbox}
+\begin{itemize}[leftmargin=1.5em]
+    \item The baseline device is a single-JJ planar transmon-like geometry, not a SQUID.
+    \item The large Al pads provide shunt capacitance; the Al/AlOx/Al junction provides Josephson nonlinearity.
+    \item The pad gap is exposed substrate, not a separate material block.
+    \item The leads and JJ must be electrically and geometrically continuous in the implemented model.
+    \item The normal-metal trap is a top-side quasiparticle sink coupled to one superconducting pad, not a generic substrate patch.
+    \item The backside heat sink is a bottom-surface thermalization feature and is best modeled first as a boundary condition.
+    \item Bond pads can be included as top-surface regions; curved wire bonds should initially enter through boundary/source terms rather than being meshed.
+    \item The 3D microwave-aware drawing is the physical reference; the 2D cross-section is the first MATLAB FEM coding target.
+\end{itemize}
+\end{physicsbox}
+
+\section{References}
+\begin{enumerate}[leftmargin=1.5em]
+    \item J. Koch et al., ``Charge-insensitive qubit design derived from the Cooper pair box,'' \emph{Physical Review A} \textbf{76}, 042319 (2007).
+    \item M. H. Devoret and R. J. Schoelkopf, ``Superconducting circuits for quantum information: an outlook,'' \emph{Science} \textbf{339}, 1169--1174 (2013).
+    \item A. Blais et al., ``Circuit quantum electrodynamics,'' \emph{Reviews of Modern Physics} \textbf{93}, 025005 (2021).
+    \item M. Tinkham, \emph{Introduction to Superconductivity}, 2nd ed., Dover (2004).
+    \item D. M. Pozar, \emph{Microwave Engineering}, 4th ed., Wiley (2011).
+    \item J. M. Martinis et al., ``Decoherence in Josephson qubits from dielectric loss,'' \emph{Physical Review Letters} \textbf{95}, 210503 (2005).
+\end{enumerate}
+
+\end{document}

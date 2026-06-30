@@ -1,0 +1,46 @@
+\contentsline {section}{Symbols and acronyms used in this document}{3}{Doc-Start}%
+\contentsline {section}{\numberline {1}Why Module 9 is being added}{6}{section.1}%
+\contentsline {section}{\numberline {2}Two geometry levels: microwave-aware full model and 2D MATLAB target}{6}{section.2}%
+\contentsline {subsection}{\numberline {2.1}Full microwave-aware package geometry}{6}{subsection.2.1}%
+\contentsline {subsection}{\numberline {2.2}Reduced 2D MATLAB FEM target}{6}{subsection.2.2}%
+\contentsline {section}{\numberline {3}What physically makes this a transmon}{10}{section.3}%
+\contentsline {section}{\numberline {4}Single-JJ transmon, not a SQUID baseline}{10}{section.4}%
+\contentsline {section}{\numberline {5}Detailed physical role of each region}{11}{section.5}%
+\contentsline {subsection}{\numberline {5.1}Substrate}{11}{subsection.5.1}%
+\contentsline {subsection}{\numberline {5.2}Left and right capacitor pads}{11}{subsection.5.2}%
+\contentsline {subsection}{\numberline {5.3}Pad gap and exposed substrate}{12}{subsection.5.3}%
+\contentsline {subsection}{\numberline {5.4}Junction leads}{12}{subsection.5.4}%
+\contentsline {subsection}{\numberline {5.5}Effective Josephson-junction region}{12}{subsection.5.5}%
+\contentsline {subsection}{\numberline {5.6}Local Cooper-pair flow through the junction}{13}{subsection.5.6}%
+\contentsline {subsection}{\numberline {5.7}Normal-metal quasiparticle trap}{13}{subsection.5.7}%
+\contentsline {subsection}{\numberline {5.8}Backside heat sink}{14}{subsection.5.8}%
+\contentsline {subsection}{\numberline {5.9}CPW resonator and feedline structures}{14}{subsection.5.9}%
+\contentsline {subsection}{\numberline {5.10}Coupling capacitor}{14}{subsection.5.10}%
+\contentsline {subsection}{\numberline {5.11}Bond pads, wire bonds, and wiring}{15}{subsection.5.11}%
+\contentsline {section}{\numberline {6}Material choices and why they matter}{15}{section.6}%
+\contentsline {section}{\numberline {7}Code-ready 2D geometry convention}{16}{section.7}%
+\contentsline {subsection}{\numberline {7.1}Coordinate system}{16}{subsection.7.1}%
+\contentsline {subsection}{\numberline {7.2}Connected central transmon geometry}{17}{subsection.7.2}%
+\contentsline {subsection}{\numberline {7.3}Recommended 2D region table}{17}{subsection.7.3}%
+\contentsline {section}{\numberline {8}How Module 9 connects to existing modules}{19}{section.8}%
+\contentsline {subsection}{\numberline {8.1}Module 1: radiation source mapping}{19}{subsection.8.1}%
+\contentsline {subsection}{\numberline {8.2}Module 2: electrostatics and offset charge}{19}{subsection.8.2}%
+\contentsline {subsection}{\numberline {8.3}Module 3: defects and traps}{20}{subsection.8.3}%
+\contentsline {subsection}{\numberline {8.4}Module 4: thermal transport}{20}{subsection.8.4}%
+\contentsline {subsection}{\numberline {8.5}Module 5: quasiparticle and carrier response}{20}{subsection.8.5}%
+\contentsline {subsection}{\numberline {8.6}Module 6: coupled superconducting multiphysics}{20}{subsection.8.6}%
+\contentsline {section}{\numberline {9}Junction exposure and geometry-aware metrics}{21}{section.9}%
+\contentsline {section}{\numberline {10}Why the wire bond is treated specially}{21}{section.10}%
+\contentsline {section}{\numberline {11}Thin-film modeling choice}{22}{section.11}%
+\contentsline {subsection}{\numberline {11.1}Resolved thin-film strategy}{22}{subsection.11.1}%
+\contentsline {subsection}{\numberline {11.2}Surface-region strategy}{22}{subsection.11.2}%
+\contentsline {section}{\numberline {12}Microwave accuracy versus transport accuracy}{22}{section.12}%
+\contentsline {section}{\numberline {13}First recommended Module 9 implementation sequence}{23}{section.13}%
+\contentsline {section}{\numberline {14}Verification tests for Module 9 geometry}{24}{section.14}%
+\contentsline {subsection}{\numberline {14.1}Connectivity check}{24}{subsection.14.1}%
+\contentsline {subsection}{\numberline {14.2}Area and thickness checks}{24}{subsection.14.2}%
+\contentsline {subsection}{\numberline {14.3}Thermal sanity check}{24}{subsection.14.3}%
+\contentsline {subsection}{\numberline {14.4}Trap sanity check}{24}{subsection.14.4}%
+\contentsline {section}{\numberline {15}Limitations of Module 9 as currently defined}{25}{section.15}%
+\contentsline {section}{\numberline {16}Summary of Module 9 design decisions}{25}{section.16}%
+\contentsline {section}{\numberline {17}References}{26}{section.17}%
