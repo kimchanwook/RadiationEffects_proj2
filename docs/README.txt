@@ -13,3 +13,5 @@ Current physics notes
 - module4_2d_ballistic_diffusive_thermal_transport.tex/.pdf
 - module5_2d_drift_diffusion_defect_recombination.tex/.pdf
 - module6_2d_coupled_multiphysics_integration.tex/.pdf
+- module8_reduced_fidelity_importance_scoring.tex/.pdf
+- module9_transmon_geometry_microwave_package_fem_domains.tex/.pdf
