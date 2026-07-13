@@ -1,0 +1,166 @@
+\contentsline {section}{Symbols and acronyms used in this document}{8}{Doc-Start}%
+\contentsline {section}{\numberline {1}Module 11 in one sentence}{10}{section.1}%
+\contentsline {section}{\numberline {2}Scope: one graph and only one graph}{11}{section.2}%
+\contentsline {subsection}{\numberline {2.1}The physical dependency graph}{11}{subsection.2.1}%
+\contentsline {subsection}{\numberline {2.2}What is deliberately excluded}{12}{subsection.2.2}%
+\contentsline {subsection}{\numberline {2.3}Why this narrower objective is scientifically stronger}{12}{subsection.2.3}%
+\contentsline {section}{\numberline {3}What does ``optimized physical dependency graph'' mean?}{12}{section.3}%
+\contentsline {section}{\numberline {4}Physical variables and equations inherited from Modules 2--5}{13}{section.4}%
+\contentsline {subsection}{\numberline {4.1}Defect evolution}{13}{subsection.4.1}%
+\contentsline {subsection}{\numberline {4.2}Electrostatics}{13}{subsection.4.2}%
+\contentsline {subsection}{\numberline {4.3}Carrier transport}{14}{subsection.4.3}%
+\contentsline {subsection}{\numberline {4.4}Thermal transport}{14}{subsection.4.4}%
+\contentsline {section}{\numberline {5}The candidate physical dependency graph for the current project}{14}{section.5}%
+\contentsline {subsection}{\numberline {5.1}Reduced executable graph}{15}{subsection.5.1}%
+\contentsline {subsection}{\numberline {5.2}Direct, indirect, and redundant edges}{16}{subsection.5.2}%
+\contentsline {subsection}{\numberline {5.3}Edge mechanism taxonomy}{16}{subsection.5.3}%
+\contentsline {section}{\numberline {6}Coupling sequences derived from a physical graph}{17}{section.6}%
+\contentsline {subsection}{\numberline {6.1}Why a total ordering may not exist}{17}{subsection.6.1}%
+\contentsline {subsection}{\numberline {6.2}Time unrolling}{17}{subsection.6.2}%
+\contentsline {subsection}{\numberline {6.3}Strongly connected components}{18}{subsection.6.3}%
+\contentsline {subsection}{\numberline {6.4}What the GNN should output}{18}{subsection.6.4}%
+\contentsline {section}{\numberline {7}Graph fundamentals}{19}{section.7}%
+\contentsline {subsection}{\numberline {7.1}Why graphs are the natural representation}{19}{subsection.7.1}%
+\contentsline {subsection}{\numberline {7.2}Directed, undirected, homogeneous, and heterogeneous graphs}{19}{subsection.7.2}%
+\contentsline {subsection}{\numberline {7.3}Adjacency matrices}{20}{subsection.7.3}%
+\contentsline {subsection}{\numberline {7.4}Permutation equivariance}{20}{subsection.7.4}%
+\contentsline {subsection}{\numberline {7.5}Receptive field and depth}{20}{subsection.7.5}%
+\contentsline {section}{\numberline {8}Neural-network foundations needed for GNNs}{20}{section.8}%
+\contentsline {subsection}{\numberline {8.1}A neuron and a multilayer perceptron}{21}{subsection.8.1}%
+\contentsline {subsection}{\numberline {8.2}Training as optimization}{21}{subsection.8.2}%
+\contentsline {subsection}{\numberline {8.3}Normalization is physically essential}{21}{subsection.8.3}%
+\contentsline {subsection}{\numberline {8.4}Overfitting and leakage}{21}{subsection.8.4}%
+\contentsline {section}{\numberline {9}Message passing: the core GNN operation}{22}{section.9}%
+\contentsline {subsection}{\numberline {9.1}General equations}{22}{subsection.9.1}%
+\contentsline {subsection}{\numberline {9.2}Directed typed messages}{22}{subsection.9.2}%
+\contentsline {subsection}{\numberline {9.3}Project-specific edge inference}{22}{subsection.9.3}%
+\contentsline {subsection}{\numberline {9.4}Readout functions}{23}{subsection.9.4}%
+\contentsline {section}{\numberline {10}Major GNN architectures and their relevance}{23}{section.10}%
+\contentsline {subsection}{\numberline {10.1}Graph convolutional networks}{23}{subsection.10.1}%
+\contentsline {subsection}{\numberline {10.2}GraphSAGE}{23}{subsection.10.2}%
+\contentsline {subsection}{\numberline {10.3}Graph attention networks}{24}{subsection.10.3}%
+\contentsline {subsection}{\numberline {10.4}Typed message-passing networks}{24}{subsection.10.4}%
+\contentsline {subsection}{\numberline {10.5}Neural relational inference}{24}{subsection.10.5}%
+\contentsline {section}{\numberline {11}Temporal graphs and dynamical dependence}{24}{section.11}%
+\contentsline {subsection}{\numberline {11.1}Instantaneous and lagged edges}{24}{subsection.11.1}%
+\contentsline {subsection}{\numberline {11.2}Recurrent graph model}{25}{subsection.11.2}%
+\contentsline {subsection}{\numberline {11.3}State-dependent graph strength}{25}{subsection.11.3}%
+\contentsline {section}{\numberline {12}Learning graph structure}{25}{section.12}%
+\contentsline {subsection}{\numberline {12.1}Fixed candidate graph, weighted graph, and latent graph}{25}{subsection.12.1}%
+\contentsline {subsection}{\numberline {12.2}Continuous edge gates}{25}{subsection.12.2}%
+\contentsline {subsection}{\numberline {12.3}Discrete edge types}{26}{subsection.12.3}%
+\contentsline {subsection}{\numberline {12.4}Causal discovery is not automatic}{26}{subsection.12.4}%
+\contentsline {subsection}{\numberline {12.5}Interventions}{26}{subsection.12.5}%
+\contentsline {section}{\numberline {13}Proposed Module 11 architecture}{26}{section.13}%
+\contentsline {subsection}{\numberline {13.1}Node definition}{26}{subsection.13.1}%
+\contentsline {subsection}{\numberline {13.2}Field-to-node feature extraction}{27}{subsection.13.2}%
+\contentsline {subsection}{\numberline {13.3}Node-type encoder}{27}{subsection.13.3}%
+\contentsline {subsection}{\numberline {13.4}Edge prior mask}{27}{subsection.13.4}%
+\contentsline {subsection}{\numberline {13.5}Encoder-decoder structure}{27}{subsection.13.5}%
+\contentsline {subsection}{\numberline {13.6}Graph output and thresholding}{28}{subsection.13.6}%
+\contentsline {section}{\numberline {14}Synthetic data: what it can and cannot establish}{28}{section.14}%
+\contentsline {subsection}{\numberline {14.1}What synthetic data can prove}{28}{subsection.14.1}%
+\contentsline {subsection}{\numberline {14.2}What synthetic data cannot prove}{28}{subsection.14.2}%
+\contentsline {subsection}{\numberline {14.3}Avoiding circularity}{28}{subsection.14.3}%
+\contentsline {section}{\numberline {15}Synthetic sample definition}{29}{section.15}%
+\contentsline {section}{\numberline {16}Synthetic generator architecture}{29}{section.16}%
+\contentsline {subsection}{\numberline {16.1}Layer 1: graph-family sampler}{29}{subsection.16.1}%
+\contentsline {subsection}{\numberline {16.2}Layer 2: parameter sampler}{30}{subsection.16.2}%
+\contentsline {subsection}{\numberline {16.3}Layer 3: source and initial-condition sampler}{31}{subsection.16.3}%
+\contentsline {subsection}{\numberline {16.4}Layer 4: mechanistic trajectory generator}{31}{subsection.16.4}%
+\contentsline {subsection}{\numberline {16.5}Layer 5: intervention generator}{31}{subsection.16.5}%
+\contentsline {subsection}{\numberline {16.6}Layer 6: observation and noise model}{31}{subsection.16.6}%
+\contentsline {section}{\numberline {17}Recommended synthetic parameter ranges}{32}{section.17}%
+\contentsline {subsection}{\numberline {17.1}Correlated sampling}{33}{subsection.17.1}%
+\contentsline {subsection}{\numberline {17.2}Dimensionless regime sampling}{33}{subsection.17.2}%
+\contentsline {section}{\numberline {18}Detailed intervention library}{34}{section.18}%
+\contentsline {subsection}{\numberline {18.1}Hard edge removal}{34}{subsection.18.1}%
+\contentsline {subsection}{\numberline {18.2}Soft intervention}{34}{subsection.18.2}%
+\contentsline {subsection}{\numberline {18.3}Node intervention}{34}{subsection.18.3}%
+\contentsline {subsection}{\numberline {18.4}Source intervention}{34}{subsection.18.4}%
+\contentsline {subsection}{\numberline {18.5}Factorial intervention design}{35}{subsection.18.5}%
+\contentsline {section}{\numberline {19}Synthetic dataset generation algorithm}{36}{section.19}%
+\contentsline {subsection}{\numberline {19.1}Pseudocode}{36}{subsection.19.1}%
+\contentsline {subsection}{\numberline {19.2}Dataset size ladder}{37}{subsection.19.2}%
+\contentsline {subsection}{\numberline {19.3}Active sampling}{37}{subsection.19.3}%
+\contentsline {section}{\numberline {20}Training targets and losses}{37}{section.20}%
+\contentsline {subsection}{\numberline {20.1}Multi-task objective}{37}{subsection.20.1}%
+\contentsline {subsection}{\numberline {20.2}State-prediction loss}{38}{subsection.20.2}%
+\contentsline {subsection}{\numberline {20.3}Edge-existence loss}{38}{subsection.20.3}%
+\contentsline {subsection}{\numberline {20.4}Edge-type and direction loss}{38}{subsection.20.4}%
+\contentsline {subsection}{\numberline {20.5}Lag loss}{38}{subsection.20.5}%
+\contentsline {subsection}{\numberline {20.6}Physics residual losses}{39}{subsection.20.6}%
+\contentsline {subsection}{\numberline {20.7}Conservation losses}{39}{subsection.20.7}%
+\contentsline {subsection}{\numberline {20.8}Intervention consistency}{39}{subsection.20.8}%
+\contentsline {subsection}{\numberline {20.9}Prior consistency and forbidden edges}{39}{subsection.20.9}%
+\contentsline {subsection}{\numberline {20.10}Loss-weight selection}{40}{subsection.20.10}%
+\contentsline {section}{\numberline {21}Training curriculum}{40}{section.21}%
+\contentsline {subsection}{\numberline {21.1}Phase 0: analytic two- and three-node systems}{40}{subsection.21.1}%
+\contentsline {subsection}{\numberline {21.2}Phase 1: fixed graph, state prediction}{41}{subsection.21.2}%
+\contentsline {subsection}{\numberline {21.3}Phase 2: edge strength}{41}{subsection.21.3}%
+\contentsline {subsection}{\numberline {21.4}Phase 3: edge presence and type}{41}{subsection.21.4}%
+\contentsline {subsection}{\numberline {21.5}Phase 4: lag and feedback groups}{41}{subsection.21.5}%
+\contentsline {subsection}{\numberline {21.6}Phase 5: noisy and discrepant data}{41}{subsection.21.6}%
+\contentsline {section}{\numberline {22}Train, validation, test, and OOD splits}{41}{section.22}%
+\contentsline {subsection}{\numberline {22.1}Split by complete physical family}{41}{subsection.22.1}%
+\contentsline {subsection}{\numberline {22.2}Topology split}{41}{subsection.22.2}%
+\contentsline {subsection}{\numberline {22.3}Parameter extrapolation}{42}{subsection.22.3}%
+\contentsline {subsection}{\numberline {22.4}Mechanism OOD}{42}{subsection.22.4}%
+\contentsline {subsection}{\numberline {22.5}Source-shape transfer}{42}{subsection.22.5}%
+\contentsline {section}{\numberline {23}Evaluation metrics}{42}{section.23}%
+\contentsline {subsection}{\numberline {23.1}Graph topology}{42}{subsection.23.1}%
+\contentsline {subsection}{\numberline {23.2}Direction and type}{42}{subsection.23.2}%
+\contentsline {subsection}{\numberline {23.3}Lag}{42}{subsection.23.3}%
+\contentsline {subsection}{\numberline {23.4}Edge strength}{43}{subsection.23.4}%
+\contentsline {subsection}{\numberline {23.5}Trajectory and intervention prediction}{43}{subsection.23.5}%
+\contentsline {subsection}{\numberline {23.6}SCC and sequence recovery}{43}{subsection.23.6}%
+\contentsline {subsection}{\numberline {23.7}Calibration}{43}{subsection.23.7}%
+\contentsline {section}{\numberline {24}Baselines the GNN must beat}{44}{section.24}%
+\contentsline {section}{\numberline {25}Proof-of-concept experiment ladder}{45}{section.25}%
+\contentsline {subsection}{\numberline {25.1}Experiment 0: three-node chain}{45}{subsection.25.1}%
+\contentsline {subsection}{\numberline {25.2}Experiment 1: common cause}{45}{subsection.25.2}%
+\contentsline {subsection}{\numberline {25.3}Experiment 2: delayed feedback}{45}{subsection.25.3}%
+\contentsline {subsection}{\numberline {25.4}Experiment 3: lumped Module 2--5 model}{46}{subsection.25.4}%
+\contentsline {subsection}{\numberline {25.5}Experiment 4: reduced field simulation}{46}{subsection.25.5}%
+\contentsline {subsection}{\numberline {25.6}Experiment 5: hidden-mechanism discrepancy}{46}{subsection.25.6}%
+\contentsline {section}{\numberline {26}Uncertainty and safe interpretation}{46}{section.26}%
+\contentsline {subsection}{\numberline {26.1}Sources of uncertainty}{46}{subsection.26.1}%
+\contentsline {subsection}{\numberline {26.2}Practical methods}{46}{subsection.26.2}%
+\contentsline {subsection}{\numberline {26.3}Abstention}{46}{subsection.26.3}%
+\contentsline {section}{\numberline {27}Interpretability}{46}{section.27}%
+\contentsline {subsection}{\numberline {27.1}Edge probability is not enough}{47}{subsection.27.1}%
+\contentsline {subsection}{\numberline {27.2}Counterfactual explanation}{47}{subsection.27.2}%
+\contentsline {subsection}{\numberline {27.3}Regime maps}{47}{subsection.27.3}%
+\contentsline {section}{\numberline {28}Computational considerations}{47}{section.28}%
+\contentsline {section}{\numberline {29}MATLAB-oriented data representation}{48}{section.29}%
+\contentsline {subsection}{\numberline {29.1}Recommended case structure}{48}{subsection.29.1}%
+\contentsline {subsection}{\numberline {29.2}Node-feature schema}{48}{subsection.29.2}%
+\contentsline {subsection}{\numberline {29.3}Edge-label schema}{49}{subsection.29.3}%
+\contentsline {subsection}{\numberline {29.4}MATLAB versus Python training}{49}{subsection.29.4}%
+\contentsline {section}{\numberline {30}Proposed Module 11 file architecture}{49}{section.30}%
+\contentsline {section}{\numberline {31}Verification and acceptance criteria}{50}{section.31}%
+\contentsline {section}{\numberline {32}Common failure modes}{51}{section.32}%
+\contentsline {subsection}{\numberline {32.1}Confusing association with direct dependence}{51}{subsection.32.1}%
+\contentsline {subsection}{\numberline {32.2}Forcing acyclicity}{51}{subsection.32.2}%
+\contentsline {subsection}{\numberline {32.3}Using attention as proof of causality}{51}{subsection.32.3}%
+\contentsline {subsection}{\numberline {32.4}Training on only one graph}{51}{subsection.32.4}%
+\contentsline {subsection}{\numberline {32.5}Common-source confounding}{51}{subsection.32.5}%
+\contentsline {subsection}{\numberline {32.6}Insufficient temporal resolution}{51}{subsection.32.6}%
+\contentsline {subsection}{\numberline {32.7}Unobserved mediators}{52}{subsection.32.7}%
+\contentsline {subsection}{\numberline {32.8}Physically impossible random samples}{52}{subsection.32.8}%
+\contentsline {subsection}{\numberline {32.9}Class imbalance}{52}{subsection.32.9}%
+\contentsline {subsection}{\numberline {32.10}Overly flexible candidate graph}{52}{subsection.32.10}%
+\contentsline {subsection}{\numberline {32.11}Synthetic-generator artifacts}{52}{subsection.32.11}%
+\contentsline {section}{\numberline {33}Scientific claims that are and are not defensible}{52}{section.33}%
+\contentsline {subsection}{\numberline {33.1}Defensible proof-of-concept claims}{52}{subsection.33.1}%
+\contentsline {subsection}{\numberline {33.2}Claims requiring experimental data}{52}{subsection.33.2}%
+\contentsline {section}{\numberline {34}Potential research contribution}{53}{section.34}%
+\contentsline {section}{\numberline {35}Extension to the superconducting branch}{53}{section.35}%
+\contentsline {section}{\numberline {36}Recommended development roadmap}{53}{section.36}%
+\contentsline {section}{\numberline {37}Immediate first implementation}{54}{section.37}%
+\contentsline {section}{\numberline {38}Summary}{54}{section.38}%
+\contentsline {section}{\numberline {39}Appendix A: detailed candidate dependency table}{55}{section.39}%
+\contentsline {section}{\numberline {40}Appendix B: example graph-family table}{56}{section.40}%
+\contentsline {section}{\numberline {41}Appendix C: derivation of GCN normalization}{57}{section.41}%
+\contentsline {section}{\numberline {42}Appendix D: reproducibility checklist}{57}{section.42}%
+\contentsline {section}{\numberline {43}References}{58}{section.43}%
