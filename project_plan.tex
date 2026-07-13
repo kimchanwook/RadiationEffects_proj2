@@ -23,7 +23,7 @@
 \ProjectTOC
 
 \begin{notebox}
-\textbf{Current architecture revision.} Module 1 is now planned as an \textbf{interaction-resolved Geant4 campaign} with separate photon and neutron runs across targeted energy bands so that different microscopic interaction mechanisms can be studied intentionally rather than mixed together in one broad source case. Modules 2--6 are now 2D-first. Module 2 now includes a first executable two-dimensional finite-element Poisson solver using linear triangular elements for defect-dependent space charge. Module 3 now also includes a linear triangular finite-element diffusion-reaction path with mass, diffusion, and reaction matrix assembly, in parallel with the earlier structured-grid implementation. Module 4 is now a single \textbf{two-dimensional ballistic-diffusive thermal-transport module} adapted from the ballistic-diffusive heat-conduction framework developed in the FEM\_BallisticDiffusion\_PINN project. Module 4 now includes both the first structured-grid ballistic-diffusive path and a linear triangular FEM path with heat-capacity matrix, thermal-conductivity matrix, source-vector assembly, and backward-Euler time stepping. Module 5 now includes a first linear triangular FEM drift-diffusion path with carrier mass, diffusion, electric-field drift, and linear recombination matrix assembly. Module 6 now includes a first staggered linear triangular FEM coupling scaffold that places defect concentration, electrostatic potential, temperature, electron density, and hole density on a shared mesh and iterates the coupled maps. The older Module 4a/4b thermal notes are archived as legacy baseline material. Module 7 remains the scaling and multiscale-prediction module, Module 8 records reduced-fidelity and importance-scoring logic, and Module 9 now defines the transmon geometry, microwave-package context, and reduced 2D FEM domains for the superconducting-device extension.
+\textbf{Current architecture revision.} Module 1 is now planned as an \textbf{interaction-resolved Geant4 campaign} with separate photon and neutron runs across targeted energy bands so that different microscopic interaction mechanisms can be studied intentionally rather than mixed together in one broad source case. Modules 2--6 are now 2D-first. Module 2 now includes a first executable two-dimensional finite-element Poisson solver using linear triangular elements for defect-dependent space charge. Module 3 now also includes a linear triangular finite-element diffusion-reaction path with mass, diffusion, and reaction matrix assembly, in parallel with the earlier structured-grid implementation. Module 4 is now a single \textbf{two-dimensional ballistic-diffusive thermal-transport module} adapted from the ballistic-diffusive heat-conduction framework developed in the FEM\_BallisticDiffusion\_PINN project. Module 4 now includes both the first structured-grid ballistic-diffusive path and a linear triangular FEM path with heat-capacity matrix, thermal-conductivity matrix, source-vector assembly, and backward-Euler time stepping. Module 5 now includes a first linear triangular FEM drift-diffusion path with carrier mass, diffusion, electric-field drift, and linear recombination matrix assembly. Module 6 now includes a first staggered linear triangular FEM coupling scaffold that places defect concentration, electrostatic potential, temperature, electron density, and hole density on a shared mesh and iterates the coupled maps. The older Module 4a/4b thermal notes are archived as legacy baseline material. Module 7 remains the scaling and multiscale-prediction module, Module 8 records reduced-fidelity and importance-scoring logic, Module 9 now defines the transmon geometry, microwave-package context, and reduced 2D FEM domains for the superconducting-device extension. Module 10 supplies the BCS, Ginzburg--Landau, and time-dependent Ginzburg--Landau theory foundation. Module 11 defines a physics-constrained graph-learning program for recovering the directed physical dependencies among Module 2--5 variables, classifying mechanism type, strength, sign, and lag, identifying feedback groups, and deriving a physically admissible partial coupling sequence from synthetic trajectories and interventions.
 \end{notebox}
 
 \section{Project objective}
@@ -56,6 +56,8 @@ The intended physics chain is:
 7 & Multiscale extrapolation and scalable prediction & Develop methods for making predictions on much larger spatial, temporal, or statistical scales than the direct high-fidelity simulation can afford. This module covers controlled approximations, quantified error bars, statistical upscaling, and hybrid multiresolution workflows.\\
 8 & Reduced-fidelity and importance-based physics selection & Rank physics components by output impact per computational cost, define reduced-model error metrics, and guide which full-physics pathways should be retained in practical sweeps.\\
 9 & Transmon geometry, microwave package, and 2D FEM domains & Define the superconducting transmon-like device geometry, including the microwave-aware physical package picture and the reduced two-dimensional MATLAB FEM target with substrate, pads, leads, effective JJ region, normal-metal trap, backside heat sink, bond pads, and wiring boundary treatment.\\
+10 & BCS, Ginzburg--Landau, and time-dependent Ginzburg--Landau superconductivity theory & Establish the microscopic and phenomenological theory required to interpret superconducting order, quasiparticles, Josephson coupling, spatial order-parameter variation, and nonequilibrium superconducting dynamics in the device branch.\\
+11 & Graph neural networks for physical dependency discovery & Recover directed physical-variable edges, relation types, strengths, signs, and time lags from graph-family synthetic trajectories and matched interventions; identify strongly connected feedback groups and derive a partial physical coupling sequence with physics constraints and uncertainty.\\
 \bottomrule
 \end{longtable}
 }
@@ -106,6 +108,14 @@ This module formalizes how the project selects which physics pathways are worth 
 \textbf{Module 9. Transmon Geometry, Microwave Package, and 2D FEM Domains}
 
 This module defines the first qubit-relevant superconducting geometry for the project. It records the full microwave-aware transmon package picture, including CPW resonator, coupling capacitor, bond pads, wire bonds, normal-metal quasiparticle trap, and backside heat sink. It also defines the reduced 2D front cross-section selected for MATLAB FEM implementation. The first coding target will encode the substrate, aluminum pads, junction leads, effective JJ region, normal-metal trap, backside heat sink or sink boundary, and bond pads, while treating above-surface wire-bond arcs as boundary/source terms rather than meshed domains.
+
+\textbf{Module 10. BCS, Ginzburg--Landau, and Time-Dependent Ginzburg--Landau Theory}
+
+This module supplies the superconductivity theory foundation for the device branch. It connects the normal-state electron gas, pairing interaction, BCS ground state, quasiparticle excitation spectrum, gap equation, condensate phase, Ginzburg--Landau free energy, coherence and penetration lengths, flux quantization, Josephson relations, and time-dependent order-parameter evolution. It is a theory module rather than an independent numerical block in the present Module 6 semiconductor loop.
+
+\textbf{Module 11. Graph Neural Networks for Physical Dependency Discovery}
+
+This module asks whether graph neural networks and graph-structure-learning methods can recover the directed physical dependency graph connecting defect, electrostatic, carrier, and thermal quantities in Modules 2--5. The proof of concept will generate multiple graph families using explicit mechanism switches and continuous edge multipliers, produce matched interventions, infer direct versus indirect edges, classify relation type and lag, quantify state-dependent edge strength, and identify strongly connected feedback groups. A physical coupling sequence is derived by collapsing feedback groups into a condensation graph and topologically ordering that graph. Spatial mesh adjacency and numerical solver scheduling are explicitly excluded from the Module 11 learning target.
 
 
 \section{Module 3 kinetic-coefficient hierarchy}
@@ -163,25 +173,27 @@ The run order below is the logical flow of a coupled study.
 
 \begin{center}
 \begin{tikzpicture}[
-node distance=8mm and 6mm,
-box/.style={draw=accent, rounded corners=2pt, fill=accent2, minimum width=0.91\linewidth, text width=0.91\linewidth, align=left, inner sep=7pt},
+node distance=3mm and 4mm,
+box/.style={draw=accent, rounded corners=2pt, fill=accent2, minimum width=0.87\linewidth, text width=0.87\linewidth, align=left, inner sep=4pt, font=\small},
 arrow/.style={-{Latex[length=2.4mm]}, very thick, draw=accent}
 ]
-\node[box] (m1) {\textbf{Step 1. Module 1: Geant4 radiation transport}\\Run the Geant4 silicon geometry and score deposited energy, hit coordinates, optional timing information, and any derived damage-source products.};
-\node[box, below=of m1] (handoff) {\textbf{Step 2. Geant4-to-MATLAB handoff}\\Bin or interpolate the Geant4 output into a 2D deposition map or initial defect-source map on a MATLAB-side grid.};
-\node[box, below=of handoff] (m3) {\textbf{Step 3. Module 3: defect evolution}\\Evolve the 2D defect state under diffusion, reactions, clustering, dissociation, annealing, and optional source terms.};
-\node[box, below=of m3] (m4) {\textbf{Step 4. Module 4: ballistic-diffusive thermal field}\\Solve or update the 2D temperature field with the reduced ballistic-diffusive thermal model and use it to modify defect and transport coefficients.};
-\node[box, below=of m4] (m2) {\textbf{Step 5. Module 2: electrostatics}\\Build the net space-charge density from dopants and charged defects, then solve for electric potential and electric field.};
-\node[box, below=of m2] (m5) {\textbf{Step 6. Module 5: carrier transport}\\Solve the 2D electron and hole transport problem with field-driven drift, concentration-driven diffusion, and defect-assisted recombination or trapping.};
-\node[box, below=of m5] (m6) {\textbf{Step 7. Module 6: coupled iteration}\\Iterate Modules 2, 3, 4, and 5 until the defect state, temperature field, electric field, and carrier state are mutually consistent to a chosen tolerance.};
-\node[box, below=of m6] (m7) {\textbf{Step 8. Module 7: scalable prediction}\\Apply reduced-order, approximation, statistical-upscaling, or hybrid multiresolution methods to extend the prediction to larger devices, longer times, larger domains, or rarer-event statistics.};
+\node[box] (m1) {\textbf{Step 1. Module 1: Geant4 radiation transport}\\Score deposited energy, hit coordinates, timing, interactions, and damage-source products.};
+\node[box, below=of m1] (handoff) {\textbf{Step 2. Geant4-to-MATLAB handoff}\\Map Geant4 output to a 2D deposition or initial defect-source field.};
+\node[box, below=of handoff] (m3) {\textbf{Step 3. Module 3: defect evolution}\\Evolve defects under diffusion, reactions, annealing, and source terms.};
+\node[box, below=of m3] (m4) {\textbf{Step 4. Module 4: ballistic-diffusive thermal field}\\Update the ballistic-diffusive temperature field and temperature-dependent coefficients.};
+\node[box, below=of m4] (m2) {\textbf{Step 5. Module 2: electrostatics}\\Build space charge and solve for potential and electric field.};
+\node[box, below=of m2] (m5) {\textbf{Step 6. Module 5: carrier transport}\\Solve electron and hole drift, diffusion, recombination, and trapping.};
+\node[box, below=of m5] (m6) {\textbf{Step 7. Module 6: coupled iteration}\\Iterate Modules 2--5 to a self-consistent coupled state.};
+\node[box, below=of m6] (m11) {\textbf{Step 8. Module 11: physical graph study}\\Generate graph-labeled trajectories and recover directed physical dependencies, lags, and feedback groups.};
+\node[box, below=of m11] (m7) {\textbf{Step 9. Module 7: scalable prediction}\\Extend predictions using reduced-order, statistical, or multiresolution methods.};
 \draw[arrow] (m1) -- (handoff);
 \draw[arrow] (handoff) -- (m3);
 \draw[arrow] (m3) -- (m4);
 \draw[arrow] (m4) -- (m2);
 \draw[arrow] (m2) -- (m5);
 \draw[arrow] (m5) -- (m6);
-\draw[arrow] (m6) -- (m7);
+\draw[arrow] (m6) -- (m11);
+\draw[arrow] (m11) -- (m7);
 \end{tikzpicture}
 \end{center}
 
@@ -198,7 +210,9 @@ arrow/.style={-{Latex[length=2.4mm]}, very thick, draw=accent}
     \item \textbf{Module 5:} 2D drift-diffusion with prescribed electrostatic field, thermal field, and defect/trap fields; first linear-triangle FEM path now implemented.
     \item \textbf{Module 6:} weak coupling, then stronger feedback and iterative convergence.
     \item \textbf{Module 7/8:} scalable-prediction methods and impact-per-cost physics selection after at least one credible high-fidelity coupled workflow exists.
-    \item \textbf{Module 9:} transmon geometry definition and 2D FEM target-domain tagging for the superconducting-device extension.
+    \item \textbf{Module 9:} transmon geometry and 2D FEM domain tagging for the superconducting extension.
+    \item \textbf{Module 10:} use the BCS/GL/TDGL note as the theory basis for superconducting constitutive models and device metrics.
+    \item \textbf{Module 11:} define the candidate physical-variable graph, generate multiple graph families and matched interventions, establish non-graph structure-learning baselines, then train a typed GNN for directed edge, relation, strength, lag, and feedback-group recovery.
 \end{enumerate}
 
 \section{File-map overview}
@@ -211,7 +225,7 @@ arrow/.style={-{Latex[length=2.4mm]}, very thick, draw=accent}
 \path{docs/physics_notes/} & One large physics note per module, with derivations, symbol definitions, assumptions, and physical interpretation.\\
 \path{docs/implementation_notes/} & Module-by-module implementation specifications, solver notes, and interface notes.\\
 \path{geant4/} & Geant4-side setup, interaction-resolved campaign macros, and example outputs for Module 1.\\
-\path{matlab/} & MATLAB drivers, source code, tests, outputs, and cross-module interfaces for Modules 2--7; Module 9 currently supplies geometry documentation for the next MATLAB extension.\\
+\path{matlab/} & MATLAB drivers, source code, tests, outputs, and cross-module interfaces for Modules 2--7; Module 9 supplies the next geometry extension and Module 11 supplies the planned physical-dependency graph data and learning workflow.\\
 \bottomrule
 \end{longtable}
 
@@ -228,6 +242,9 @@ arrow/.style={-{Latex[length=2.4mm]}, very thick, draw=accent}
 \path{matlab/main_module5_drift_diffusion.m} & Top-level entry for the 2D FEM carrier-transport solve.\\
 \path{matlab/main_module5_fem_drift_diffusion.m} & Compatibility wrapper for the Module 5 linear triangular FEM carrier solver.\\
 \path{matlab/main_module6_multiphysics.m} & Top-level coupled FEM driver that orchestrates Modules 2, 3, 4, and 5 through a staggered Picard-style iteration.\\
+\path{matlab/main_module11_generate_dependency_dataset.m} & Planned Module 11 driver for graph-family sampling, constrained physical trajectories, matched interventions, graph labels, and dataset export.\\
+\path{matlab/main_module11_train_dependency_gnn.m} & Planned Module 11 driver for structure-learning baseline comparison, directed typed graph-model training, calibration, and held-out evaluation.\\
+\path{matlab/src/module11_gnn/} & Planned variable-graph construction, graph-family sampling, intervention generation, feature extraction, directed edge/type/lag losses, SCC sequencing, uncertainty, and evaluation utilities.\\
 \path{matlab/src/grid/} & Shared 2D grid generation and spatial operators.\\
 \path{matlab/src/module3_defects/} & Module 3 defect evolution operators, initialization helpers, material-aware coefficients, and the new FEM mass/diffusion/reaction assembly functions.\\
 \path{matlab/src/module4_thermal/} & Module 4 ballistic-diffusive thermal operators, initialization helpers, source-term assembly, reduced ballistic-flux closures, FEM heat-capacity and conductivity assembly, implicit FEM stepping, and verification support.\\
@@ -281,6 +298,7 @@ Each module needs at least one low-complexity verification path.
 5 & Verify defect-free transport first, then turn on simple trap-assisted recombination. Check uniform no-field preservation, pure lifetime recombination, Gaussian diffusion inventory conservation, and current-sign conventions under a uniform electric field.\\
 6 & Confirm that decoupled or weakly coupled limits reduce to standalone solutions. Track iterative residuals and relaxation behavior.\\
 7 & Every scalable-prediction method must be benchmarked against a higher-fidelity reference. The benchmark should report both speedup and error metrics.\\
+11 & Recover known directed edges, relation types, strengths, lags, and SCC feedback groups in analytic and synthetic multiphysics systems; test direct-versus-indirect dependence, interventions, OOD mechanisms, calibration, conservation, and hidden-mechanism uncertainty.\\
 \bottomrule
 \end{longtable}
 
@@ -293,6 +311,21 @@ A stronger title than ``scaling up methods of the simulation'' is \textbf{Multis
 \end{enumerate}
 A useful project-level trade plot is approximation error versus speedup rather than speed alone.
 
+\section{Module 11: physical dependency graph proof-of-concept plan}
+Module 11 is restricted to the directed physical-variable graph. Its first implementation should proceed in the following order:
+\begin{enumerate}[leftmargin=1.6em]
+    \item freeze the variable-node list, edge taxonomy, candidate directed-edge mask, sign priors, and allowed lag classes;
+    \item expose key Module 2--5 mechanisms through explicit graph switches and continuous edge multipliers;
+    \item generate constrained physical parameters, sources, initial conditions, and multiple graph families;
+    \item create matched hard, soft, node-clamp, and source interventions;
+    \item extract variable-node features from raw physical trajectories without using spatial adjacency as graph topology;
+    \item establish correlation, conditional, Granger-style, sparse-regression, MLP, fixed-graph, and NRI baselines;
+    \item train a directed typed message-passing network for state prediction, edge existence, relation type, strength, sign, lag, and uncertainty;
+    \item identify strongly connected components and topologically order the condensation graph to obtain a physical coupling sequence;
+    \item test noise, missing variables, held-out graph combinations, and hidden-mechanism discrepancy.
+\end{enumerate}
+Synthetic data are sufficient to prove recovery of mechanisms represented in the generator. They are not sufficient to prove that the recovered graph contains all mechanisms present in a real irradiated device. Numerical solver order, block partitioning, relaxation, and runtime optimization are outside this module.
+
 \section{When this project-plan document should be updated}
 This document should be revised whenever a module definition changes, the dimensionality assumption changes, a new top-level file or folder becomes part of the standard workflow, an inter-module file format changes, the run order changes, a major verification strategy changes, or Module 7 gains a concrete benchmark or scaling method.
 
@@ -303,6 +336,9 @@ This document should be revised whenever a module definition changes, the dimens
     \item Completed: implemented the first 2D reduced ballistic-diffusive Module 4 structured-grid MATLAB path with uniform-equilibrium, localized-pulse, and boundary-heating cases.
     \item Keep the Module 4 note, file map, and run-order documentation synchronized with both the structured-grid and FEM thermal paths.
     \item Completed: added Module 2, Module 3, Module 4, and Module 5 FEM implementation notes and first reduced FEM solver paths.
+    \item Freeze the first Module 11 physical-variable node list, candidate directed-edge mask, relation taxonomy, and intervention definitions.
+    \item Build the first 500--2,000-case graph-family synthetic dataset with explicit mechanism switches and matched interventions.
+    \item Establish non-graph structure-learning baselines and a fixed-graph predictive baseline before training a directed typed GNN.
     \item Decide the first benchmark quantity of interest for Module 7 so that future approximations can be measured against something physically meaningful.
 \end{enumerate}
 

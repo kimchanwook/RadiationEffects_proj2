@@ -8,7 +8,7 @@ This repository builds a physics-based framework linking radiation energy deposi
 - `docs/physics_notes/` - textbook-style module notes with derivations and symbol definitions
 - `docs/implementation_notes/` - implementation specifications and coding notes
 - `geant4/` - Geant4-side radiation deposition setup and exported damage-source products
-- `matlab/` - MATLAB codebase for Modules 2-7 and coupled studies; Module 9 geometry is documented for the next MATLAB FEM extension
+- `matlab/` - MATLAB codebase for Modules 2-7 and coupled studies; Module 9 geometry and Module 11 physical-dependency graph learning are documented as the next MATLAB extensions
 
 ## Module architecture
 
@@ -21,6 +21,8 @@ This repository builds a physics-based framework linking radiation energy deposi
 - Module 7 - multiscale extrapolation and scalable prediction methods
 - Module 8 - reduced-fidelity and importance-based physics selection
 - Module 9 - transmon geometry, microwave-package context, and 2D MATLAB FEM target domains
+- Module 10 - BCS, Ginzburg-Landau, and time-dependent Ginzburg-Landau theory for the superconducting-device branch
+- Module 11 - graph neural networks and graph-structure learning for directed physical-variable dependency discovery, edge typing, lag inference, feedback-group identification, and physically admissible coupling sequences
 
 
 ## Module 1 interaction-resolved campaign update
@@ -68,16 +70,18 @@ This package now includes:
 
 - updated top-level `project_plan` and `README`
 - Module 1 physics note defining the Geant4 energy-deposition source term and its reduced 2D mapping
-- Module 2 expanded physics note, superconductivity electrostatics extension note, first MATLAB FEM Poisson path, triangular mesh generation, electrostatic verification tests, PINN electrostatics demo, and causal-PINN electrostatics continuation demo
-- Module 3 expanded physics note, superconductivity defect-evolution extension note, FEM weak form, mass/diffusion/reaction matrices, backward-Euler time stepping, verified structured-grid path, material-aware kinetic-coefficient framework, and first linear-triangle FEM path
+- Module 2 expanded physics note, three LaTeX/Beamer `summary_slides` pages for baseline 2D electrostatics with defect space charge, four additional `summary_slides` pages for Module 2 PINN, four additional `summary_slides` pages for Module 2 CPINN, superconductivity electrostatics extension note, first MATLAB FEM Poisson path, triangular mesh generation, electrostatic verification tests, PINN electrostatics demo, and causal-PINN electrostatics continuation demo
+- Module 3 expanded physics note, three LaTeX/Beamer `summary_slides` pages for baseline 2D defect diffusion-reaction evolution and annealing, superconductivity defect-evolution extension note, FEM weak form, mass/diffusion/reaction matrices, backward-Euler time stepping, verified structured-grid path, material-aware kinetic-coefficient framework, and first linear-triangle FEM path
 - archived legacy Module 4a/4b thermal notes and baseline MATLAB path for reference
 - new Module 4 architecture centered on 2D ballistic-diffusive thermal transport
 - new Module 4 documentation path plus first executable MATLAB implementation
-- Module 4 expanded FEM documentation, superconductivity thermal-transport extension note, linear-triangle thermal matrix assembly, and first implicit FEM ballistic-diffusive thermal path
-- Module 5 expanded physics note, superconductivity carrier-response extension note, FEM weak form, mass/diffusion/drift/recombination matrices, backward-Euler time stepping, first executable linear-triangle carrier-transport path, and carrier-transport verification tests
-- Module 6 expanded physics note defining the coupled multiphysics integration of defect, electrostatic, thermal, and carrier maps, superconductivity coupling-architecture extension note, including shared-mesh FEM discretization, block residual structure, and a first staggered MATLAB FEM coupling path
+- Module 4 expanded FEM documentation, four LaTeX/Beamer `summary_slides` pages for 2D ballistic-diffusive thermal transport, superconductivity thermal-transport extension note, linear-triangle thermal matrix assembly, and first implicit FEM ballistic-diffusive thermal path
+- Module 5 expanded physics note, four LaTeX/Beamer `summary_slides` pages for 2D drift-diffusion carrier transport with defect recombination, superconductivity carrier-response extension note, FEM weak form, mass/diffusion/drift/recombination matrices, backward-Euler time stepping, first executable linear-triangle carrier-transport path, and carrier-transport verification tests
+- Module 6 expanded physics note defining the coupled multiphysics integration of defect, electrostatic, thermal, and carrier maps, four LaTeX/Beamer `summary_slides` pages for self-consistent multiphysics coupling, superconductivity coupling-architecture extension note, shared-mesh FEM discretization, block residual structure, and a first staggered MATLAB FEM coupling path
 - Module 8 reduced-fidelity and importance-scoring physics note
 - Module 9 transmon-geometry physics note defining the microwave-aware full model and the reduced 2D FEM target with substrate, Al pads/leads/JJ, normal trap, backside heat sink, bond pads, and wire-bond boundary treatment
+- Module 10 comprehensive BCS, Ginzburg-Landau, and time-dependent Ginzburg-Landau superconductivity theory note
+- Module 11 comprehensive graph-neural-network note for physical dependency discovery, including five LaTeX/Beamer `summary_slides` pages, graph fundamentals, directed typed message passing, temporal and latent graphs, direct-versus-indirect edge identification, edge type/strength/lag inference, strongly connected feedback groups, expanded synthetic graph-family generation, matched interventions, physics-constrained losses, uncertainty, and a MATLAB-oriented proof-of-concept roadmap
 - shared 2D grid/plotting conventions aligned with Module 3
 - Module 2 FEM implementation note in `docs/implementation_notes/module2_fem_implementation_note.md`
 - Module 3 FEM implementation note in `docs/implementation_notes/module3_fem_implementation_note.md`
@@ -96,11 +100,15 @@ This package now includes:
 7. Couple Modules 2-5 in Module 6.
 8. Use Module 7/8 for reduced-fidelity scaling, statistical extrapolation, importance scoring, or hybrid multiresolution prediction.
 9. Use Module 9 as the superconducting transmon geometry baseline when moving from rectangular silicon cross sections to qubit-relevant FEM domains.
+10. Use Module 10 as the superconductivity-theory foundation for the superconducting Modules 2-6 branch.
+11. Use Module 11 to generate graph-labeled synthetic physical trajectories, recover directed dependencies among Module 2--5 variables, infer mechanism type, strength, sign, and lag, identify strongly connected feedback groups, and derive a partial physical coupling sequence from the graph condensation.
 
 ## Immediate next technical objective
 
-The next technical objective is to convert the Module 9 2D transmon geometry into a MATLAB FEM geometry/tagging function and then decide the first executable superconducting-region implementation path. The physics-note sequence for superconducting Modules 2-6 is now in place, so the natural next implementation target is a reduced superconducting Module 6 scaffold that couples offset charge, trapped charge, pair-breaking phonon population, quasiparticle density, and superconducting device metrics. In parallel, run the new Module 2 FEM/PINN/causal-PINN verification tests plus the Module 3, Module 4, Module 5, and Module 6 FEM verification tests in MATLAB. After that, refine the Module 6 staggered coupling path by replacing the reduced thermal update with the full Module 4 ballistic-diffusive FEM update, adding stronger defect-field drift coupling, and tightening the Poisson/drift-diffusion fixed-point loop.
+The immediate Module 11 objective is a controlled proof of concept for physical dependency discovery. First freeze the variable-node list, candidate directed-edge mask, relation taxonomy, and definitions of zero-lag versus delayed influence. Then expose key physical mechanisms in the synthetic generator through explicit on/off switches and continuous edge multipliers. Generate multiple graph families, constrained parameter sweeps, independent physical excitations, and matched intervention pairs. Train simple correlation, conditional, time-series, sparse-regression, MLP, and neural-relational baselines before a typed message-passing GNN. The final outputs are directed edge existence, mechanism type, strength, sign, lag, uncertainty, strongly connected feedback groups, and a partial physical coupling sequence. Numerical solver ordering, relaxation, block partitioning, and runtime optimization are outside the revised Module 11 scope.
+
+In parallel, the existing next steps remain active: run the Module 2-6 MATLAB verification suites; replace reduced closures in Module 6 with verified standalone FEM updates; convert the Module 9 transmon cross-section into a tagged MATLAB FEM geometry; and begin the reduced superconducting Module 6 scaffold using the Module 10 theory foundation.
 
 ## Important note
 
-This archive now includes the earlier Module 4 ballistic-diffusive thermal architecture update, the Module 2 finite-element electrostatics update, the Module 3 finite-element defect-evolution update, the Module 4 finite-element thermal-transport update, the Module 5 finite-element drift-diffusion carrier-transport update, the Module 6 staggered finite-element coupling update, and the Module 2-6 superconducting-region physics-note sequence, and the Module 9 transmon-geometry note. The Module 2, Module 3, Module 4, Module 5, and Module 6 FEM paths are first reduced solvers and coupling scaffolds, not yet a full production semiconductor TCAD simulator.
+This archive now includes the earlier Module 4 ballistic-diffusive thermal architecture update, the Module 2 finite-element electrostatics update, the Module 3 finite-element defect-evolution update, the Module 4 finite-element thermal-transport update, the Module 5 finite-element drift-diffusion carrier-transport update, the Module 6 staggered finite-element coupling update, and the Module 2-6 superconducting-region physics-note sequence, the Module 9 transmon-geometry note, the Module 10 superconductivity-theory note, and the revised Module 11 GNN physical-dependency-graph note. The Module 2, Module 3, Module 4, Module 5, and Module 6 FEM paths are first reduced solvers and coupling scaffolds, not yet a full production semiconductor TCAD simulator.
