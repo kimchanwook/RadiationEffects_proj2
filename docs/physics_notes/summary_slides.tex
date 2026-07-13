@@ -27,7 +27,7 @@
 \newcommand{\epssi}{\varepsilon_{\mathrm{Si}}}
 
 \title{Summary Slides}
-\subtitle{Baseline physics summaries for Modules 2--6, Module 2 PINN/CPINN, and Module 11 GNN}
+\subtitle{Baseline, ML, GNN, and superconducting-physics summaries}
 \author{}
 \date{}
 
@@ -796,7 +796,7 @@ For uniform silicon permittivity,
     \item The ordered coordinate is denoted $\tau$ or $\alpha$:
     \[
         \rho(\mathbf x;\alpha_0),\rho(\mathbf x;\alpha_1),\ldots,
-ho(\mathbf x;\alpha_K),
+        \rho(\mathbf x;\alpha_K),
         \qquad 0\leq \alpha_0<\alpha_1<\cdots<\alpha_K\leq1.
     \]
     \item The CPINN objective is to learn easy or early states before enforcing later, harder, more highly loaded states.
@@ -1057,4 +1057,523 @@ Q_J&\rightarrow T.
 \end{frame}
 
 
+
+
+% -----------------------------------------------------------------------------
+\begin{frame}{Module 2 superconductivity: electrostatics in hybrid SC devices}
+\small
+\textbf{The superconducting extension of Module 2 is still electrostatics, but the charge response and boundary conditions change.}
+
+\vspace{0.2em}
+\begin{equation*}
+\boxed{
+\Omega=\Omega_{\mathrm{sub}}\cup\Omega_{\mathrm{ox}}\cup\Omega_{\mathrm{sc}}\cup\Omega_{\mathrm{JJ}},
+\qquad
+\mathbf E=-\nabla\phi
+}
+\end{equation*}
+
+\vspace{-0.2em}
+\begin{equation*}
+\nabla\cdot(\varepsilon\nabla\phi)
+=-\rho_{\mathrm{tot}},
+\qquad
+\rho_{\mathrm{tot}}
+=\rho_{\mathrm{def}}+\rho_{\mathrm{trap}}+\rho_{\mathrm{qp}}+\rho_{\mathrm{ind}}+\rho_{\mathrm{ext}}.
+\end{equation*}
+
+\vspace{-0.2em}
+\begin{itemize}
+    \item Substrate and oxide regions store radiation-induced defect charge and trapped charge.
+    \item Superconducting films screen static electric fields and are often modeled as equipotential islands.
+    \item Quasiparticle charge imbalance can enter as an additional nonequilibrium charge density.
+    \item The normal Module 2 source term $q(p-n+N_D^+-N_A^-)+\rho_{\mathrm{def}}$ is replaced by a hybrid-material charge model.
+\end{itemize}
+\end{frame}
+
+% -----------------------------------------------------------------------------
+\begin{frame}{Module 2 superconductivity: screening and equipotential islands}
+\footnotesize
+\textbf{In a metal or superconductor, static charge perturbations are screened over a very short length scale.}
+
+\vspace{-0.15em}
+\begin{align*}
+\rho_{\mathrm{ind}} &\approx -\frac{\varepsilon_{\mathrm{sc}}}{\lambda_{\mathrm{scr}}^2}
+\left(\phi-\phi_{\mathrm{sc}}\right),\\[-0.05em]
+\nabla\cdot(\varepsilon_{\mathrm{sc}}\nabla\phi)
+&= -\rho_{\mathrm{ext}} + \frac{\varepsilon_{\mathrm{sc}}}{\lambda_{\mathrm{scr}}^2}
+\left(\phi-\phi_{\mathrm{sc}}\right).
+\end{align*}
+
+\vspace{-0.2em}
+\begin{itemize}
+    \item $\lambda_{\mathrm{scr}}$ is an electrostatic screening length, conceptually closer to Thomas-Fermi screening than London magnetic penetration.
+    \item In the thin-film static limit, the numerically simpler model is often
+    \[
+        \phi|_{\Omega_{\mathrm{sc},i}}=V_i,
+        \qquad
+        \mathbf E_{\parallel}\approx 0 \quad \text{inside the island}.
+    \]
+    \item The electrochemical potential is the quantity that equilibrates:
+    \[
+        \mu_{\mathrm{ec}}=\mu_{\mathrm{chem}}-e\phi.
+    \]
+    \item Radiation-induced local charge is therefore felt mainly through surface charge, island potential shifts, trap occupation, and offset charge.
+\end{itemize}
+\end{frame}
+
+% -----------------------------------------------------------------------------
+\begin{frame}{Module 2 superconductivity: interfaces, capacitance, and offset charge}
+\footnotesize
+\textbf{The most important device-level output is often not the local field inside the metal, but induced island charge.}
+
+\vspace{-0.2em}
+\begin{align*}
+\phi_{\mathrm{d}}&=\phi_{\mathrm{sc}} &&\text{on ideal electrostatic interfaces},\\[-0.05em]
+\hat{\mathbf n}\cdot(\mathbf D_{\mathrm{d}}-\mathbf D_{\mathrm{sc}})&=\sigma_{\mathrm{int}} &&\text{with interface trapped charge}.
+\end{align*}
+
+\vspace{-0.25em}
+\begin{equation*}
+\boxed{
+\mathbf Q=\mathbf C\mathbf V+\mathbf Q_{\mathrm{off}},
+\qquad
+Q_{\mathrm{off},i}=\int_{\Omega_{\mathrm{d}}}\rho_{\mathrm{rad}}(\mathbf x)\psi_i(\mathbf x)\,d\Omega
+}
+\end{equation*}
+
+\vspace{-0.2em}
+\begin{itemize}
+    \item $\mathbf C$ is the capacitance matrix for the superconducting island network.
+    \item $\psi_i$ is a weighting potential: solve Laplace's equation with island $i$ at unit voltage and other conductors grounded.
+    \item Radiation-generated defects and trapped charges shift $Q_{\mathrm{off}}$, which perturbs charge-sensitive superconducting devices.
+    \item For transmon-like devices, offset charge is partially suppressed but still relevant through traps, quasiparticles, and dielectric loss pathways.
+\end{itemize}
+\end{frame}
+
+% -----------------------------------------------------------------------------
+\begin{frame}{Module 2 superconductivity: minimal equations to carry forward}
+\footnotesize
+\textbf{The first superconducting Module 2 implementation should not overclaim microscopic condensate dynamics.}
+
+\vspace{-0.2em}
+\begin{align*}
+\nabla\cdot(\varepsilon\nabla\phi)&=-\left(\rho_{\mathrm{def}}+\rho_{\mathrm{trap}}+\rho_{\mathrm{qp}}\right)
+&&\text{in dielectric/substrate regions},\\[-0.05em]
+\phi&=V_i
+&&\text{on superconducting island }i,\\[-0.05em]
+\mathbf Q&=\mathbf C\mathbf V+\mathbf Q_{\mathrm{off}},
+\qquad
+\mathbf E=-\nabla\phi.
+\end{align*}
+
+\vspace{-0.25em}
+\begin{itemize}
+    \item Use superconducting pads as electrostatic conductors first; add finite screening only when needed.
+    \item Track oxide/interface traps separately from bulk substrate defect charge.
+    \item Treat quasiparticle charge imbalance as a nonequilibrium correction, not as ordinary semiconductor carrier density.
+    \item Outputs to later modules: $\phi$, $\mathbf E$, surface/interface fields, $Q_{\mathrm{off}}$, capacitance sensitivity, and trap-field coupling.
+\end{itemize}
+\end{frame}
+
+% -----------------------------------------------------------------------------
+\begin{frame}{Module 3 superconductivity: structural defects are not quasiparticles}
+\small
+\textbf{Module 3 remains the slow material-state module: structural disorder, traps, TLSs, and junction-barrier defects.}
+
+\vspace{0.2em}
+\begin{equation*}
+\boxed{
+\mathbf C_{\mathrm{SC}}
+=\{C_i^{\mathrm{sub}},C_i^{\mathrm{ox}},C_i^{\mathrm{film}},N_t,f_t,N_{\mathrm{TLS}},C_i^{\mathrm{JJ}}\}
+}
+\end{equation*}
+
+\vspace{-0.1em}
+\begin{itemize}
+    \item Cryogenic operation separates slow structural variables from fast excitations.
+    \item Structural defects and traps can persist for long times; quasiparticles and pair-breaking phonons are fast auxiliary variables handled mainly by Modules 4--5.
+    \item The same radiation event can create substrate damage, oxide trapped charge, interface TLS changes, superconducting-film disorder, and junction-barrier defects.
+    \item The project should avoid merging all of these into one warm-semiconductor defect concentration.
+\end{itemize}
+\end{frame}
+
+% -----------------------------------------------------------------------------
+\begin{frame}{Module 3 superconductivity: material-resolved diffusion-reaction}
+\footnotesize
+\textbf{Each material region can carry its own defect species, mobility, reaction network, and boundary behavior.}
+
+\vspace{-0.15em}
+\begin{equation*}
+\boxed{
+\frac{\partial C_i^{(m)}}{\partial t}
+=\nabla\cdot\left(D_i^{(m)}(T)\nabla C_i^{(m)}\right)
++R_i^{(m)}(\mathbf C^{(m)},T,n,p)
++S_i^{(m)}
+}
+\end{equation*}
+
+\vspace{-0.2em}
+\begin{align*}
+D_i^{(m)}(T)&=D_{i0}^{(m)}\exp\!\left(-\frac{E_{m,i}^{(m)}}{k_BT}\right),\\[-0.05em]
+k_{\mathrm{ann},i}^{(m)}(T)&=k_{i0}^{(m)}\exp\!\left(-\frac{E_{\mathrm{ann},i}^{(m)}}{k_BT}\right).
+\end{align*}
+
+\vspace{-0.2em}
+\begin{itemize}
+    \item At millikelvin base temperature, thermally activated diffusion can be nearly frozen.
+    \item Radiation can still produce transient local hot spots, nonthermal rearrangement, charge-state changes, and trap occupation changes.
+    \item Interface conditions may allow reflection, trapping, sink behavior, or defect conversion at material boundaries.
+\end{itemize}
+\end{frame}
+
+% -----------------------------------------------------------------------------
+\begin{frame}{Module 3 superconductivity: traps, TLSs, and junction defects}
+\footnotesize
+\textbf{Interface and junction defects are often more device-relevant than bulk displaced atoms.}
+
+\vspace{-0.2em}
+\begin{align*}
+\rho_{\mathrm{trap}}(\mathbf x,t)&=q\sum_a z_a N_{t,a}(\mathbf x)f_a(\mathbf x,t),\\[-0.05em]
+\frac{\partial f_a}{\partial t}
+&=c_a^{+}(1-f_a)-c_a^{-}f_a,\\[-0.05em]
+P_{\mathrm{TLS}}(E)&\rightarrow \{\tan\delta,\;1/f\ \text{charge noise},\;\text{qubit frequency noise}\}.
+\end{align*}
+
+\vspace{-0.25em}
+\begin{itemize}
+    \item $N_t$ is a trap density; $f_t$ is trap occupation, which controls charge state and electric-field noise.
+    \item TLSs are modeled as localized electric dipoles in a heterogeneous polarizability landscape; they couple to microwave electric fields and can produce dielectric loss or fluctuating offset charge.
+    \item Josephson-junction barrier defects can affect critical current, tunneling asymmetry, subgap conductance, and switching noise.
+    \item Module 3 should pass trap/TLS/barrier state variables to Modules 2, 5, 6, 7, and 8.
+\end{itemize}
+\end{frame}
+
+% -----------------------------------------------------------------------------
+\begin{frame}{Module 3 superconductivity: coupling outputs and first implementation}
+\footnotesize
+\textbf{The first useful implementation is a region-labeled structural-state update, not a full microscopic defect simulation.}
+
+\vspace{-0.2em}
+\begin{equation*}
+\boxed{
+\mathbf C_{\mathrm{out}}
+\longrightarrow
+\{\rho_{\mathrm{def}},\rho_{\mathrm{trap}},Q_{\mathrm{off}},N_{\mathrm{TLS}},\delta I_c,\Gamma_{\mathrm{trap}},\tan\delta\}
+}
+\end{equation*}
+
+\vspace{-0.15em}
+\begin{itemize}
+    \item To Module 2: charged structural defects and trap occupation produce electrostatic source terms and offset charge.
+    \item To Module 4: defect formation, relaxation, and trapping can exchange energy with phonon populations.
+    \item To Module 5: traps and disorder modify quasiparticle trapping, poisoning, tunneling, and recombination channels.
+    \item Verification targets:
+    \[
+        C_i(t)=C_i(0)e^{-k_i t}\quad(D_i=0),
+        \qquad
+        \int_{\Omega_m}C_i\,d\Omega=\text{constant}\quad(R_i=S_i=0).
+    \]
+    \item State variables should be grouped by material: substrate, oxide/interface, superconducting film, and junction barrier.
+\end{itemize}
+\end{frame}
+
+% -----------------------------------------------------------------------------
+\begin{frame}{Module 4 superconductivity: one temperature field is insufficient}
+\small
+\textbf{At cryogenic temperatures, deposited radiation energy partitions among several weakly equilibrated channels.}
+
+\vspace{0.15em}
+\begin{equation*}
+\boxed{
+E_{\mathrm{dep}}
+\rightarrow
+\{U_{\mathrm{sub\ phonon}},\;U_{\mathrm{pb\ phonon}},\;U_{\mathrm{qp}},\;U_{\mathrm{trap}},\;U_{\mathrm{escape}}\}
+}
+\end{equation*}
+
+\vspace{-0.1em}
+\begin{itemize}
+    \item A single warm-device heat equation cannot distinguish harmless low-energy phonons from pair-breaking phonons.
+    \item Superconducting films have exponentially suppressed electronic heat capacity below $T_c$.
+    \item Interfaces can bottleneck energy flow through Kapitza resistance.
+    \item Module 4 should represent substrate phonons, pair-breaking phonons, quasiparticle energy, and escape to the package or heat sink at a reduced-model level.
+\end{itemize}
+\end{frame}
+
+% -----------------------------------------------------------------------------
+\begin{frame}{Module 4 superconductivity: pair-breaking threshold and energy partition}
+\footnotesize
+\textbf{The superconducting gap creates a threshold for converting phonons into quasiparticles.}
+
+\vspace{-0.1em}
+\begin{equation*}
+\boxed{
+\hbar\omega\geq 2\Delta
+\quad\Rightarrow\quad
+\text{pair-breaking phonon can create two quasiparticles}
+}
+\end{equation*}
+
+\vspace{-0.15em}
+\begin{align*}
+\dot U_{\mathrm{pb}}&=\eta_{\mathrm{pb}}\dot E_{\mathrm{dep}}-P_{\mathrm{pair}}-P_{\mathrm{esc}}-P_{\mathrm{down}},\\[-0.05em]
+\dot U_{\mathrm{ph}}&=(1-\eta_{\mathrm{pb}})\dot E_{\mathrm{dep}}+P_{\mathrm{down}}-P_{\mathrm{bath}}.
+\end{align*}
+
+\vspace{-0.2em}
+\begin{itemize}
+    \item $\eta_{\mathrm{pb}}$ is an effective fraction of deposited energy placed into pair-breaking-capable phonons.
+    \item Downconversion moves high-energy phonons below the pair-breaking threshold.
+    \item Escape terms represent phonon loss to substrate, package, backside metal, or external bath.
+    \item The relevant output is not only $T$; it is also the time-integrated pair-breaking energy exposure.
+\end{itemize}
+\end{frame}
+
+% -----------------------------------------------------------------------------
+\begin{frame}{Module 4 superconductivity: quasiparticle-phonon kinetics}
+\footnotesize
+\textbf{A reduced Rothwarf-Taylor structure couples quasiparticle density and pair-breaking phonon population.}
+
+\vspace{-0.2em}
+\begin{align*}
+\frac{dn_{\mathrm{qp}}}{dt}
+&=2\Gamma_{\mathrm{pb}}N_{\mathrm{pb}}
+-R_{\mathrm{qp}}n_{\mathrm{qp}}^2
+-\Gamma_{\mathrm{trap}}n_{\mathrm{qp}}
++G_{\mathrm{inj}},\\[-0.05em]
+\frac{dN_{\mathrm{pb}}}{dt}
+&=-\Gamma_{\mathrm{pb}}N_{\mathrm{pb}}
++\frac{1}{2}R_{\mathrm{qp}}n_{\mathrm{qp}}^2
+-\Gamma_{\mathrm{esc}}N_{\mathrm{pb}}
++S_{\mathrm{pb}}.
+\end{align*}
+
+\vspace{-0.25em}
+\begin{itemize}
+    \item Pair-breaking phonons increase $n_{\mathrm{qp}}$.
+    \item Quasiparticle recombination emits high-energy phonons, which can break more pairs if they do not escape.
+    \item Traps and normal-metal quasiparticle sinks remove quasiparticles from active superconducting regions.
+    \item Module 4 supplies $N_{\mathrm{pb}}$, phonon energy, and thermal boundary losses to Module 5 and Module 6.
+\end{itemize}
+\end{frame}
+
+% -----------------------------------------------------------------------------
+\begin{frame}{Module 4 superconductivity: boundaries, hierarchy, and metrics}
+\footnotesize
+\textbf{The practical path is a hierarchy from scalar thermal diffusion to reduced spectral phonon/QP energetics.}
+
+\vspace{-0.15em}
+\begin{align*}
+-k_1\nabla T_1\cdot\hat{\mathbf n}&=G_K(T_1-T_2) &&\text{Kapitza/interface boundary},\\[-0.05em]
+C_{\mathrm{ph}}\frac{\partial T_{\mathrm{ph}}}{\partial t}
+&=\nabla\cdot(k_{\mathrm{ph}}\nabla T_{\mathrm{ph}})+P_{\mathrm{dep}}-P_{\mathrm{esc}}-P_{\mathrm{pair}}.
+\end{align*}
+
+\vspace{-0.25em}
+\begin{itemize}
+    \item Level 0: ordinary thermal diffusion with cryogenic material constants.
+    \item Level 1: add Kapitza boundary resistance and package/bath coupling.
+    \item Level 2: track pair-breaking phonon population or energy.
+    \item Level 3: couple pair-breaking phonons to quasiparticle generation/recombination.
+    \item Useful outputs: peak temperature, thermal relaxation time, escaped power, pair-breaking fluence, and QP-generation source for Module 5.
+\end{itemize}
+\end{frame}
+
+% -----------------------------------------------------------------------------
+\begin{frame}{Module 5 superconductivity: carrier response changes below $T_c$}
+\small
+\textbf{Ordinary drift-diffusion is no longer the dominant transport model in superconducting films.}
+
+\vspace{0.15em}
+\begin{equation*}
+\boxed{
+\mathbf J_{\mathrm{tot}}
+=\mathbf J_s+\mathbf J_{\mathrm{qp}}+\mathbf J_{\mathrm{leak}}+\mathbf J_{\mathrm{disp}}
+}
+\end{equation*}
+
+\vspace{-0.15em}
+\begin{itemize}
+    \item Semiconductor electrons and holes may still matter in substrates, dielectrics, or radiation bursts.
+    \item In superconducting films, the condensate carries dissipationless supercurrent and quasiparticles carry dissipative nonequilibrium current.
+    \item Below $T_c$, the relevant mobile excitations are Cooper-pair condensate phase and quasiparticle population, not ordinary $n,p$ drift-diffusion.
+    \item Module 5 therefore becomes a hybrid carrier-response module: substrate charge, trap occupation, quasiparticles, Josephson transport, and device-response metrics.
+\end{itemize}
+\end{frame}
+
+% -----------------------------------------------------------------------------
+\begin{frame}{Module 5 superconductivity: condensate and Josephson transport}
+\footnotesize
+\textbf{Supercurrent is governed by phase, not by Ohmic mobility.}
+
+\vspace{-0.15em}
+\begin{align*}
+\mathbf J_s
+&=\frac{2e\hbar}{m^*}|\Psi|^2
+\left(\nabla\theta-\frac{2e}{\hbar}\mathbf A\right),\\[-0.05em]
+I_s&=I_c\sin\delta,\\[-0.05em]
+V&=\frac{\Phi_0}{2\pi}\frac{d\delta}{dt},
+\qquad
+\Phi_0=\frac{h}{2e}.
+\end{align*}
+
+\vspace{-0.2em}
+\begin{itemize}
+    \item $\theta$ is condensate phase; $\delta$ is the gauge-invariant phase difference across a Josephson junction.
+    \item Radiation-induced junction-barrier defects can shift $I_c$, subgap leakage, and tunneling asymmetry.
+    \item Capacitive island dynamics enter through charge variables rather than ordinary drift current across the barrier.
+    \item In the lowest-fidelity model, Josephson elements are compact circuit relations coupled to field-derived offset charge and QP rates.
+\end{itemize}
+\end{frame}
+
+% -----------------------------------------------------------------------------
+\begin{frame}{Module 5 superconductivity: quasiparticle diffusion, trapping, and poisoning}
+\footnotesize
+\textbf{Quasiparticles are the main dissipative carrier population inside superconducting films.}
+
+\vspace{-0.15em}
+\begin{equation*}
+\boxed{
+\frac{\partial n_{\mathrm{qp}}}{\partial t}
+=\nabla\cdot(D_{\mathrm{qp}}\nabla n_{\mathrm{qp}})
++G_{\mathrm{qp}}
+-R_{\mathrm{qp}}n_{\mathrm{qp}}^2
+-\frac{n_{\mathrm{qp}}}{\tau_{\mathrm{trap}}}
+-\frac{n_{\mathrm{qp}}}{\tau_{\mathrm{esc}}}
+}
+\end{equation*}
+
+\vspace{-0.2em}
+\begin{align*}
+\mathbf J_{\mathrm{qp}}&\approx -eD_{\mathrm{qp}}\nabla n_{\mathrm{qp}}+\sigma_{\mathrm{qp}}\big(-\nabla\phi\big),\\[-0.05em]
+\Gamma_1^{\mathrm{qp}}&\propto x_{\mathrm{qp}},
+\qquad
+x_{\mathrm{qp}}\equiv \frac{n_{\mathrm{qp}}}{2N_0\Delta}.
+\end{align*}
+
+\vspace{-0.25em}
+\begin{itemize}
+    \item Pair-breaking phonons from Module 4 provide $G_{\mathrm{qp}}$.
+    \item Normal-metal traps and gap-engineered regions reduce active quasiparticle density.
+    \item QP tunneling across a junction can produce poisoning, relaxation, parity switching, and excess loss.
+\end{itemize}
+\end{frame}
+
+% -----------------------------------------------------------------------------
+\begin{frame}{Module 5 superconductivity: offset charge and device metrics}
+\footnotesize
+\textbf{Radiation-generated charge and traps couple to superconducting islands through capacitance and weighting fields.}
+
+\vspace{-0.15em}
+\begin{align*}
+\mathbf Q&=\mathbf C\mathbf V+\mathbf Q_{\mathrm{off}},\\[-0.05em]
+ n_g&=\frac{Q_{\mathrm{off}}}{2e},\\[-0.05em]
+Q_{\mathrm{off},i}&=\int \rho_{\mathrm{trap}}(\mathbf x,t)\psi_i(\mathbf x)\,d\Omega.
+\end{align*}
+
+\vspace{-0.25em}
+\begin{itemize}
+    \item $n_g$ is the dimensionless offset charge relevant to island-based superconducting circuits.
+    \item Defects alter device response through $Q_{\mathrm{off}}$, $I_c$, dielectric loss, QP density, and QP tunneling rates.
+    \item Useful Module 5 outputs include:
+    \[
+        n_{\mathrm{qp}},\quad x_{\mathrm{qp}},\quad \Gamma_1^{\mathrm{qp}},\quad
+        \Gamma_{\mathrm{poison}},\quad\delta I_c,\quad \delta n_g.
+    \]
+    \item These are device-degradation variables, not merely carrier-density maps.
+\end{itemize}
+\end{frame}
+
+% -----------------------------------------------------------------------------
+\begin{frame}{Module 6 superconductivity: expanded coupled state vector}
+\small
+\textbf{The superconducting coupling layer must separate electrostatics, structural defects, phonons, quasiparticles, and device response.}
+
+\vspace{0.1em}
+\begin{equation*}
+\boxed{
+\mathbf u_{\mathrm{SC}}
+=\{\phi,\mathbf E,Q_{\mathrm{off}},\mathbf C_{\mathrm{def}},N_t,f_t,N_{\mathrm{TLS}},T_{\mathrm{ph}},N_{\mathrm{pb}},n_{\mathrm{qp}},\delta,I_c,\Gamma_1\}
+}
+\end{equation*}
+
+\vspace{-0.15em}
+\begin{itemize}
+    \item Module 2 supplies electrostatics, island potentials, capacitance response, and offset charge.
+    \item Module 3 supplies structural defects, traps, TLSs, barrier disorder, and disorder-driven parameter shifts.
+    \item Module 4 supplies substrate phonon energy, pair-breaking phonons, escape, and thermal relaxation.
+    \item Module 5 supplies quasiparticles, Josephson response, QP tunneling, poisoning, and device-rate metrics.
+\end{itemize}
+\end{frame}
+
+% -----------------------------------------------------------------------------
+\begin{frame}{Module 6 superconductivity: radiation-event partition and residuals}
+\footnotesize
+\textbf{A radiation event must be partitioned into charge, structural damage, phonons, and superconducting excitations.}
+
+\vspace{-0.15em}
+\begin{equation*}
+\boxed{
+E_{\mathrm{dep}}
+\rightarrow
+\{S_{\mathrm{def}},\rho_{\mathrm{ion}},S_{\mathrm{trap}},S_{\mathrm{pb}},G_{\mathrm{qp}},P_{\mathrm{heat}}\}
+}
+\end{equation*}
+
+\vspace{-0.15em}
+\begin{align*}
+\mathcal R_2&:\quad \nabla\cdot(\varepsilon\nabla\phi)+\rho_{\mathrm{def}}+\rho_{\mathrm{trap}}+\rho_{\mathrm{qp}}=0,\\[-0.05em]
+\mathcal R_3&:\quad \partial_t\mathbf C_{\mathrm{def}}-\mathcal F_{\mathrm{def}}(\mathbf C_{\mathrm{def}},T_{\mathrm{ph}},f_t)=0,\\[-0.05em]
+\mathcal R_4&:\quad \partial_t\{T_{\mathrm{ph}},N_{\mathrm{pb}}\}-\mathcal F_{\mathrm{ph}}(E_{\mathrm{dep}},n_{\mathrm{qp}})=0,\\[-0.05em]
+\mathcal R_5&:\quad \partial_t n_{\mathrm{qp}}-\mathcal F_{\mathrm{qp}}(N_{\mathrm{pb}},\mathbf C_{\mathrm{def}},\mathrm{JJ})=0.
+\end{align*}
+\end{frame}
+
+% -----------------------------------------------------------------------------
+\begin{frame}{Module 6 superconductivity: feedback loops and time-scale separation}
+\footnotesize
+\textbf{The superconducting coupling graph contains fast excitation loops and slow material-state loops.}
+
+\vspace{-0.2em}
+\begin{align*}
+E_{\mathrm{dep}}&\rightarrow N_{\mathrm{pb}}\rightarrow n_{\mathrm{qp}}\rightarrow \Gamma_1,\Gamma_{\mathrm{poison}},\\[-0.05em]
+n_{\mathrm{qp}}&\rightarrow \text{recombination phonons}\rightarrow N_{\mathrm{pb}},\\[-0.05em]
+C_{\mathrm{def}},f_t&\rightarrow \rho_{\mathrm{trap}},Q_{\mathrm{off}}\rightarrow \delta n_g,\\[-0.05em]
+C_{\mathrm{JJ}}&\rightarrow I_c,\Gamma_{\mathrm{qp}}\rightarrow \text{device response}.
+\end{align*}
+
+\vspace{-0.2em}
+\begin{itemize}
+    \item Fast variables: ionization charge, pair-breaking phonons, quasiparticles, junction tunneling rates.
+    \item Intermediate variables: trap occupation, QP trapping, phonon escape, temperature relaxation.
+    \item Slow variables: structural defects, interface disorder, TLS population, junction-barrier degradation.
+    \item Coupling must respect time scales; forcing all variables into one explicit update can create artificial physics.
+\end{itemize}
+\end{frame}
+
+% -----------------------------------------------------------------------------
+\begin{frame}{Module 6 superconductivity: consistency checks and first algorithm}
+\footnotesize
+\textbf{The first implementation should prioritize conservation and correct field-transfer bookkeeping.}
+
+\vspace{-0.2em}
+\begin{align*}
+E_{\mathrm{dep}}&\approx U_{\mathrm{ph}}+U_{\mathrm{pb}}+U_{\mathrm{qp}}+U_{\mathrm{trap}}+E_{\mathrm{esc}}+E_{\mathrm{loss}},\\[-0.05em]
+Q_{\mathrm{off},i}&=\int \rho_{\mathrm{trap}}\psi_i\,d\Omega,
+\qquad
+\rho_{\mathrm{tot}}=\rho_{\mathrm{def}}+\rho_{\mathrm{trap}}+\rho_{\mathrm{qp}}.
+\end{align*}
+
+\vspace{-0.25em}
+\begin{enumerate}
+    \item Partition each radiation event into structural damage, trapped charge, pair-breaking phonons, heat, and QP sources.
+    \item Update slow structural/trap state only on appropriate time scales.
+    \item Solve electrostatic offset charge from the current trap/defect/QP charge state.
+    \item Update phonon-QP kinetics and pass rates to device-response metrics.
+    \item Verify energy partition, charge consistency, zero-source equilibrium, and one-way-coupling limits.
+\end{enumerate}
+\end{frame}
+
 \end{document}
+
