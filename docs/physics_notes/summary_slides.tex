@@ -1,0 +1,1060 @@
+\documentclass[aspectratio=169,10pt]{beamer}
+
+\usetheme{default}
+\usecolortheme{default}
+\setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{footline}{%
+  \hfill\scriptsize Summary Slides \;|\; \insertframenumber/\inserttotalframenumber\hspace{1.0em}\vspace{0.5em}}
+
+\usepackage{amsmath,amssymb,bm}
+\usepackage{booktabs}
+
+\definecolor{ngblue}{RGB}{25,64,110}
+\definecolor{ngteal}{RGB}{0,114,128}
+\definecolor{ngdark}{RGB}{35,35,40}
+
+\setbeamercolor{frametitle}{fg=ngblue}
+\setbeamercolor{title}{fg=ngblue}
+\setbeamercolor{structure}{fg=ngteal}
+\setbeamercolor{normal text}{fg=ngdark,bg=white}
+\setbeamerfont{frametitle}{series=\bfseries,size=\large}
+\setbeamerfont{title}{series=\bfseries,size=\Large}
+
+\newcommand{\Evec}{\mathbf{E}}
+\newcommand{\Dvec}{\mathbf{D}}
+\newcommand{\Jvec}{\mathbf{J}}
+\newcommand{\rhodef}{\rho_{\mathrm{def}}}
+\newcommand{\epssi}{\varepsilon_{\mathrm{Si}}}
+
+\title{Summary Slides}
+\subtitle{Baseline physics summaries for Modules 2--6, Module 2 PINN/CPINN, and Module 11 GNN}
+\author{}
+\date{}
+
+\begin{document}
+
+% -----------------------------------------------------------------------------
+\begin{frame}{Module 2 purpose: convert damage into electric field}
+\small
+\textbf{Module 2 is the electrostatic bridge between radiation-induced defects and carrier transport.}
+
+\vspace{0.45em}
+\begin{equation*}
+\boxed{
+\{C_i,z_i,n,p,N_D^+,N_A^-,\text{bias/BCs}\}
+\;\longrightarrow\;
+\rho(x,y,t)
+\;\longrightarrow\;
+\phi(x,y,t)
+\;\longrightarrow\;
+\Evec(x,y,t)
+}
+\end{equation*}
+
+\vspace{0.35em}
+\begin{itemize}
+    \item The central unknown is the electrostatic potential $\phi(x,y,t)$ in a 2-D silicon domain $\Omega$.
+    \item Radiation defects enter through their concentrations $C_i(x,y,t)$ and effective charge states $z_i$.
+    \item The electric field is not solved independently; it is recovered after the potential solve:
+    \[
+        \Evec(x,y,t)=-\nabla\phi(x,y,t).
+    \]
+    \item Module 2 supplies $\phi$ and $\Evec$ to carrier drift-diffusion, recombination, degradation metrics, and later coupled multiphysics updates.
+\end{itemize}
+
+\vspace{0.25em}
+\textbf{Physical interpretation:} charged defects perturb the local space charge; space charge bends the electrostatic potential; the potential gradient drives carrier motion.
+\end{frame}
+
+% -----------------------------------------------------------------------------
+\begin{frame}{Governing electrostatics and defect space charge}
+\small
+\textbf{Electrostatic limit of Maxwell's equations}
+\vspace{-0.25em}
+\begin{align*}
+\nabla\cdot\Dvec &= \rho, & \Dvec &= \epsilon\Evec, & \Evec&=-\nabla\phi,\\[-0.15em]
+\Rightarrow\qquad
+\nabla\cdot(\epsilon\nabla\phi) &= -\rho.
+\end{align*}
+
+\vspace{0.15em}
+\textbf{Total semiconductor space charge}
+\vspace{-0.15em}
+\begin{align*}
+\rho(x,y,t)
+&= q\big[p(x,y,t)-n(x,y,t)+N_D^+(x,y)-N_A^-(x,y)\big]+\rhodef(x,y,t),\\[-0.05em]
+\rhodef(x,y,t)
+&= q\sum_{i=1}^{M} z_i C_i(x,y,t).
+\end{align*}
+
+\vspace{0.15em}
+\begin{itemize}
+    \item $p$ and ionized donors $N_D^+$ contribute positive charge; $n$ and ionized acceptors $N_A^-$ contribute negative charge.
+    \item A defect species contributes positive, negative, or neutral charge according to the sign and magnitude of $z_i$.
+    \item For spatially uniform silicon permittivity,
+    \[
+        \epsilon=\epssi,
+        \qquad
+        \epssi \nabla^2\phi=-\rho.
+    \]
+    \item In nonuniform media or at material interfaces, the conservative form $\nabla\cdot(\epsilon\nabla\phi)=-\rho$ must be retained.
+\end{itemize}
+\end{frame}
+
+% -----------------------------------------------------------------------------
+\begin{frame}{Finite-element weak form and Module 2 outputs}
+\footnotesize
+\textbf{Weak form on the 2-D domain $\Omega$}
+\vspace{-0.25em}
+\begin{equation*}
+\boxed{
+\int_{\Omega} \epsilon\,\nabla w\cdot\nabla\phi\,d\Omega
+=
+\int_{\Omega} w\rho\,d\Omega
++
+\int_{\Gamma_N} w g_N\,d\Gamma
+}
+\end{equation*}
+
+\vspace{-0.5em}
+\begin{align*}
+\phi_h(x,y,t) &= \sum_{j=1}^{N} \Phi_j(t)N_j(x,y),\\[-0.15em]
+K_{ij} &= \int_{\Omega}\epsilon\,\nabla N_i\cdot\nabla N_j\,d\Omega,\\[-0.15em]
+b_i(t) &= \int_{\Omega}N_i\rho(x,y,t)\,d\Omega
++\int_{\Gamma_N}N_i g_N\,d\Gamma,\\[-0.15em]
+K\bm{\Phi}(t)&=\bm b(t),
+\qquad
+\Evec_h|_e(t)=-\nabla\phi_h|_e(t).
+\end{align*}
+
+\vspace{-0.15em}
+\begin{itemize}
+    \item Dirichlet boundaries impose contact voltages or a reference ground: $\phi=\phi_D$ on $\Gamma_D$.
+    \item Neumann boundaries impose normal electric displacement or insulating/symmetry conditions: $-\epsilon\nabla\phi\cdot\hat{\mathbf n}=g_N$ on $\Gamma_N$.
+    \item Main outputs: nodal potential $\bm\Phi$, reconstructed field $\Evec_h$, and residual diagnostics.
+    \item Module 2 is quasi-static: at each coupled time level, the current charge density determines the instantaneous electrostatic solution.
+\end{itemize}
+\end{frame}
+
+
+
+% -----------------------------------------------------------------------------
+\begin{frame}{Module 3 purpose: evolve the defect landscape}
+\small
+\textbf{Module 3 converts the initial radiation damage map into a time-dependent defect concentration field.}
+
+\vspace{0.35em}
+\begin{equation*}
+\boxed{
+\text{Module 1 damage map}
+\;\longrightarrow\;
+C(x,y,0)\ \text{or}\ S(x,y,t)
+\;\longrightarrow\;
+C(x,y,t)
+\;\longrightarrow\;
+\text{Modules 2, 4, and 5}
+}
+\end{equation*}
+
+\vspace{0.25em}
+\textbf{Local defect balance law}
+\vspace{-0.25em}
+\begin{align*}
+\frac{\partial C}{\partial t}+\nabla\cdot\Jvec_C &= R(C,T,\ldots),\\[-0.15em]
+\Jvec_C &=-D\nabla C,\\[-0.15em]
+\Rightarrow\qquad
+\frac{\partial C}{\partial t} &= \nabla\cdot(D\nabla C)+R(C,T,\ldots).
+\end{align*}
+
+\vspace{-0.15em}
+\begin{itemize}
+    \item $C(x,y,t)$ is a coarse-grained concentration of radiation-induced defects in the 2-D silicon domain.
+    \item $\Jvec_C$ is the defect flux; Fick's law sends defects down the concentration gradient.
+    \item $R$ contains local creation, removal, recombination, clustering, dissociation, or transformation.
+    \item For multiple defect species,
+    \[
+        \frac{\partial C_i}{\partial t}
+        =\nabla\cdot(D_i\nabla C_i)+R_i(C_1,C_2,\ldots,T).
+    \]
+\end{itemize}
+\end{frame}
+
+% -----------------------------------------------------------------------------
+\begin{frame}{Diffusion, annealing, temperature dependence, and boundaries}
+\small
+\textbf{Baseline single-species diffusion--reaction model}
+\vspace{-0.25em}
+\begin{equation*}
+\boxed{
+\frac{\partial C}{\partial t}
+=
+\frac{\partial}{\partial x}\!\left(D\frac{\partial C}{\partial x}\right)
++
+\frac{\partial}{\partial y}\!\left(D\frac{\partial C}{\partial y}\right)
+-k_{\mathrm{ann}}C+S
+}
+\end{equation*}
+
+\vspace{0.05em}
+\textbf{Thermally activated coefficients}
+\vspace{-0.25em}
+\begin{align*}
+D(T)&=D_0\exp\!\left(-\frac{E_D}{k_BT}\right),&
+ k_{\mathrm{ann}}(T)&=k_0\exp\!\left(-\frac{E_{\mathrm{ann}}}{k_BT}\right).
+\end{align*}
+
+\vspace{-0.15em}
+\begin{itemize}
+    \item $D$ controls spatial migration; $k_{\mathrm{ann}}$ controls local defect removal or transformation.
+    \item Higher $T$ generally increases both migration and annealing by reducing the Boltzmann penalty for crossing activation barriers.
+    \item Important timescales:
+    \[
+        \tau_D\sim\frac{L^2}{D},
+        \qquad
+        \tau_{\mathrm{ann}}\sim\frac{1}{k_{\mathrm{ann}}}.
+    \]
+    \item If $\tau_D\ll\tau_{\mathrm{ann}}$, defects redistribute before disappearing; if $\tau_D\gg\tau_{\mathrm{ann}}$, they anneal locally before spreading.
+    \item Default closed-domain boundary:
+    \[
+        \hat{\mathbf n}\cdot\Jvec_C=0,
+        \qquad
+        \hat{\mathbf n}\cdot D\nabla C=0.
+    \]
+\end{itemize}
+\end{frame}
+
+% -----------------------------------------------------------------------------
+\begin{frame}{Finite-element form, update equation, and verification checks}
+\footnotesize
+\textbf{Weak form for the 2-D defect-evolution equation}
+\vspace{-0.25em}
+\begin{equation*}
+\boxed{
+\int_{\Omega} w\frac{\partial C}{\partial t}\,d\Omega
++
+\int_{\Omega}D\nabla w\cdot\nabla C\,d\Omega
++
+\int_{\Omega}wk_{\mathrm{ann}}C\,d\Omega
+=
+\int_{\Omega}wS\,d\Omega
+}
+\end{equation*}
+
+\vspace{-0.35em}
+\begin{align*}
+C_h(x,y,t)&=\sum_{j=1}^{N}C_j(t)N_j(x,y),\\[-0.15em]
+M_{ij}&=\int_{\Omega}N_iN_j\,d\Omega,\\[-0.15em]
+(K_D)_{ij}&=\int_{\Omega}D\nabla N_i\cdot\nabla N_j\,d\Omega,\\[-0.15em]
+(K_R)_{ij}&=\int_{\Omega}k_{\mathrm{ann}}N_iN_j\,d\Omega.
+\end{align*}
+
+\vspace{-0.35em}
+\textbf{Backward-Euler update}
+\vspace{-0.2em}
+\begin{equation*}
+\boxed{
+\left[M+\Delta t(K_D+K_R)\right]\bm C^{m+1}
+=
+M\bm C^{m}+\Delta t\,\bm s^{m+1}
+}
+\end{equation*}
+
+\vspace{-0.35em}
+\begin{itemize}
+    \item Main output: $C(x,y,t)$, which feeds defect charge in Module 2 and defect-dependent coefficients in later modules.
+    \item Pure annealing check: $D=0\Rightarrow C(t)=C(0)e^{-k_{\mathrm{ann}}t}$.
+    \item Pure diffusion with zero-flux boundaries: $R=0\Rightarrow M(t)=\int_{\Omega}C\,d\Omega$ should be conserved.
+    \item Uniform initial state should remain uniform if sources and boundaries preserve uniformity.
+\end{itemize}
+\end{frame}
+
+
+
+% -----------------------------------------------------------------------------
+\begin{frame}{Module 4 purpose: thermal response beyond pure Fourier diffusion}
+\small
+\textbf{Module 4 computes the 2-D temperature or medium-energy field driven by radiation heating and later coupled electrical heating.}
+
+\vspace{0.25em}
+\begin{equation*}
+\boxed{
+\{\dot q_{\mathrm{rad}},Q_J,Q_{\mathrm{rec}},Q_{\mathrm{def}},\text{thermal BCs}\}
+\longrightarrow
+T(x,y,t)
+\longrightarrow
+\{D_i,k_{\mathrm{ann},i},\mu_n,\mu_p,R\}
+}
+\end{equation*}
+
+\vspace{0.2em}
+\textbf{Conservation of thermal energy}
+\vspace{-0.25em}
+\begin{equation*}
+\frac{\partial u}{\partial t}+\nabla\cdot \mathbf q = \dot q,
+\qquad
+u=C T\quad\text{for constant volumetric heat capacity }C.
+\end{equation*}
+
+\vspace{-0.1em}
+\begin{itemize}
+    \item $u(x,y,t)$ is internal energy density; $T(x,y,t)$ is the equivalent local temperature.
+    \item $\dot q$ may represent thermalized radiation energy deposition, Joule heating, recombination heat, or defect-reconfiguration heat.
+    \item Module 4 feeds temperature-dependent coefficients back to defect evolution, carrier transport, and coupled degradation metrics.
+    \item The motivation for ballistic-diffusive physics is that localized, short-time heating can propagate with finite carrier flight time before reducing to ordinary diffusion.
+\end{itemize}
+\end{frame}
+
+% -----------------------------------------------------------------------------
+\begin{frame}{Fourier, Cattaneo, and ballistic-diffusive thermal transport}
+\small
+\textbf{Fourier conduction is the local diffusive limit.}
+\vspace{-0.25em}
+\begin{align*}
+\mathbf q_F&=-k\nabla T,\\[-0.15em]
+C\frac{\partial T}{\partial t}&=\nabla\cdot(k\nabla T)+\dot q.
+\end{align*}
+
+\vspace{-0.15em}
+\textbf{Cattaneo adds flux relaxation and finite thermal-wave speed.}
+\vspace{-0.25em}
+\begin{align*}
+\tau\frac{\partial \mathbf q}{\partial t}+\mathbf q&=-k\nabla T,\\[-0.15em]
+\tau C\frac{\partial^2 T}{\partial t^2}+C\frac{\partial T}{\partial t}
+&=\nabla\cdot(k\nabla T)+\dot q+\tau\frac{\partial \dot q}{\partial t}.
+\end{align*}
+
+\vspace{-0.15em}
+\begin{itemize}
+    \item Fourier is accurate when the mean free path is much smaller than the device length.
+    \item Cattaneo fixes the infinite-propagation-speed artifact but is still a local closure.
+    \item Ballistic-diffusive modeling splits heat transport into an unscattered ballistic channel and a scattered medium channel:
+    \[
+        u=u_b+u_m,
+        \qquad
+        \mathbf q=\mathbf q_b+\mathbf q_m.
+    \]
+    \item The key dimensionless indicator is the Knudsen number $\mathrm{Kn}=\Lambda/L$.
+\end{itemize}
+\end{frame}
+
+% -----------------------------------------------------------------------------
+\begin{frame}{Module 4 target equation and coupling inputs}
+\footnotesize
+\textbf{Reduced 2-D ballistic-diffusive medium-temperature equation}
+\vspace{-0.25em}
+\begin{equation*}
+\boxed{
+\tau C\frac{\partial^2 T_m}{\partial t^2}
++C\frac{\partial T_m}{\partial t}
+=\nabla\cdot(k\nabla T_m)
+-\nabla\cdot\mathbf q_b
++\left(\dot q_e+\tau\frac{\partial \dot q_e}{\partial t}\right)
+}
+\end{equation*}
+
+\vspace{-0.25em}
+\begin{equation*}
+\dot q_e
+=\dot q_{\mathrm{rad}}
++Q_J+Q_{\mathrm{rec}}+Q_{\mathrm{def}}+Q_{\mathrm{ext}}.
+\end{equation*}
+
+\vspace{-0.25em}
+\begin{itemize}
+    \item $\mathbf q_b$ is not a claim that the whole device is ballistic; it represents a retained finite-flight-time correction.
+    \item In the diffusive limit, $\tau\rightarrow0$ and $\mathbf q_b\rightarrow0$, the equation reduces to the ordinary heat equation.
+    \item Temperature modifies Module 3 defect kinetics:
+    \[
+        D_i(T)=D_{i0}\exp\!\left(-\frac{E_{D,i}}{k_BT}\right),
+        \qquad
+        k_{\mathrm{ann},i}(T)=k_{i0}\exp\!\left(-\frac{E_{\mathrm{ann},i}}{k_BT}\right).
+    \]
+    \item Temperature also modifies carrier mobilities, recombination rates, and later the strength of Joule-heating feedback.
+\end{itemize}
+\end{frame}
+
+% -----------------------------------------------------------------------------
+\begin{frame}{Module 4 finite-element update and verification logic}
+\footnotesize
+\textbf{Simplified Fourier-limit FEM form used as a baseline thermal path}
+\vspace{-0.25em}
+\begin{equation*}
+\int_{\Omega}w C\frac{\partial T}{\partial t}\,d\Omega
++\int_{\Omega}k\nabla w\cdot\nabla T\,d\Omega
+=\int_{\Omega}w\dot q\,d\Omega+\int_{\Gamma_N}wq_N\,d\Gamma.
+\end{equation*}
+
+\vspace{-0.4em}
+\begin{align*}
+T_h&=\sum_j\Theta_j N_j, &
+M^T_{ij}&=\int_{\Omega} C N_iN_j\,d\Omega,\\[-0.15em]
+K^T_{ij}&=\int_{\Omega} k\nabla N_i\cdot\nabla N_j\,d\Omega, &
+\left[M^T+\Delta t K^T\right]\bm\Theta^{m+1}
+&=M^T\bm\Theta^m+\Delta t\bm f_T^{m+1}.
+\end{align*}
+
+\vspace{-0.3em}
+\begin{itemize}
+    \item Dirichlet boundaries impose fixed temperature; Neumann boundaries impose heat flux; Robin boundaries impose convective exchange.
+    \item The full Module 4 target keeps ballistic-memory terms, but the Fourier-limit solve is the necessary first verification baseline.
+    \item Verification checks: uniform equilibrium preservation, diffusive-limit recovery, localized-pulse spreading, and sensitivity to finite-flight-time corrections.
+    \item Main output: $T(x,y,t)$ on the same 2-D domain used by Modules 2, 3, 5, and 6.
+\end{itemize}
+\end{frame}
+
+% -----------------------------------------------------------------------------
+\begin{frame}{Module 5 purpose: carrier transport in the damaged device}
+\small
+\textbf{Module 5 evolves electron and hole densities under electric fields, diffusion, generation, recombination, and defect-modified material properties.}
+
+\vspace{0.25em}
+\begin{equation*}
+\boxed{
+\{\phi,\mathbf E,C_i,T,G,R,\mu_n,\mu_p,D_n,D_p\}
+\longrightarrow
+n(x,y,t),\ p(x,y,t),\ \mathbf J_n,\ \mathbf J_p
+}
+\end{equation*}
+
+\vspace{-0.1em}
+\textbf{Particle balance laws}
+\vspace{-0.25em}
+\begin{align*}
+\frac{\partial n}{\partial t}&=\frac{1}{q}\nabla\cdot\mathbf J_n+G-R,\\[-0.15em]
+\frac{\partial p}{\partial t}&=-\frac{1}{q}\nabla\cdot\mathbf J_p+G-R.
+\end{align*}
+
+\vspace{-0.15em}
+\begin{itemize}
+    \item Electrons and holes have opposite charge, so their current-divergence signs differ in the continuity equations.
+    \item $G$ creates electron-hole pairs; $R$ removes them through recombination.
+    \item The electric field comes from Module 2, while defect and temperature fields from Modules 3--4 modify the transport coefficients.
+    \item Module 5 produces carrier fields that feed back into the Poisson charge density in Module 6.
+\end{itemize}
+\end{frame}
+
+% -----------------------------------------------------------------------------
+\begin{frame}{Drift-diffusion currents and 2-D carrier PDEs}
+\small
+\textbf{Current-density closures}
+\vspace{-0.25em}
+\begin{align*}
+\mathbf J_n&=q\mu_n n\mathbf E+qD_n\nabla n,\\[-0.15em]
+\mathbf J_p&=q\mu_p p\mathbf E-qD_p\nabla p.
+\end{align*}
+
+\vspace{-0.15em}
+\textbf{Drift-diffusion PDE system}
+\vspace{-0.25em}
+\begin{align*}
+\boxed{\frac{\partial n}{\partial t}
+=\nabla\cdot\left(\mu_n n\mathbf E+D_n\nabla n\right)+G-R,}\\[-0.05em]
+\boxed{\frac{\partial p}{\partial t}
+=-\nabla\cdot\left(\mu_p p\mathbf E-D_p\nabla p\right)+G-R.}
+\end{align*}
+
+\vspace{-0.15em}
+\begin{itemize}
+    \item Drift terms scale with mobility, density, and electric field.
+    \item Diffusion terms respond to carrier-density gradients.
+    \item In nondegenerate thermal equilibrium, the Einstein relation gives
+    \[
+        D_n=\mu_n\frac{k_BT}{q},
+        \qquad
+        D_p=\mu_p\frac{k_BT}{q}.
+    \]
+    \item Steady-state current response is obtained by setting $\partial n/\partial t=\partial p/\partial t=0$.
+\end{itemize}
+\end{frame}
+
+% -----------------------------------------------------------------------------
+\begin{frame}{How defects degrade mobility and enhance recombination}
+\footnotesize
+\textbf{Mobility degradation through additional momentum scattering}
+\vspace{-0.25em}
+\begin{align*}
+\mu_n&=\frac{q\tau_{m,n}}{m_n^*},
+&
+\frac{1}{\tau_{m,n}}&=\frac{1}{\tau_{m,n}^{\mathrm{lat}}(T)}+\frac{1}{\tau_{m,n}^{\mathrm{dop}}}+\\[-0.2em]
+&&&\hspace{4.7em}+\sum_j \sigma_{m,n}^{(j)}v_{\mathrm{th},n}C_j,\\[-0.05em]
+\mu_p&=\frac{q\tau_{m,p}}{m_p^*},
+&
+\frac{1}{\tau_{m,p}}&=\frac{1}{\tau_{m,p}^{\mathrm{lat}}(T)}+\frac{1}{\tau_{m,p}^{\mathrm{dop}}}+
+\sum_j \sigma_{m,p}^{(j)}v_{\mathrm{th},p}C_j.
+\end{align*}
+
+\vspace{-0.3em}
+\textbf{Trap-assisted Shockley--Read--Hall recombination}
+\vspace{-0.25em}
+\begin{equation*}
+R_{\mathrm{SRH}}
+=
+\frac{np-n_i^2}
+{\tau_p(n+n_1)+\tau_n(p+p_1)},
+\qquad
+\frac{1}{\tau_n}=\sum_j\sigma_{n,j}v_{\mathrm{th}}C_j,
+\qquad
+\frac{1}{\tau_p}=\sum_j\sigma_{p,j}v_{\mathrm{th}}C_j.
+\end{equation*}
+
+\vspace{-0.25em}
+\begin{itemize}
+    \item Increasing defect concentration generally increases scattering and lowers mobility.
+    \item Defects also act as trap populations, shortening carrier lifetime and increasing nonradiative recombination.
+    \item These closures are the physical path from radiation damage to degraded current response.
+\end{itemize}
+\end{frame}
+
+% -----------------------------------------------------------------------------
+\begin{frame}{Module 5 boundaries, FEM form, and outputs}
+\footnotesize
+\textbf{Representative boundary conditions}
+\vspace{-0.25em}
+\begin{align*}
+\text{Ohmic contacts:}&\qquad n=n_c,\quad p=p_c,\\[-0.15em]
+\text{Insulating boundaries:}&\qquad \mathbf J_n\cdot\hat{\mathbf n}=0,\quad \mathbf J_p\cdot\hat{\mathbf n}=0,\\[-0.15em]
+\text{Surface recombination:}&\qquad \frac{1}{q}\mathbf J_n\cdot\hat{\mathbf n}=S_n(n-n_{\mathrm{eq}}),\quad
+-\frac{1}{q}\mathbf J_p\cdot\hat{\mathbf n}=S_p(p-p_{\mathrm{eq}}).
+\end{align*}
+
+\vspace{-0.35em}
+\textbf{Electron weak-form structure}
+\vspace{-0.25em}
+\begin{equation*}
+\int_{\Omega}w\frac{\partial n}{\partial t}\,d\Omega
++
+\int_{\Omega}\nabla w\cdot\left(\mu_n n\mathbf E+D_n\nabla n\right)d\Omega
+=
+\int_{\Omega}w(G-R)\,d\Omega+\text{boundary terms}.
+\end{equation*}
+
+\vspace{-0.25em}
+\begin{itemize}
+    \item The hole weak form is analogous but carries the opposite drift-diffusion sign convention.
+    \item Module 5 is nonlinear because current terms contain products such as $\mu_n n\mathbf E$ and recombination depends on $n$ and $p$.
+    \item Main outputs: $n$, $p$, $\mathbf J_n$, $\mathbf J_p$, recombination map, generation map, and current-voltage or degradation metrics.
+\end{itemize}
+\end{frame}
+
+% -----------------------------------------------------------------------------
+\begin{frame}{Module 6 purpose: self-consistent multiphysics integration}
+\small
+\textbf{Module 6 couples the fields from Modules 2--5 on the same 2-D device cross section.}
+
+\vspace{0.2em}
+\begin{equation*}
+\boxed{
+\{C_j\}\leftrightarrow \rho\leftrightarrow \phi,\mathbf E
+\leftrightarrow n,p,\mathbf J_n,\mathbf J_p
+\leftrightarrow T
+\leftrightarrow \{C_j\}
+}
+\end{equation*}
+
+\vspace{-0.1em}
+\begin{itemize}
+    \item Module 2 supplies electrostatic potential and electric field from total charge density.
+    \item Module 3 supplies defect concentration maps and defect-dependent charge, traps, and kinetic states.
+    \item Module 4 supplies temperature and heat-transport response.
+    \item Module 5 supplies carrier densities, currents, generation, recombination, and current-related degradation outputs.
+    \item The goal is not four separate simulations, but a mutually consistent set of physical maps at each time level.
+\end{itemize}
+\end{frame}
+
+% -----------------------------------------------------------------------------
+\begin{frame}{Coupled governing equations in Module 6}
+\footnotesize
+\textbf{A compact coupled PDE system}
+\vspace{-0.25em}
+\begin{align*}
+\frac{\partial C_j}{\partial t}
+&=\nabla\cdot(D_j(T)\nabla C_j)+R_j(\{C\},n,p,T)+S_j,\\[-0.1em]
+\nabla\cdot(\epsilon\nabla\phi)
+&=-q\left[p-n+N_D^+-N_A^-+\sum_j z_jC_j\right],\\[-0.1em]
+C_T\frac{\partial T}{\partial t}
+&=\nabla\cdot(k\nabla T)+Q_{\mathrm{rad}}+Q_J+Q_{\mathrm{rec}}+Q_{\mathrm{def}},\\[-0.1em]
+\frac{\partial n}{\partial t}
+&=\nabla\cdot(\mu_n n\mathbf E+D_n\nabla n)+G-R,\\[-0.1em]
+\frac{\partial p}{\partial t}
+&=-\nabla\cdot(\mu_p p\mathbf E-D_p\nabla p)+G-R,\\[-0.1em]
+\mathbf E&=-\nabla\phi.
+\end{align*}
+
+\vspace{-0.3em}
+\begin{itemize}
+    \item The equations are coupled through coefficients, sources, charge density, electric field, and heat generation.
+    \item The thermal equation shown here is the compact diffusive version; Module 4 may replace it with the reduced ballistic-diffusive form.
+\end{itemize}
+\end{frame}
+
+% -----------------------------------------------------------------------------
+\begin{frame}{Main physical feedback loops and staged coupling levels}
+\footnotesize
+\textbf{Key feedback mechanisms}
+\vspace{-0.25em}
+\begin{align*}
+\{C_j,z_j\}&\rightarrow \rho_{\mathrm{def}}\rightarrow \phi,\mathbf E,\\[-0.15em]
+\mathbf E&\rightarrow \mathbf J_n,\mathbf J_p\rightarrow n,p,\\[-0.15em]
+C_j&\rightarrow \mu_n,\mu_p,\tau_n,\tau_p\rightarrow \mathbf J_n,\mathbf J_p,R,\\[-0.15em]
+T&\rightarrow D_j,k_{\mathrm{ann},j},\mu_n,\mu_p,R,\\[-0.15em]
+\mathbf J\cdot\mathbf E&\rightarrow Q_J\rightarrow T.
+\end{align*}
+
+\vspace{-0.3em}
+\textbf{Recommended physical-coupling ladder}
+\vspace{-0.25em}
+\begin{enumerate}
+    \item Level 0: one-way field transfer among modules.
+    \item Level 1: electrostatic-carrier feedback, $(n,p)\leftrightarrow \rho\leftrightarrow\phi,\mathbf E$.
+    \item Level 2: defect-electrostatic-carrier coupling, $C_j\rightarrow\rho_{\mathrm{def}},N_t\rightarrow R_{\mathrm{SRH}}$.
+    \item Level 3: thermal feedback through $T$-dependent coefficients and current-induced heat.
+    \item Level 4: full self-consistent iteration among defects, electrostatics, carriers, and temperature.
+\end{enumerate}
+\end{frame}
+
+% -----------------------------------------------------------------------------
+\begin{frame}{Module 6 consistency checks and device-response outputs}
+\footnotesize
+\textbf{Charge consistency}
+\vspace{-0.25em}
+\begin{equation*}
+\rho_{\mathrm{check}}
+=q\left[p-n+N_D^+-N_A^-+\sum_j z_jC_j\right],
+\qquad
+\epsilon_\rho=
+\frac{\|\rho_{\mathrm{Poisson}}-\rho_{\mathrm{check}}\|_2}
+{\|\rho_{\mathrm{check}}\|_2+\rho_{\mathrm{floor}}}.
+\end{equation*}
+
+\vspace{-0.35em}
+\textbf{Energy-source bookkeeping}
+\vspace{-0.25em}
+\begin{equation*}
+Q_{\mathrm{tot}}=Q_{\mathrm{rad}}+Q_J+Q_{\mathrm{rec}}+Q_{\mathrm{def}}+Q_{\mathrm{ext}},
+\qquad
+P_a(t)=\int_\Omega Q_a(x,y,t)\,d\Omega.
+\end{equation*}
+
+\vspace{-0.35em}
+\textbf{Carrier conservation in an insulating domain}
+\vspace{-0.25em}
+\begin{equation*}
+\frac{d}{dt}\int_\Omega n\,d\Omega=\int_\Omega(G-R)\,d\Omega,
+\qquad
+\frac{d}{dt}\int_\Omega p\,d\Omega=\int_\Omega(G-R)\,d\Omega.
+\end{equation*}
+
+\vspace{-0.25em}
+\begin{itemize}
+    \item These diagnostics catch stale-field coupling, unit mistakes, and sign errors that can look numerically stable but be physically wrong.
+    \item Device-level outputs may include current, leakage, recombination power, temperature rise, defect inventory, and degradation scores.
+\end{itemize}
+\end{frame}
+
+% -----------------------------------------------------------------------------
+\begin{frame}{Module 2 PINN: surrogate mapping for Poisson electrostatics}
+\small
+\textbf{Goal: learn the Module 2 input-output map while penalizing violations of electrostatics.}
+
+\vspace{0.25em}
+\begin{equation*}
+\boxed{
+\mathcal G_{\theta}:
+\left(\mathbf x,\boldsymbol\mu\right)
+\longmapsto
+\phi_{\theta}(\mathbf x;\boldsymbol\mu),
+\qquad
+\mathbf E_{\theta}=-\nabla_{\mathbf x}\phi_{\theta}
+}
+\end{equation*}
+
+\vspace{-0.15em}
+\begin{itemize}
+    \item $\mathbf x=(x,y)$ is the spatial coordinate; $\boldsymbol\mu$ contains problem parameters such as bias, defect amplitude, material constants, geometry, and source descriptors.
+    \item The finite-element solver remains the reference model; the PINN is a fast differentiable surrogate for repeated Module 2 solves.
+    \item A purely supervised neural network learns from pairs
+    \[
+        \left(\rho,\text{BCs},\boldsymbol\mu\right)\mapsto \phi_{\mathrm{FEM}}.
+    \]
+    \item A physics-informed neural network also sees the governing equation and boundary conditions through its loss function.
+\end{itemize}
+
+\vspace{0.15em}
+\textbf{Central distinction:} the network is not a new electrostatic law; it is an approximate representation constrained to behave like the Poisson model.
+\end{frame}
+
+% -----------------------------------------------------------------------------
+\begin{frame}{Module 2 PINN: Poisson residual and boundary losses}
+\footnotesize
+\textbf{Strong-form residual used at interior collocation points}
+\vspace{-0.25em}
+\begin{equation*}
+\boxed{
+\mathcal R_P(\mathbf x;\theta)
+=
+\nabla\cdot\left(\epsilon\nabla \phi_{\theta}(\mathbf x)\right)+\rho(\mathbf x)
+}
+\end{equation*}
+
+\vspace{-0.25em}
+For uniform silicon permittivity,
+\vspace{-0.15em}
+\begin{equation*}
+\mathcal R_P(\mathbf x;\theta)
+=
+\epsilon_{\mathrm{Si}}\left(
+\frac{\partial^2\phi_{\theta}}{\partial x^2}
++
+\frac{\partial^2\phi_{\theta}}{\partial y^2}
+\right)+\rho(\mathbf x).
+\end{equation*}
+
+\vspace{-0.3em}
+\textbf{Representative loss terms}
+\vspace{-0.25em}
+\begin{align*}
+\mathcal L_{\mathrm{PDE}}&=\frac{1}{N_r}\sum_{k=1}^{N_r}\left|\mathcal R_P(\mathbf x_k;\theta)\right|^2,\\[-0.15em]
+\mathcal L_D&=\frac{1}{N_D}\sum_{k=1}^{N_D}\left|\phi_{\theta}(\mathbf x_k)-\phi_D(\mathbf x_k)\right|^2,\\[-0.15em]
+\mathcal L_N&=\frac{1}{N_N}\sum_{k=1}^{N_N}\left|-\,\epsilon\nabla\phi_{\theta}(\mathbf x_k)\cdot\hat{\mathbf n}-g_N(\mathbf x_k)\right|^2.
+\end{align*}
+\end{frame}
+
+% -----------------------------------------------------------------------------
+\begin{frame}{Module 2 PINN: training objective and data construction}
+\footnotesize
+\textbf{Combined supervised-plus-physics objective}
+\vspace{-0.25em}
+\begin{equation*}
+\boxed{
+\mathcal L_{\mathrm{total}}
+=\lambda_s\mathcal L_{\mathrm{data}}
++\lambda_r\mathcal L_{\mathrm{PDE}}
++\lambda_D\mathcal L_D
++\lambda_N\mathcal L_N
++\lambda_{\mathrm{reg}}\mathcal L_{\mathrm{reg}}
+}
+\end{equation*}
+
+\vspace{-0.15em}
+\begin{itemize}
+    \item Supervised samples come from trusted FEM cases:
+    \[
+        \mathcal D_s=\{(\mathbf x_k,\boldsymbol\mu_k,\phi_{\mathrm{FEM},k})\}_{k=1}^{N_s}.
+    \]
+    \item Interior residual points do not need FEM labels; they train the model to satisfy Poisson's equation between labeled samples.
+    \item Boundary points enforce contact voltages, ground reference, insulating conditions, or prescribed normal flux.
+    \item Inputs should be nondimensionalized, for example
+    \[
+        \hat x=x/L,
+        \qquad
+        \hat\phi=\phi/\phi_0,
+        \qquad
+        \hat\rho=\rho/\rho_0.
+    \]
+    \item The loss weights must be scaled so that the largest-magnitude term does not dominate training for numerical rather than physical reasons.
+\end{itemize}
+\end{frame}
+
+% -----------------------------------------------------------------------------
+\begin{frame}{Module 2 PINN: verification, strengths, and limits}
+\small
+\textbf{A useful PINN surrogate must be judged against the reference electrostatic solve, not only by low training loss.}
+
+\vspace{-0.1em}
+\begin{itemize}
+    \item Compare potential and field errors:
+    \[
+        e_{\phi}=\frac{\|\phi_{\theta}-\phi_{\mathrm{FEM}}\|_2}
+        {\|\phi_{\mathrm{FEM}}\|_2+\phi_{\mathrm{floor}}},
+        \qquad
+        e_E=\frac{\|\mathbf E_{\theta}-\mathbf E_{\mathrm{FEM}}\|_2}
+        {\|\mathbf E_{\mathrm{FEM}}\|_2+E_{\mathrm{floor}}}.
+    \]
+    \item Check physically simple cases: zero charge, uniform space charge, linear potential, localized defect charge, and boundary-condition consistency.
+    \item Strength: once trained, the surrogate may accelerate parameter sweeps and sensitivity scans.
+    \item Limitation: a PINN can still satisfy a weakly weighted residual while violating charge conservation, boundary behavior, or sharp field gradients.
+    \item Practical conclusion: keep FEM as the truth model; use the PINN only after systematic out-of-distribution testing.
+\end{itemize}
+\end{frame}
+
+% -----------------------------------------------------------------------------
+\begin{frame}{Module 2 CPINN: why a causal training curriculum is needed}
+\small
+\textbf{Module 2 is elliptic and quasi-static, so causality does not mean electrostatic time evolution.}
+
+\vspace{0.25em}
+\begin{equation*}
+\nabla\cdot(\epsilon\nabla\phi)=-\rho,
+\qquad
+\mathbf E=-\nabla\phi.
+\end{equation*}
+
+\vspace{-0.1em}
+\begin{itemize}
+    \item A single Poisson solve has no intrinsic marching direction in time.
+    \item Causal training becomes meaningful only when Module 2 is embedded in an ordered sequence such as dose, irradiation time, defect amplitude, boundary loading, or coupled-iteration continuation.
+    \item The ordered coordinate is denoted $\tau$ or $\alpha$:
+    \[
+        \rho(\mathbf x;\alpha_0),\rho(\mathbf x;\alpha_1),\ldots,
+ho(\mathbf x;\alpha_K),
+        \qquad 0\leq \alpha_0<\alpha_1<\cdots<\alpha_K\leq1.
+    \]
+    \item The CPINN objective is to learn easy or early states before enforcing later, harder, more highly loaded states.
+\end{itemize}
+
+\vspace{0.1em}
+\textbf{Interpretation:} Module 2 CPINN is a causality-respecting curriculum for a family of quasi-static Poisson problems.
+\end{frame}
+
+% -----------------------------------------------------------------------------
+\begin{frame}{Module 2 CPINN: continuation coordinate and staged residuals}
+\footnotesize
+\textbf{A convenient continuation path from easy to full electrostatic loading}
+\vspace{-0.25em}
+\begin{equation*}
+\boxed{
+\rho(\mathbf x;\alpha)
+=(1-\alpha)\rho_{\mathrm{easy}}(\mathbf x)
++\alpha\rho_{\mathrm{full}}(\mathbf x),
+\qquad 0\leq\alpha\leq1
+}
+\end{equation*}
+
+\vspace{-0.15em}
+\textbf{Residual at each continuation slice}
+\vspace{-0.25em}
+\begin{equation*}
+\mathcal R_P(\mathbf x,\alpha;\theta)
+=\nabla\cdot\left(\epsilon\nabla\phi_{\theta}(\mathbf x,\alpha)\right)+\rho(\mathbf x;\alpha).
+\end{equation*}
+
+\vspace{-0.2em}
+\textbf{Slice loss}
+\vspace{-0.25em}
+\begin{equation*}
+\mathcal L_k
+=\frac{1}{N_k}\sum_{m=1}^{N_k}
+\left|\mathcal R_P(\mathbf x_m,\alpha_k;\theta)\right|^2
++\mathcal L_{D,k}+\mathcal L_{N,k}+\mathcal L_{\mathrm{data},k}.
+\end{equation*}
+
+\vspace{-0.2em}
+\begin{itemize}
+    \item $\alpha=0$ may represent zero defect charge, weak source amplitude, simple boundary loading, or an earlier dose state.
+    \item $\alpha=1$ is the full target electrostatic problem.
+    \item Staged training prevents the network from fitting late/high-damage states before it can satisfy simpler earlier states.
+\end{itemize}
+\end{frame}
+
+% -----------------------------------------------------------------------------
+\begin{frame}{Module 2 CPINN: causal weighting of ordered losses}
+\footnotesize
+\textbf{One causal-PINN strategy weights later residuals by earlier residual success.}
+
+\vspace{-0.2em}
+\begin{equation*}
+\boxed{
+\mathcal L_{\mathrm{causal}}
+=\sum_{k=0}^{K} w_k\mathcal L_k,
+\qquad
+w_k=\exp\left[-\eta\sum_{j=0}^{k-1}\mathcal L_j\right]
+}
+\end{equation*}
+
+\vspace{-0.15em}
+\begin{itemize}
+    \item If early slices have large residuals, then $w_k$ suppresses the influence of later slices.
+    \item Once early slices are learned, later slices become active because their causal weights increase.
+    \item This is not a physical modification of Poisson's equation; it is a training schedule imposed on the learning objective.
+    \item The full loss may be written as
+    \[
+        \mathcal L_{\mathrm{total}}
+        =\mathcal L_{\mathrm{causal}}
+        +\lambda_D\mathcal L_D
+        +\lambda_N\mathcal L_N
+        +\lambda_s\mathcal L_{\mathrm{data}}
+        +\lambda_{\mathrm{reg}}\mathcal L_{\mathrm{reg}}.
+    \]
+    \item The parameter $\eta$ controls how aggressively the curriculum enforces earlier states first.
+\end{itemize}
+\end{frame}
+
+% -----------------------------------------------------------------------------
+\begin{frame}{Module 2 CPINN: project use and verification criteria}
+\small
+\textbf{The CPINN should be accepted only if it improves ordered-state learning without degrading electrostatic fidelity.}
+
+\vspace{-0.1em}
+\begin{itemize}
+    \item Compare against the ordinary PINN at every ordered slice:
+    \[
+        e_{\phi}(\alpha_k)=
+        \frac{\|\phi_{\theta}(\cdot,\alpha_k)-\phi_{\mathrm{FEM}}(\cdot,\alpha_k)\|_2}
+        {\|\phi_{\mathrm{FEM}}(\cdot,\alpha_k)\|_2+\phi_{\mathrm{floor}}}.
+    \]
+    \item Check whether late/high-damage states improve because early/low-damage states were learned first.
+    \item Verify that boundary errors do not grow at large $\alpha$.
+    \item Verify that the Poisson residual decreases across the whole continuation path, not only at the final state.
+    \item Useful ordered coordinates for this project include dose, defect source amplitude, applied bias, and coupled-iteration loading.
+\end{itemize}
+\end{frame}
+
+% -----------------------------------------------------------------------------
+\begin{frame}{Module 11 GNN: target physical dependency graph}
+\small
+\textbf{Module 11 learns directed relations among physical variables, not mesh adjacency or numerical solver order.}
+
+\vspace{0.25em}
+\begin{equation*}
+\boxed{
+\mathcal G_{\mathrm{phys}}=(\mathcal V_{\mathrm{phys}},\mathcal E_{\mathrm{phys}}),
+\qquad
+X_i\rightarrow X_j
+\Longleftrightarrow
+X_i\ \text{directly enters the law for}\ X_j.
+}
+\end{equation*}
+
+\vspace{-0.1em}
+\begin{itemize}
+    \item Nodes include fields, coefficients, sources, and state variables from Modules 2--5:
+    \[
+        C_j,\rho,\phi,\mathbf E,T,n,p,\mu_n,\mu_p,D_n,D_p,\tau_n,\tau_p,R,\mathbf J_n,\mathbf J_p,Q_J,Q_{\mathrm{rad}}.
+    \]
+    \item Edges are directed physical dependencies: algebraic, constitutive, source, reaction, transport, or delayed dynamical effects.
+    \item The learned graph is allowed to contain cycles because real coupled physics contains feedback.
+    \item The goal is edge discovery, mechanism typing, strength estimation, lag classification, and uncertainty quantification.
+\end{itemize}
+\end{frame}
+
+% -----------------------------------------------------------------------------
+\begin{frame}{Module 11 GNN: typed edges and physical meaning}
+\footnotesize
+\textbf{Each candidate edge carries more information than present/absent.}
+
+\vspace{-0.2em}
+\begin{equation*}
+\boxed{
+X_i\rightarrow X_j
+\quad\mapsto\quad
+\left(A_{ij},z_{ij},s_{ij},\ell_{ij},\sigma_{ij}\right)
+}
+\end{equation*}
+
+\vspace{-0.25em}
+\begin{itemize}
+    \item $A_{ij}$: learned edge strength or probability.
+    \item $z_{ij}$: mechanism type, such as algebraic, constitutive, source, transport, reaction, derivative, or delayed dynamical edge.
+    \item $s_{ij}$: sign or monotonic trend when physically meaningful.
+    \item $\ell_{ij}$: lag class, distinguishing instantaneous relations from delayed responses.
+    \item $\sigma_{ij}$: uncertainty or confidence in the inferred edge.
+\end{itemize}
+
+\vspace{-0.15em}
+\textbf{Examples of target relations}
+\vspace{-0.2em}
+\begin{align*}
+C_j&\rightarrow \rho_{\mathrm{def}}, &
+\rho&\rightarrow \phi, &
+\phi&\rightarrow \mathbf E,\\[-0.15em]
+C_j&\rightarrow \mu_n,\mu_p, &
+C_j&\rightarrow \tau_n,\tau_p, &
+T&\rightarrow D_j,k_{\mathrm{ann},j},\\[-0.15em]
+\mathbf E,n,p&\rightarrow \mathbf J_n,\mathbf J_p, &
+\mathbf J\cdot\mathbf E&\rightarrow Q_J, &
+Q_J&\rightarrow T.
+\end{align*}
+\end{frame}
+
+% -----------------------------------------------------------------------------
+\begin{frame}{Module 11 GNN: message passing with latent adjacency}
+\footnotesize
+\textbf{A variable-level GNN updates each physical node using messages from candidate parent variables.}
+
+\vspace{-0.2em}
+\begin{align*}
+\mathbf m_{ij}^{(\ell)}
+&=A_{ij}\,M_{z_{ij}}\!
+\left(\mathbf h_i^{(\ell)},\mathbf h_j^{(\ell)},\mathbf e_{ij},\mathbf g\right),\\[-0.1em]
+\bar{\mathbf m}_{j}^{(\ell)}
+&=\sum_{i\neq j}\mathbf m_{ij}^{(\ell)},\\[-0.1em]
+\mathbf h_j^{(\ell+1)}
+&=U\!\left(\mathbf h_j^{(\ell)},\bar{\mathbf m}_j^{(\ell)},\mathbf g\right).
+\end{align*}
+
+\vspace{-0.25em}
+\begin{itemize}
+    \item $\mathbf h_j$ is the learned representation of physical variable $X_j$.
+    \item $\mathbf e_{ij}$ stores candidate-edge metadata such as allowed mechanism class, dimensional compatibility, and intervention labels.
+    \item $\mathbf g$ stores global context such as radiation condition, bias, material identity, temperature scale, and time index.
+    \item The adjacency variable $A_{ij}$ can be supervised when the synthetic generator knows the true graph, or treated as a latent variable when only trajectories are available.
+    \item Sparsity is essential: without a penalty or prior, the model may explain everything using too many weak edges.
+\end{itemize}
+\end{frame}
+
+% -----------------------------------------------------------------------------
+\begin{frame}{Module 11 GNN: synthetic trajectories and interventions}
+\footnotesize
+\textbf{Synthetic data must vary both parameter values and graph structure.}
+
+\vspace{-0.25em}
+\begin{equation*}
+\mathcal D^{(r)}=
+\left\{\boldsymbol\theta^{(r)},A^{(r)},Z^{(r)},L^{(r)},X^{(r)}(t),I^{(r)}\right\}.
+\end{equation*}
+
+\vspace{-0.2em}
+\begin{itemize}
+    \item $\boldsymbol\theta^{(r)}$ contains material, source, transport, trapping, thermal, and boundary parameters.
+    \item $A^{(r)}$ is the ground-truth physical adjacency used to generate the case.
+    \item Mechanism switches create graph-family variation:
+    \[
+        s_{ij}\in\{0,1\},
+        \qquad
+        \gamma_{ij}\sim \text{log-uniform or bounded random strength}.
+    \]
+    \item Matched interventions isolate edges by changing one mechanism while keeping the same random seed:
+    \[
+        z_j=0,
+        \qquad
+        \alpha_{\mu,C}=0,
+        \qquad
+        \alpha_{\tau,C}=0,
+        \qquad
+        \gamma_J=0,
+        \qquad
+        T(\mathbf x,t)=T_0.
+    \]
+    \item Training, validation, and test splits should be by complete physical case, not by time samples from the same trajectory.
+\end{itemize}
+\end{frame}
+
+% -----------------------------------------------------------------------------
+\begin{frame}{Module 11 GNN: from learned graph to physical coupling sequence}
+\small
+\textbf{The learned graph may contain feedback, so the output is a partial physical ordering, not a single serial algorithm.}
+
+\vspace{-0.1em}
+\begin{equation*}
+\mathcal G_{\mathrm{phys}}
+\longrightarrow
+\{\mathcal C_1,\mathcal C_2,\ldots,\mathcal C_K\}
+\longrightarrow
+\mathcal G_{\mathrm{cond}}.
+\end{equation*}
+
+\vspace{-0.15em}
+\begin{itemize}
+    \item Strongly connected components $\mathcal C_k$ collect mutually dependent feedback groups.
+    \item Collapsing each feedback group into one supernode gives the condensation graph $\mathcal G_{\mathrm{cond}}$, which is acyclic.
+    \item A topological ordering of $\mathcal G_{\mathrm{cond}}$ gives a physically admissible coupling sequence among influence groups:
+    \[
+        \mathcal C_{\pi(1)}\prec \mathcal C_{\pi(2)}\prec\cdots\prec \mathcal C_{\pi(K)}.
+    \]
+    \item Instantaneous algebraic constraints, such as $\rho\rightarrow\phi\rightarrow\mathbf E$, should be separated from delayed dynamical effects, such as $T\rightarrow D_j\rightarrow C_j(t+\Delta t)$.
+    \item Success means recovering known synthetic edges, rejecting ablated edges, quantifying edge uncertainty, and identifying regime-dependent feedback groups.
+\end{itemize}
+\end{frame}
+
+
+\end{document}
