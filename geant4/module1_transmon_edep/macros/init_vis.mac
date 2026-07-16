@@ -1,0 +1,33 @@
+# Interactive geometry/viewer initialization for the full transmon chip.
+# After the Qt prompt opens, configure the source with /gun/* commands and run
+# with /run/beamOn N. The constructor default is a 10 MeV proton from z=+1 mm.
+
+/control/verbose 1
+/run/verbose 1
+/event/verbose 0
+/tracking/verbose 0
+
+/run/initialize
+
+/vis/open OGLSQt 1200x900-0+0
+/vis/drawVolume
+/vis/viewer/set/style surface
+/vis/viewer/set/auxiliaryEdge true
+/vis/viewer/set/lineSegmentsPerCircle 128
+/vis/viewer/set/upVector 0 0 1
+/vis/viewer/set/viewpointVector 1 1 0.65
+/vis/viewer/set/rotationStyle freeRotation
+/vis/viewer/zoom 1.25
+/vis/scene/add/axes 0 0 0 1 mm
+/vis/scene/add/scale
+/vis/viewer/set/autoRefresh true
+/vis/viewer/refresh
+
+/control/echo ------------------------------------------------------------
+/control/echo Interactive particle-gun examples:
+/control/echo   /gun/particle proton
+/control/echo   /gun/energy 100 MeV
+/control/echo   /gun/position 0 0 1 mm
+/control/echo   /gun/direction 0 0 -1
+/control/echo   /run/beamOn 1
+/control/echo ------------------------------------------------------------

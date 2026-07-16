@@ -1,0 +1,7 @@
+# Ask Geant4 to run its recursive geometry-overlap test.
+/control/verbose 1
+/run/initialize
+/geometry/test/verbosity true
+/geometry/test/tolerance 0.01 nm
+/geometry/test/resolution 10000
+/geometry/test/run

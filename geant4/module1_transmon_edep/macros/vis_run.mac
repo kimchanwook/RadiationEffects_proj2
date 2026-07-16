@@ -1,0 +1,13 @@
+# Visualize ten default proton tracks through the transmon chip.
+/control/execute init_vis.mac
+
+/gun/particle proton
+/gun/energy 10 MeV
+/gun/position 0 0 1 mm
+/gun/direction 0 0 -1
+
+/tracking/storeTrajectory 1
+/vis/scene/add/trajectories smooth
+/vis/scene/endOfEventAction accumulate
+/run/beamOn 10
+/vis/viewer/refresh
