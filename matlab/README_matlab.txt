@@ -8,11 +8,12 @@ Tool split
 
 Current implementation status
 -----------------------------
-This package now includes seven working code paths:
+This package now includes eight working code paths:
 
 1. Module 2: first 2D finite-element electrostatic Poisson implementation
 1b. Module 2 PINN: standalone physics-inspired neural-network Poisson surrogate demo
-2. Module 3: first 2D defect evolution implementation plus a new linear-triangle FEM defect diffusion-reaction path
+2. Module 3: first 2D defect evolution implementation plus a linear-triangle FEM defect diffusion-reaction path
+2b. Module 3 causal PINN: physical-time causal training for the same diffusion-reaction initial-value problem
 3. Module 4: first executable 2D ballistic-diffusive thermal implementation plus a new linear-triangle FEM thermal path
 4. Module 5: first linear-triangle FEM drift-diffusion carrier-transport path
 5. Module 6: first staggered linear-triangle FEM coupling scaffold for Modules 2-5
@@ -42,6 +43,17 @@ Module 3 FEM pieces now included:
 - implicit backward-Euler time stepping
 - natural homogeneous zero-flux boundary handling
 - verification cases for pure annealing, uniform-state preservation, and Gaussian diffusion inventory conservation
+
+Module 3 causal-PINN pieces now included:
+- standalone MATLAB entry point `main_module3_CPINN_Defect_Evolution.m`
+- normalized `(x/Lx,y/Ly,t/tEnd)` inputs and `C/Cscale` output
+- automatic-differentiation residual for diffusion, first-order annealing, and source
+- soft initial-condition and homogeneous zero-flux boundary losses
+- residual-only causal prefix containing the initial condition and ordered physical-time residual slices
+- exponential causal weights computed from detached prefix losses, implementing stop-gradient
+- configurable epsilon schedule, optional sparse FEM anchors, analytic uniform-annealing reference, and FEM Gaussian-diffusion reference
+- saved slice losses, activation-front weights, field/inventory errors, plots, and summary
+- regression/physics test `test_module3_cpinn_pure_annealing.m`
 
 Module 4 ballistic-diffusive pieces now included:
 - structured 2D Cartesian grid utilities shared with Module 3
@@ -91,45 +103,47 @@ The setup script now also adds the `tests` folder to the MATLAB path, so test fu
 7. `main_module3_2d_defect_evolution('pure_annealing')`
 8. `main_module3_fem_defect_evolution('gaussian_diffusion')`
 9. `main_module3_fem_defect_evolution('pure_annealing')`
-10. `main_module4_2d_ballistic_diffusive_thermal('uniform_equilibrium')`
-11. `main_module4_2d_ballistic_diffusive_thermal('localized_pulse')`
-12. `main_module4_2d_ballistic_diffusive_thermal('boundary_heating')`
-13. `main_module4_fem_ballistic_diffusive_thermal('uniform_equilibrium')`
-14. `main_module4_fem_ballistic_diffusive_thermal('gaussian_diffusion')`
-15. `main_module4_fem_ballistic_diffusive_thermal('uniform_source')`
-16. `main_module5_drift_diffusion('uniform_no_field')`
-17. `main_module5_drift_diffusion('lifetime_recombination')`
-18. `main_module5_drift_diffusion('gaussian_diffusion')`
-19. `main_module5_drift_diffusion('field_drift')`
-20. `main_module6_multiphysics('smoke')`
-21. `main_module6_multiphysics('defect_field_coupling')`
-22. `main_module6_multiphysics('thermal_feedback')`
-23. `main_module4a_2d_continuum_thermal('uniform_equilibrium')`  % archived Fourier baseline
-24. `test_module2_zero_charge_2d`
-25. `test_module2_linear_potential_2d`
-26. `test_module2_uniform_space_charge_2d`
-27. `test_module2_localized_defect_charge_2d`
-28. `test_module2_pinn_electrostatics`
-29. `test_module3_gaussian_diffusion_2d`
-30. `test_module3_pure_annealing_2d`
-31. `test_module3_fem_gaussian_diffusion_2d`
-32. `test_module3_fem_pure_annealing_2d`
-33. `test_module3_fem_uniform_state_2d`
-34. `test_module4_bd_uniform_equilibrium_2d`
-35. `test_module4_bd_localized_pulse_2d`
-36. `test_module4_bd_boundary_heating_2d`
-37. `test_module4_fem_uniform_equilibrium_2d`
-38. `test_module4_fem_gaussian_diffusion_2d`
-39. `test_module4_fem_uniform_source_2d`
-40. `test_module5_fem_uniform_no_field_2d`
-41. `test_module5_fem_lifetime_recombination_2d`
-42. `test_module5_fem_gaussian_diffusion_2d`
-43. `test_module5_fem_field_drift_sign_2d`
-44. `test_module6_fem_smoke_2d`
-45. `test_module6_fem_charge_consistency_2d`
-46. `test_module4a_uniform_equilibrium_2d`
-47. `test_module4a_hotspot_diffusion_2d`
-48. `test_module4a_steady_source_2d`
+10. `main_module3_CPINN_Defect_Evolution('pure_annealing')`
+11. `main_module4_2d_ballistic_diffusive_thermal('uniform_equilibrium')`
+12. `main_module4_2d_ballistic_diffusive_thermal('localized_pulse')`
+13. `main_module4_2d_ballistic_diffusive_thermal('boundary_heating')`
+14. `main_module4_fem_ballistic_diffusive_thermal('uniform_equilibrium')`
+15. `main_module4_fem_ballistic_diffusive_thermal('gaussian_diffusion')`
+16. `main_module4_fem_ballistic_diffusive_thermal('uniform_source')`
+17. `main_module5_drift_diffusion('uniform_no_field')`
+18. `main_module5_drift_diffusion('lifetime_recombination')`
+19. `main_module5_drift_diffusion('gaussian_diffusion')`
+20. `main_module5_drift_diffusion('field_drift')`
+21. `main_module6_multiphysics('smoke')`
+22. `main_module6_multiphysics('defect_field_coupling')`
+23. `main_module6_multiphysics('thermal_feedback')`
+24. `main_module4a_2d_continuum_thermal('uniform_equilibrium')`  % archived Fourier baseline
+25. `test_module2_zero_charge_2d`
+26. `test_module2_linear_potential_2d`
+27. `test_module2_uniform_space_charge_2d`
+28. `test_module2_localized_defect_charge_2d`
+29. `test_module2_pinn_electrostatics`
+30. `test_module3_gaussian_diffusion_2d`
+31. `test_module3_pure_annealing_2d`
+32. `test_module3_fem_gaussian_diffusion_2d`
+33. `test_module3_fem_pure_annealing_2d`
+34. `test_module3_fem_uniform_state_2d`
+35. `test_module3_cpinn_pure_annealing`
+36. `test_module4_bd_uniform_equilibrium_2d`
+37. `test_module4_bd_localized_pulse_2d`
+38. `test_module4_bd_boundary_heating_2d`
+39. `test_module4_fem_uniform_equilibrium_2d`
+40. `test_module4_fem_gaussian_diffusion_2d`
+41. `test_module4_fem_uniform_source_2d`
+42. `test_module5_fem_uniform_no_field_2d`
+43. `test_module5_fem_lifetime_recombination_2d`
+44. `test_module5_fem_gaussian_diffusion_2d`
+45. `test_module5_fem_field_drift_sign_2d`
+46. `test_module6_fem_smoke_2d`
+47. `test_module6_fem_charge_consistency_2d`
+48. `test_module4a_uniform_equilibrium_2d`
+49. `test_module4a_hotspot_diffusion_2d`
+50. `test_module4a_steady_source_2d`
 
 Outputs written automatically
 -----------------------------
@@ -142,6 +156,7 @@ Module 2 PINN outputs:
 Module 3 outputs:
 - `matlab/outputs/module3_2d/`
 - `matlab/outputs/module3_fem_2d/`
+- `matlab/outputs/module3_cpinn_2d/`
 
 Module 4 ballistic-diffusive outputs:
 - `matlab/outputs/module4_2d_ballistic_diffusive/`
@@ -167,6 +182,10 @@ Generated files include:
 - `*_pinn_abs_potential_error.png` (Module 2 PINN)
 - `*_pinn_pde_residual.png` (Module 2 PINN)
 - `*_pinn_training_loss.png` (Module 2 PINN)
+- `*_cpinn_final_concentration.png` (Module 3 causal PINN)
+- `*_cpinn_final_absolute_error.png` (Module 3 causal PINN)
+- `*_cpinn_causal_weights.png` (Module 3 causal PINN)
+- `*_cpinn_validation_history.png` (Module 3 causal PINN)
 - `*_final_temperature.png`
 - `*_final_ballistic_divergence.png` (Module 4)
 - `*_fem_final_temperature.png` (Module 4 FEM)
@@ -185,11 +204,11 @@ Generated files include:
 
 Important numerical note
 ------------------------
-The current Module 2 solver is steady-state linear finite-element assembly. The Module 2 PINN entry point is a standalone Deep Learning Toolbox demonstration that trains a neural surrogate using the Poisson residual, boundary losses, and optional sparse FEM anchors. Module 3 now has both an explicit structured-grid solver and an implicit linear-triangle FEM solver. Module 4 now has both the original explicit structured-grid ballistic-diffusive solver and a new implicit linear-triangle FEM solver. Module 5 now has a first implicit linear-triangle FEM drift-diffusion solver with known fields and linearized recombination. Module 6 now has a first staggered linear-triangle FEM coupling scaffold that passes fields between the Module 2, 3, 4, and 5 reduced FEM blocks. The legacy Module 4a Fourier baseline remains explicit. The structured-grid Module 4 path adds a relaxation-time term and a ballistic front resolution constraint, so the time step should satisfy the conservative recommended dt reported in each summary file.
+The current Module 2 solver is steady-state linear finite-element assembly. The Module 2 PINN entry point is a standalone Deep Learning Toolbox demonstration that trains a neural surrogate using the Poisson residual, boundary losses, and optional sparse FEM anchors. Module 3 now has an explicit structured-grid solver, an implicit linear-triangle FEM solver, and a Deep Learning Toolbox causal-PINN path whose causal coordinate is physical time. The first cPINN implementation supports scalar constant coefficients, analytic uniform cases, Gaussian FEM reference trajectories, homogeneous zero-flux boundaries, and optional sparse anchors; variable coefficients and imported maps remain extensions. Module 4 now has both the original explicit structured-grid ballistic-diffusive solver and a new implicit linear-triangle FEM solver. Module 5 now has a first implicit linear-triangle FEM drift-diffusion solver with known fields and linearized recombination. Module 6 now has a first staggered linear-triangle FEM coupling scaffold that passes fields between the Module 2, 3, 4, and 5 reduced FEM blocks. The legacy Module 4a Fourier baseline remains explicit. The structured-grid Module 4 path adds a relaxation-time term and a ballistic front resolution constraint, so the time step should satisfy the conservative recommended dt reported in each summary file.
 
 Near-term next steps
 --------------------
-- run the new Module 3, Module 4, Module 5, and Module 6 FEM verification tests in MATLAB
+- run the Module 3 causal-PINN regression test and the Module 3, Module 4, Module 5, and Module 6 FEM verification tests in MATLAB
 - compare Module 4 FEM results against the structured-grid ballistic-diffusive path and archived Fourier baseline
 - couple Module 4 FEM temperature output into Module 3 and Module 5 coefficient updates
 - compare Module 4 against the Fourier baseline in a formal diffusive-limit test
