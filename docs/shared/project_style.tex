@@ -5,7 +5,26 @@
 \usepackage{microtype}
 \usepackage[table]{xcolor}
 \usepackage{amsmath,amssymb,amsfonts,mathtools,bm}
-\usepackage{physics}
+\IfFileExists{physics.sty}{%
+  \usepackage{physics}%
+}{%
+  % Portable subset used by this project when the optional physics package
+  % is not installed in the local TeX distribution.
+  \NewDocumentCommand{\pdv}{o m m}{%
+    \IfNoValueTF{##1}{\frac{\partial ##2}{\partial ##3}}%
+    {\frac{\partial^{##1} ##2}{\partial ##3^{##1}}}%
+  }
+  \NewDocumentCommand{\dv}{o m m}{%
+    \IfNoValueTF{##1}{\frac{\mathrm{d} ##2}{\mathrm{d} ##3}}%
+    {\frac{\mathrm{d}^{##1} ##2}{\mathrm{d} ##3^{##1}}}%
+  }
+  \providecommand{\dd}{\mathop{}\!\mathrm{d}}
+  \providecommand{\grad}{\nabla}
+  \providecommand{\abs}[1]{\left\lvert ##1\right\rvert}
+  \providecommand{\norm}[1]{\left\lVert ##1\right\rVert}
+  \providecommand{\ket}[1]{\left\lvert ##1\right\rangle}
+  \providecommand{\bra}[1]{\left\langle ##1\right\rvert}
+}
 \usepackage{booktabs,array,longtable,tabularx}
 \usepackage{hyperref}
 \usepackage{enumitem}
@@ -14,7 +33,14 @@
 \usepackage{tcolorbox}
 \usepackage{ragged2e}
 \usepackage{setspace}
-\usepackage{siunitx}
+\IfFileExists{siunitx.sty}{%
+  \usepackage{siunitx}%
+}{%
+  % Minimal text-safe fallback for the small number of \SI and \si calls in
+  % this repository. Full siunitx formatting is used when available.
+  \providecommand{\si}[1]{\ensuremath{\mathrm{##1}}}
+  \providecommand{\SI}[2]{\ensuremath{##1\,\mathrm{##2}}}
+}
 \hypersetup{colorlinks=true, linkcolor=blue!50!black, urlcolor=blue!50!black, citecolor=blue!50!black}
 \definecolor{TitleBlue}{HTML}{163A5F}
 \definecolor{AccentTeal}{HTML}{2D6F73}
