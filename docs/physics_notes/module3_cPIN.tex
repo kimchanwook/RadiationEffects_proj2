@@ -1,0 +1,2099 @@
+\documentclass[11pt]{article}
+\input{../shared/project_style.tex}
+
+\newcommand{\thetav}{\bm{\theta}}
+\newcommand{\muv}{\bm{\mu}}
+\newcommand{\xv}{\bm{x}}
+\newcommand{\Ctrue}{C}
+\newcommand{\Cnet}{C_{\thetav}}
+\newcommand{\Chat}{\widehat{C}}
+\newcommand{\Rnet}{\mathcal{R}_{\thetav}}
+\newcommand{\Lpde}{\mathcal{L}_{\mathrm{PDE}}}
+\newcommand{\Lic}{\mathcal{L}_{\mathrm{IC}}}
+\newcommand{\Lbc}{\mathcal{L}_{\mathrm{BC}}}
+\newcommand{\Ldata}{\mathcal{L}_{\mathrm{data}}}
+\newcommand{\Lmass}{\mathcal{L}_{\mathrm{mass}}}
+\newcommand{\Lpos}{\mathcal{L}_{\mathrm{{pos}}}}
+\newcommand{\Lslice}{\mathcal{L}_{\mathrm{slice}}}
+\newcommand{\Lcausal}{\mathcal{L}_{\mathrm{causal}}}
+\newcommand{\Ltotal}{\mathcal{L}_{\mathrm{total}}}
+\newcommand{\stgrad}{\operatorname{stopgrad}}
+\newcommand{\softplus}{\operatorname{softplus}}
+\newcommand{\relu}{\operatorname{ReLU}}
+\newcommand{\Norm}[1]{\left\lVert #1 \right\rVert}
+\newcommand{\Om}{\Omega}
+\newcommand{\Gam}{\Gamma}
+\newcommand{\Dref}{D_{\mathrm{ref}}}
+\newcommand{\kref}{k_{\mathrm{ref}}}
+\newcommand{\Cref}{C_{\mathrm{ref}}}
+\newcommand{\Sref}{S_{\mathrm{ref}}}
+\newcommand{\tref}{t_{\mathrm{ref}}}
+\newcommand{\Da}{\mathrm{Da}}
+\newcommand{\Pe}{\mathrm{Pe}}
+\newcommand{\epsc}{\epsilon_{\mathrm{c}}}
+\newcommand{\deltaStop}{\delta_{\mathrm{stop}}}
+\providecommand{\dd}{\,\mathrm{d}}
+\rhead{Module 3 cPIN Physics Note}
+
+\begin{document}
+
+\DocTitle{Module 3\_cPIN: Causal Physics-Informed Neural Networks for Time-Dependent Defect Evolution}{Detailed Introductory Tutorial and Module-Specific Design Note for \texttt{RadiationEffects\_proj2}}{From ordinary PINNs to causality-respecting training of two-dimensional defect diffusion, reaction, and annealing}
+
+\hrule
+\vspace{0.8em}
+
+\begin{overviewbox}
+\textbf{Purpose of this note.} This document is a self-contained introduction to causal physics-informed neural networks and a concrete design for applying them to Module 3 of \texttt{RadiationEffects\_proj2}. Module 3 evolves radiation-induced defect concentration in time. Its present baseline equation is a two-dimensional diffusion-reaction initial-boundary-value problem. That genuine time dependence makes Module 3 a substantially more natural causal-PINN demonstration than Module 2 electrostatics, whose Poisson equation is quasi-static. The existing Module 2 causal-PINN files are retained as an ordered electrostatic continuation study; the new Module 3 path becomes the preferred base case for explaining and testing temporal causal training.
+
+This is a design, tutorial, and implementation-reference note. The first Module 3 MATLAB causal-PINN driver is now implemented in \path{matlab/main_module3_CPINN_Defect_Evolution.m}, with a focused pure-annealing regression and physics test in \path{matlab/tests/test_module3_cpinn_pure_annealing.m}. The existing structured-grid and finite-element Module 3 solvers remain independent numerical references. The first neural implementation intentionally restricts the governing coefficients to scalar constants and the boundary condition to homogeneous zero flux; variable coefficients, imported Geant4 maps, multi-species reactions, and a matched ordinary-PINN experiment remain later extensions.
+\end{overviewbox}
+
+\ProjectTOC
+
+\section*{How to use this document}
+\addcontentsline{toc}{section}{How to use this document}
+
+The note is written so that a reader with no prior exposure to causal PINNs can proceed in stages:
+\begin{enumerate}[label=\arabic*.]
+    \item Sections 1--3 explain why Module 3 is the correct project location and recap the governing defect physics.
+    \item Sections 4--6 build an ordinary PINN from the underlying differential equation and explain why global-in-time PINN training can violate the dependency of later states on earlier states.
+    \item Sections 7--10 derive causal residual weighting, nondimensionalize the problem, and specialize every loss term to Module 3.
+    \item Sections 11--16 give architecture, sampling, optimization, verification, test-case, and failure-analysis guidance.
+    \item Sections 17--20 connect the method to the existing FEM path, the larger multiphysics chain, the implemented first MATLAB benchmark, and planned extensions.
+    \item The appendices provide worked analytic solutions, an implementation checklist, and a compact question-and-answer review.
+\end{enumerate}
+
+\begin{notebox}
+\textbf{Naming convention.} In this document, \textbf{cPIN} and \textbf{causal PINN} mean a causal physics-informed neural network trained with temporally ordered residual weighting. Some literature uses ``cPINN'' for a \emph{conservative} PINN based on spatial domain decomposition and flux continuity. That is a different method. Whenever ambiguity is possible, this note writes ``causal PINN'' in full.
+\end{notebox}
+
+\SymbolsAcronymsSection
+
+\renewcommand{\arraystretch}{1.22}
+\begin{longtable}{p{0.19\textwidth} p{0.51\textwidth} p{0.14\textwidth}}
+\toprule
+\textbf{Symbol / acronym} & \textbf{Meaning} & \textbf{Typical units} \\
+\midrule
+\endhead
+AD & Automatic differentiation & -- \\
+cPIN & Causal physics-informed neural network in this note & -- \\
+PINN & Physics-informed neural network & -- \\
+FEM & Finite-element method & -- \\
+MLP & Multilayer perceptron & -- \\
+PDE & Partial differential equation & -- \\
+IC / BC & Initial condition / boundary condition & -- \\
+$\Om$ & Two-dimensional Module 3 domain & m$^2$ \\
+$\partial\Om$ & Boundary of the domain & m \\
+$\xv=(x,y)$ & Spatial coordinate & m \\
+$t$ & Physical evolution time & s \\
+$t_i$ & Ordered causal time slice & s \\
+$T_f$ & End of the requested time horizon & s \\
+$C(\xv,t)$ & Exact or reference defect concentration & m$^{-3}$ \\
+$\Cnet(\xv,t;\muv)$ & Neural approximation to defect concentration & m$^{-3}$ or scaled \\
+$C_0(\xv)$ & Initial defect map at $t=0$ & m$^{-3}$ \\
+$C_b$ & Prescribed boundary concentration & m$^{-3}$ \\
+$\mathbf{J}_C$ & Defect flux & m$^{-2}$ s$^{-1}$ \\
+$D$ & Effective defect diffusivity & m$^2$/s \\
+$D_0$ & Diffusion prefactor & m$^2$/s \\
+$k_{\mathrm{ann}}$ & Effective first-order annealing rate & s$^{-1}$ \\
+$k_0$ & Annealing attempt-rate prefactor & s$^{-1}$ \\
+$E_D$ & Effective migration activation energy & J or eV \\
+$E_{\mathrm{ann}}$ & Effective annealing activation energy & J or eV \\
+$S(\xv,t)$ & Volumetric defect source & m$^{-3}$ s$^{-1}$ \\
+$R(C,T,\ldots)$ & General local reaction term & m$^{-3}$ s$^{-1}$ \\
+$T(\xv,t)$ & Temperature supplied by Module 4 or prescribed input & K \\
+$q_d$ & Effective charge state of the modeled defect & elementary charges \\
+$N_{\mathrm{dop}}$ & Dopant-environment measure & problem dependent \\
+$\mathbf{E}$ & Device-scale electric field supplied by Module 2 & V/m \\
+$\muv$ & Optional parameter vector defining one physical case & various \\
+$\thetav$ & Trainable network weights and biases & -- \\
+$\Rnet$ & Strong-form Module 3 residual evaluated from the network & scaled \\
+$N_t$ & Number of ordered time slices & -- \\
+$N_r$ & Interior residual points per time slice & -- \\
+$N_0$ & Initial-condition points & -- \\
+$N_b$ & Boundary points per time slice & -- \\
+$N_s$ & Supervised FEM/reference points per time slice & -- \\
+$\mathcal{L}_{r,i}$ & Mean PDE residual loss at time $t_i$ & dimensionless \\
+$w_i$ & Causal weight assigned to time slice $i$ & -- \\
+$\epsc$ & Causality parameter controlling activation sharpness & -- \\
+$\deltaStop$ & Weight-based convergence threshold & -- \\
+$L$ & Characteristic spatial length & m \\
+$\tref$ & Characteristic evolution time & s \\
+$\Cref$ & Characteristic concentration & m$^{-3}$ \\
+$\Da$ & Damkohler number, reaction time relative to diffusion time & -- \\
+$M(t)$ & Total defect inventory $\int_{\Om} C\,\dd\Om$ & reduced 2D inventory \\
+$\hat{\mathbf n}$ & Outward unit normal & -- \\
+\bottomrule
+\end{longtable}
+
+\section{Why causal PINN belongs in Module 3}
+
+\subsection{The project-level decision}
+
+The radiation-effects chain separates two different types of physics:
+\begin{equation}
+\text{defect state at time }t
+\xrightarrow{\text{Module 2}}
+\text{quasi-static electrostatic response at time }t,
+\end{equation}
+and
+\begin{equation}
+\text{defect state at earlier time}
+\xrightarrow{\text{Module 3 kinetics}}
+\text{defect state at later time}.
+\end{equation}
+
+The first mapping is an elliptic response problem. The second is a time-evolution problem. Causal PINN training was developed for the second type: a later solution should not be considered learned while the earlier states on which it depends remain inaccurate.
+
+Therefore the preferred project showcase is
+\begin{equation}
+\boxed{
+\text{Module 3 FEM}
+\quad\longleftrightarrow\quad
+\text{Module 3 ordinary PINN}
+\quad\longrightarrow\quad
+\text{Module 3 causal PINN}.
+}
+\end{equation}
+The FEM path supplies trusted reference trajectories. The ordinary PINN supplies the fair baseline. The causal PINN changes the training curriculum while keeping the same governing equation.
+
+\subsection{What changes and what does not}
+
+A causal PINN does \emph{not} add a new physical force, reaction, or transport mechanism. The Module 3 PDE remains the Module 3 PDE. What changes is the training objective:
+\begin{equation}
+\text{ordinary PINN: all sampled times compete at once},
+\end{equation}
+\begin{equation}
+\text{causal PINN: later times activate only after earlier losses decrease}.
+\end{equation}
+
+This distinction prevents a common conceptual error. ``Causal'' describes the optimization schedule used to respect the initial-value structure; it does not denote an additional constitutive term in the defect equation.
+
+\subsection{Status of the earlier Module 2 work}
+
+The existing Module 2 causal-PINN note and MATLAB demonstration remain useful. They examine an ordered family of quasi-static Poisson problems indexed by damage time, dose, or continuation amplitude. However, the causal coordinate in that study is inherited from outside Poisson electrostatics. Module 3 is different: physical time appears directly in its governing equation, so temporal causality is intrinsic rather than borrowed.
+
+\begin{physicsbox}
+\textbf{Central conclusion.} Module 3 is the scientifically cleaner tutorial case because it solves an initial-value problem. The value of $C(x,y,t)$ at a later time is generated by evolving the initial field through all preceding times under diffusion and reaction. A training method that suppresses later residuals until earlier residuals are controlled matches that dependency.
+\end{physicsbox}
+
+\section{Module 3 physics from first principles}
+
+\subsection{Defect concentration as a continuum state}
+
+Radiation creates vacancies, interstitials, impurity-defect complexes, trapped charge centers, and other lattice disturbances. A fully atomistic calculation would track discrete defects and local atomic configurations. Module 3 instead uses a coarse-grained concentration field,
+\begin{equation}
+C(\xv,t)=C(x,y,t),
+\end{equation}
+representing the number of defects per unit volume associated with one effective species. This field is continuous at the device scale even though the microscopic objects are discrete.
+
+\subsection{Local balance law}
+
+For a fixed control region $V\subset\Om$, defect inventory changes because defects cross the boundary or are created and destroyed internally:
+\begin{equation}
+\dv{}{t}\int_V C\,\dd V
+=
+-\int_{\partial V}\mathbf{J}_C\cdot\hat{\mathbf n}\,\dd A
++\int_V R\,\dd V.
+\end{equation}
+Applying the divergence theorem gives
+\begin{equation}
+\int_V
+\left[
+\pdv{C}{t}+\nabla\cdot\mathbf{J}_C-R
+\right]\dd V=0.
+\end{equation}
+Because this must hold for every admissible $V$,
+\begin{equation}
+\pdv{C}{t}+\nabla\cdot\mathbf{J}_C=R.
+\label{eq:balance_law}
+\end{equation}
+
+\subsection{Diffusion from Fick's law}
+
+The simplest constitutive law for random defect migration is
+\begin{equation}
+\mathbf{J}_C=-D\nabla C.
+\label{eq:fick}
+\end{equation}
+The minus sign means defects move down the concentration gradient. Substituting Eq.~\eqref{eq:fick} into Eq.~\eqref{eq:balance_law} gives
+\begin{equation}
+\pdv{C}{t}
+=
+\nabla\cdot(D\nabla C)+R.
+\label{eq:general_diffusion_reaction}
+\end{equation}
+
+When a continuing irradiation source is separated from local reactions,
+\begin{equation}
+\pdv{C}{t}
+=
+\nabla\cdot(D\nabla C)
++R_{\mathrm{chem}}(C,T,\ldots)
++S(\xv,t).
+\label{eq:general_with_source}
+\end{equation}
+
+\subsection{Baseline first-order annealing model}
+
+The current reduced Module 3 model uses
+\begin{equation}
+R_{\mathrm{chem}}=-k_{\mathrm{ann}}C.
+\end{equation}
+The governing equation becomes
+\begin{equation}
+\boxed{
+\pdv{C}{t}
+=
+\nabla\cdot(D\nabla C)
+-k_{\mathrm{ann}}C
++S.
+}
+\label{eq:module3_dimensional}
+\end{equation}
+For constant $D$ in Cartesian coordinates,
+\begin{equation}
+\pdv{C}{t}
+=
+D\left(
+\pdv[2]{C}{x}+\pdv[2]{C}{y}
+\right)
+-k_{\mathrm{ann}}C
++S.
+\label{eq:module3_constant}
+\end{equation}
+
+The three terms have distinct meanings:
+\begin{enumerate}[label=\arabic*.]
+    \item $\nabla\cdot(D\nabla C)$ redistributes defects spatially;
+    \item $-k_{\mathrm{ann}}C$ removes defects locally;
+    \item $S$ injects newly generated defects during an active source interval.
+\end{enumerate}
+
+\subsection{Material-aware coefficients}
+
+The baseline note already recognizes that $D$ and $k_{\mathrm{ann}}$ are effective constitutive quantities. A common thermally activated form is
+\begin{equation}
+D(T)=D_0\exp\left(-\frac{E_D}{k_{\mathrm B}T}\right),
+\qquad
+k_{\mathrm{ann}}(T)=k_0\exp\left(-\frac{E_{\mathrm{ann}}}{k_{\mathrm B}T}\right).
+\label{eq:arrhenius}
+\end{equation}
+
+The project can further allow
+\begin{equation}
+D=D(T,q_d,N_{\mathrm{dop}},|\mathbf E|,\ldots),
+\end{equation}
+\begin{equation}
+k_{\mathrm{ann}}
+=k_{\mathrm{ann}}(T,q_d,N_{\mathrm{dop}},|\mathbf E|,\ldots).
+\end{equation}
+The ellipses can later include strain and interface proximity. A causal PINN can accept these quantities as prescribed fields or parameters, but it must not silently infer an arbitrary coefficient field without enough data or an explicitly posed inverse problem.
+
+\subsection{Initial condition}
+
+For a post-irradiation evolution problem,
+\begin{equation}
+C(\xv,0)=C_0(\xv).
+\label{eq:initial_condition}
+\end{equation}
+The map $C_0$ is constructed from Module 1 Geant4 deposition or damage-precursor output. This is the causal anchor: all later states must be consistent with the same initial field.
+
+For irradiation continuing over a finite interval, one may instead start from a background field and retain $S(\xv,t)$. In either case, the causal time order begins at the specified initial state.
+
+\subsection{Boundary conditions}
+
+The default closed-domain condition is zero normal defect flux:
+\begin{equation}
+\hat{\mathbf n}\cdot\mathbf{J}_C=0,
+\qquad
+\xv\in\partial\Om.
+\end{equation}
+Using Eq.~\eqref{eq:fick},
+\begin{equation}
+\hat{\mathbf n}\cdot D\nabla C=0.
+\label{eq:neumann_zero}
+\end{equation}
+
+Other physically useful choices are a prescribed concentration,
+\begin{equation}
+C=C_b
+\qquad
+\text{on }\Gamma_D,
+\label{eq:dirichlet}
+\end{equation}
+or a reactive surface sink,
+\begin{equation}
+-\hat{\mathbf n}\cdot D\nabla C
+=h_s(C-C_{\mathrm{eq}})
+\qquad
+\text{on }\Gamma_R.
+\label{eq:robin}
+\end{equation}
+
+\subsection{Multi-species extension}
+
+For $m$ defect species,
+\begin{equation}
+\pdv{C_j}{t}
+=
+\nabla\cdot(D_j\nabla C_j)
++R_j(C_1,\ldots,C_m,T,\ldots)
++S_j,
+\qquad
+j=1,\ldots,m.
+\label{eq:multi_species}
+\end{equation}
+A neural network may output all $m$ concentrations simultaneously. The causal loss then aggregates residuals across species at each time slice before constructing the weight for the next slice. The single-species model should be mastered first because it isolates the causal-training question from reaction-network complexity.
+
+\section{What an ordinary physics-informed neural network is}
+
+\subsection{The unknown function becomes a trainable function approximator}
+
+In a conventional numerical method, the PDE is discretized and solved for nodal or cell values. In a PINN, a neural network represents the continuous candidate solution:
+\begin{equation}
+\Cnet(\xv,t;\muv)
+=
+\mathcal{N}_{\thetav}(x,y,t,\muv).
+\label{eq:network_representation}
+\end{equation}
+The optional vector $\muv$ describes one member of a family of physical cases, such as $D$, $k_{\mathrm{ann}}$, initial-map parameters, source amplitude, or temperature parameters.
+
+The network is differentiable with respect to its inputs. Automatic differentiation evaluates
+\begin{equation}
+\pdv{\Cnet}{t},
+\qquad
+\pdv{\Cnet}{x},
+\qquad
+\pdv{\Cnet}{y},
+\qquad
+\pdv[2]{\Cnet}{x},
+\qquad
+\pdv[2]{\Cnet}{y},
+\end{equation}
+without finite-differencing the network on a mesh.
+
+\subsection{Automatic differentiation in simple terms}
+
+Suppose one hidden-layer network is
+\begin{equation}
+\Cnet(z)=
+\sum_{j=1}^{n_h}a_j
+\sigma\left(\sum_{k}W_{jk}z_k+b_j\right)+c,
+\end{equation}
+where $z=(x,y,t,\muv)$ and $\sigma$ is a smooth activation. Differentiation with respect to $t$ follows the chain rule:
+\begin{equation}
+\pdv{\Cnet}{t}
+=
+\sum_{j=1}^{n_h}
+a_j\sigma'\left(\sum_kW_{jk}z_k+b_j\right)W_{j,t}.
+\end{equation}
+Modern differentiation libraries perform this chain rule through every layer. The result is exact for the represented computational graph up to floating-point arithmetic; it is not a finite-difference approximation.
+
+\subsection{The PDE residual}
+
+Insert the network into Eq.~\eqref{eq:module3_dimensional}:
+\begin{equation}
+\Rnet(\xv,t)
+=
+\pdv{\Cnet}{t}
+-\nabla\cdot(D\nabla\Cnet)
++k_{\mathrm{ann}}\Cnet
+-S.
+\label{eq:dimensional_residual}
+\end{equation}
+The exact solution satisfies $\Rnet=0$. At interior collocation points
+\begin{equation}
+\left\{
+(\xv_r^{(j)},t_r^{(j)})
+\right\}_{j=1}^{N_r},
+\end{equation}
+the standard mean-squared residual loss is
+\begin{equation}
+\Lpde
+=
+\frac{1}{N_r}\sum_{j=1}^{N_r}
+\left|
+\Rnet(\xv_r^{(j)},t_r^{(j)})
+\right|^2.
+\label{eq:global_pde_loss}
+\end{equation}
+
+\subsection{Initial-condition loss}
+
+For soft enforcement of Eq.~\eqref{eq:initial_condition},
+\begin{equation}
+\Lic
+=
+\frac{1}{N_0}
+\sum_{j=1}^{N_0}
+\left|
+\Cnet(\xv_0^{(j)},0)-C_0(\xv_0^{(j)})
+\right|^2.
+\label{eq:ic_loss}
+\end{equation}
+
+The initial condition can alternatively be imposed exactly through an output transformation. That option is developed in Section~\ref{sec:hard_constraints}.
+
+\subsection{Boundary-condition losses}
+
+For zero flux,
+\begin{equation}
+\mathcal{L}_{\mathrm{N}}
+=
+\frac{1}{N_b}
+\sum_{j=1}^{N_b}
+\left|
+\hat{\mathbf n}^{(j)}\cdot
+D\nabla\Cnet(\xv_b^{(j)},t_b^{(j)})
+\right|^2.
+\label{eq:neumann_loss}
+\end{equation}
+
+For prescribed concentration,
+\begin{equation}
+\mathcal{L}_{\mathrm{D}}
+=
+\frac{1}{N_b}
+\sum_{j=1}^{N_b}
+\left|
+\Cnet(\xv_b^{(j)},t_b^{(j)})-C_b(\xv_b^{(j)},t_b^{(j)})
+\right|^2.
+\label{eq:dirichlet_loss}
+\end{equation}
+
+The total boundary loss may be
+\begin{equation}
+\Lbc
+=
+\lambda_N\mathcal{L}_{\mathrm N}
++\lambda_D\mathcal{L}_{\mathrm D}
++\lambda_R\mathcal{L}_{\mathrm R}.
+\end{equation}
+
+\subsection{Optional supervised data loss}
+
+If FEM values $C_{\mathrm{FEM}}$ are available,
+\begin{equation}
+\Ldata
+=
+\frac{1}{N_s}
+\sum_{j=1}^{N_s}
+\left|
+\Cnet(\xv_s^{(j)},t_s^{(j)})
+-C_{\mathrm{FEM}}(\xv_s^{(j)},t_s^{(j)})
+\right|^2.
+\label{eq:data_loss}
+\end{equation}
+
+Data are optional in the PINN definition. They are useful in this project because a verified FEM trajectory already exists and because the first goal is a controlled comparison, not a claim that the neural model must be entirely data-free.
+
+\subsection{Ordinary total loss}
+
+An ordinary PINN minimizes
+\begin{equation}
+\Ltotal^{\mathrm{PINN}}
+=
+\lambda_r\Lpde
++\lambda_0\Lic
++\lambda_b\Lbc
++\lambda_s\Ldata.
+\label{eq:ordinary_total}
+\end{equation}
+All sampled times contribute simultaneously. This is exactly the point that causal training modifies.
+
+\section{Why global-in-time PINN training can fail}
+
+\subsection{Physical dependency versus loss averaging}
+
+For an initial-value problem, the solution operator has the structure
+\begin{equation}
+C(\cdot,t)
+=
+\mathcal{S}_{0\rightarrow t}
+\left[
+C_0,D,k_{\mathrm{ann}},S,\text{BCs}
+\right].
+\end{equation}
+The state at $t_2$ is meaningful only in relation to evolution from earlier time:
+\begin{equation}
+C(\cdot,t_2)
+=
+\mathcal{S}_{t_1\rightarrow t_2}
+\left[
+C(\cdot,t_1),D,k_{\mathrm{ann}},S,\text{BCs}
+\right],
+\qquad
+t_2>t_1.
+\end{equation}
+
+The ordinary loss in Eq.~\eqref{eq:ordinary_total} does not encode that ordering. It is a global average. An optimizer can reduce the residual at later collocation points while the initial and early-time solution is still poor. The PDE itself is causal, but the optimization problem treats all residual samples as peers.
+
+\subsection{What ``causal'' means for diffusion}
+
+The diffusion equation has infinite mathematical propagation speed: a localized Gaussian has nonzero tails everywhere for any $t>0$ in an unbounded domain. Therefore the word ``causal'' here does not mean a finite relativistic signal cone. It means \emph{initial-value dependence}: the later concentration field is determined by evolving the earlier field, not by solving unrelated time slices in arbitrary order.
+
+This distinction matters because it prevents over-interpreting the method. Causal PINN training respects temporal order in an evolution equation; it does not change parabolic diffusion into a hyperbolic finite-speed theory.
+
+\subsection{A scalar annealing example}
+
+Consider the spatially uniform equation
+\begin{equation}
+\dv{C}{t}=-kC,
+\qquad
+C(0)=C_0.
+\label{eq:annealing_ode}
+\end{equation}
+The unique solution is
+\begin{equation}
+C(t)=C_0e^{-kt}.
+\end{equation}
+
+Suppose a network is trained over $0\le t\le T_f$. Its residual is
+\begin{equation}
+r_{\thetav}(t)=\dv{C_{\thetav}}{t}+kC_{\thetav}.
+\end{equation}
+Reducing $r_{\thetav}(T_f)$ does not, by itself, establish that the trajectory started from the correct $C_0$ or followed the correct exponential path. The global optimizer must balance the initial mismatch and residuals at every time. If gradients from different loss terms have very different magnitudes, the network may fit an easy or low-frequency part of the time interval first.
+
+A causal training rule makes the intended order explicit:
+\begin{equation}
+\text{fit }C(0)
+\;\longrightarrow\;
+\text{reduce residual near early time}
+\;\longrightarrow\;
+\text{activate later time}.
+\end{equation}
+
+\subsection{Optimization pathologies are not violations of the PDE theorem}
+
+The exact initial-boundary-value problem remains well posed under its usual assumptions. The failure occurs because a finite neural network, finite collocation set, and nonconvex optimizer only approximately minimize several competing objectives. A small sampled average residual is not identical to a uniformly accurate solution. This is why reference-solution validation remains necessary.
+
+\section{The causal-PINN idea}
+
+\subsection{Split the residual by ordered time slices}
+
+Choose ordered times
+\begin{equation}
+0=t_0<t_1<\cdots<t_{N_t}=T_f.
+\end{equation}
+At each time $t_i$, sample $N_r$ spatial points
+\begin{equation}
+\left\{
+\xv_{r,j}^{(i)}
+\right\}_{j=1}^{N_r}.
+\end{equation}
+Define the residual loss at slice $i$:
+\begin{equation}
+\mathcal{L}_{r,i}(\thetav)
+=
+\frac{1}{N_r}
+\sum_{j=1}^{N_r}
+\left|
+\Rnet(\xv_{r,j}^{(i)},t_i)
+\right|^2.
+\label{eq:slice_residual}
+\end{equation}
+
+An ordinary PINN would average the slice losses:
+\begin{equation}
+\mathcal{L}_{r}^{\mathrm{ordinary}}
+=
+\frac{1}{N_t}
+\sum_{i=1}^{N_t}
+\mathcal{L}_{r,i}.
+\end{equation}
+
+\subsection{Causal weights}
+
+The causal residual loss is
+\begin{equation}
+\mathcal{L}_{r}^{\mathrm{causal}}
+=
+\frac{1}{N_t}
+\sum_{i=1}^{N_t}
+w_i\mathcal{L}_{r,i},
+\label{eq:causal_residual}
+\end{equation}
+with
+\begin{equation}
+w_1=1,
+\qquad
+w_i
+=
+\exp\left[
+-\epsc
+\sum_{k=1}^{i-1}
+\mathcal{L}_{r,k}
+\right],
+\qquad i\ge 2.
+\label{eq:causal_weight_basic}
+\end{equation}
+
+If earlier residuals are large, their cumulative sum is large and $w_i$ is small. The later slice is effectively inactive. As earlier residuals shrink, $w_i$ approaches one and the optimizer gains access to the later slice.
+
+\subsection{Why an exponential is used}
+
+The exponential has four convenient properties:
+\begin{enumerate}[label=\arabic*.]
+    \item $0<w_i\le 1$ when the prefix losses are nonnegative;
+    \item the weight decreases monotonically with accumulated earlier error;
+    \item $w_i\rightarrow 1$ when the earlier losses approach zero;
+    \item the parameter $\epsc$ continuously controls the sharpness of the curriculum.
+\end{enumerate}
+
+The exponential is a training design, not a new law of defect physics. Other monotone gates could be studied, but the exponential form is the established causal-PINN baseline and is the correct first comparison.
+
+\subsection{Stop-gradient treatment}
+
+Because $w_i$ depends on network losses, it technically depends on $\thetav$. If gradients are allowed to flow through the weight formula, the optimizer can change the weights themselves as part of reducing the objective. The intended interpretation is instead that the weights define a curriculum. Therefore use
+\begin{equation}
+w_i
+=
+\exp\left[
+-\epsc\,
+\stgrad\left(
+\sum_{k=1}^{i-1}
+\mathcal{L}_{r,k}
+\right)
+\right].
+\label{eq:causal_weight_stop}
+\end{equation}
+The \texttt{stopgrad} operation freezes the weight during the parameter-gradient calculation while allowing it to be recomputed after the network changes.
+
+\subsection{The activation-front picture}
+
+Early in training, a typical weight profile is
+\begin{equation}
+w_1\approx 1,
+\qquad
+w_2<1,
+\qquad
+w_3\ll 1,
+\qquad
+\cdots.
+\end{equation}
+After early-time learning,
+\begin{equation}
+w_1\approx w_2\approx w_3\approx 1
+\end{equation}
+and the activation front moves to later times. Plotting $w_i$ versus $t_i$ and training iteration is the most recognizable causal-PINN diagnostic.
+
+\subsection{Initial condition as the zeroth slice}
+
+The original causal-training formulation can treat initial-condition mismatch as a special loss at $t_0$:
+\begin{equation}
+\mathcal{L}_0
+=
+\lambda_0\Lic.
+\end{equation}
+For $i\ge1$, define a time-slice physics loss $\mathcal{L}_i$. Then
+\begin{equation}
+w_0=1,
+\qquad
+w_i
+=
+\exp\left[
+-\epsc\,
+\stgrad\left(
+\sum_{k=0}^{i-1}\mathcal{L}_k
+\right)
+\right].
+\label{eq:ic_in_prefix}
+\end{equation}
+
+This is particularly appropriate for Module 3 because the Geant4-derived $C_0(x,y)$ is the physical state from which all later predictions originate.
+
+\subsection{Causal convergence criterion}
+
+If every time slice has activated,
+\begin{equation}
+\min_i w_i>\deltaStop,
+\label{eq:weight_stop}
+\end{equation}
+where $\deltaStop$ is near one. The published causal-PINN study used $\deltaStop=0.99$ as a recommended setting for its benchmarks. That value is a starting point, not a universal law. A Module 3 study should report both the weight criterion and independent validation errors.
+
+\subsection{Causality-parameter schedule}
+
+Small $\epsc$ produces weak ordering; very large $\epsc$ can keep later slices suppressed until the early loss becomes extremely small. A staged schedule is therefore useful:
+\begin{equation}
+\epsc
+\in
+\left\{
+10^{-2},10^{-1},10^0,10^1,10^2
+\right\}.
+\label{eq:epsilon_schedule}
+\end{equation}
+This sequence was recommended in the original algorithm. For Module 3 it should be treated as a reproducible baseline, followed by a smaller local sweep if the normalized slice losses have different numerical scale.
+
+\section{Nondimensionalizing Module 3 before causal weighting}
+
+\subsection{Why dimensional residuals cannot enter the exponential}
+
+Equation~\eqref{eq:dimensional_residual} has units of concentration per time. Its squared value can be numerically enormous or tiny depending on whether concentration is stored in m$^{-3}$, cm$^{-3}$, or normalized units. Inserting such a loss into
+\begin{equation}
+w_i=e^{-\epsc\sum_{k<i}\mathcal{L}_k}
+\end{equation}
+would make the causal behavior depend on unit choice. That is unacceptable.
+
+\begin{physicsbox}
+\textbf{Non-negotiable rule.} Every loss entering the causal exponent must be dimensionless and placed on a controlled numerical scale. Changing from m$^{-3}$ to cm$^{-3}$ must not change which time slices activate.
+\end{physicsbox}
+
+\subsection{Dimensionless variables}
+
+Choose
+\begin{equation}
+\hat{x}=\frac{x}{L},
+\qquad
+\hat{y}=\frac{y}{L},
+\qquad
+\hat{t}=\frac{t}{\tref},
+\qquad
+\hat{C}=\frac{C}{\Cref},
+\end{equation}
+and
+\begin{equation}
+\hat{D}=\frac{D}{\Dref},
+\qquad
+\hat{k}=\frac{k_{\mathrm{ann}}}{\kref},
+\qquad
+\hat{S}=\frac{S\tref}{\Cref}.
+\end{equation}
+
+A natural diffusion time is
+\begin{equation}
+\tref=\frac{L^2}{\Dref}.
+\label{eq:diffusion_time}
+\end{equation}
+Then
+\begin{equation}
+\pdv{C}{t}
+=
+\frac{\Cref}{\tref}
+\pdv{\hat{C}}{\hat{t}},
+\qquad
+\nabla C
+=
+\frac{\Cref}{L}\hat{\nabla}\hat{C}.
+\end{equation}
+
+\subsection{Dimensionless PDE}
+
+Substitute into Eq.~\eqref{eq:module3_dimensional} and multiply by $\tref/\Cref$:
+\begin{equation}
+\pdv{\hat{C}}{\hat{t}}
+=
+\hat{\nabla}\cdot(\hat{D}\hat{\nabla}\hat{C})
+-\Da\,\hat{k}\hat{C}
++\hat{S},
+\label{eq:dimensionless_pde}
+\end{equation}
+where
+\begin{equation}
+\Da=\kref\tref=\frac{\kref L^2}{\Dref}.
+\label{eq:damkohler}
+\end{equation}
+
+$\Da$ compares the diffusion time $L^2/\Dref$ with the annealing time $1/\kref$:
+\begin{equation}
+\Da\ll1
+\Rightarrow
+\text{diffusion acts faster over length }L,
+\end{equation}
+\begin{equation}
+\Da\gg1
+\Rightarrow
+\text{annealing acts faster}.
+\end{equation}
+
+\subsection{Dimensionless network residual}
+
+The network should operate on scaled inputs and output $\widehat{C}_{\thetav}$. Define
+\begin{equation}
+\widehat{\mathcal{R}}_{\thetav}
+=
+\pdv{\widehat{C}_{\thetav}}{\hat{t}}
+-\hat{\nabla}\cdot
+\left(
+\hat{D}\hat{\nabla}\widehat{C}_{\thetav}
+\right)
++\Da\,\hat{k}\widehat{C}_{\thetav}
+-\hat{S}.
+\label{eq:dimensionless_residual}
+\end{equation}
+The time-slice residual is
+\begin{equation}
+\widehat{\mathcal{L}}_{r,i}
+=
+\frac{1}{N_r}\sum_{j=1}^{N_r}
+\left|
+\widehat{\mathcal{R}}_{\thetav}
+(\hat{\xv}_{r,j}^{(i)},\hat{t}_i)
+\right|^2.
+\label{eq:dimensionless_slice_residual}
+\end{equation}
+This dimensionless loss, not its raw dimensional counterpart, belongs in the causal prefix.
+
+\subsection{Scaling the initial and boundary losses}
+
+Use $\hat{C}_0=C_0/\Cref$. Then
+\begin{equation}
+\widehat{\Lic}
+=
+\frac{1}{N_0}
+\sum_{j=1}^{N_0}
+\left|
+\widehat{C}_{\thetav}(\hat{\xv}_0^{(j)},0)
+-\hat{C}_0(\hat{\xv}_0^{(j)})
+\right|^2.
+\end{equation}
+
+The dimensionless zero-flux boundary residual is
+\begin{equation}
+\hat{\mathbf n}\cdot
+\hat{D}\hat{\nabla}\widehat{C}_{\thetav}=0.
+\end{equation}
+All supervised concentration values are likewise divided by $\Cref$.
+
+\subsection{Choosing the reference concentration}
+
+Reasonable choices include:
+\begin{enumerate}[label=\arabic*.]
+    \item $\Cref=\max_{\xv}C_0(\xv)$ for a single fixed initial map;
+    \item a robust percentile of training-map maxima for a family of Geant4 cases;
+    \item a known physical concentration scale shared across the dataset.
+\end{enumerate}
+Do not scale every time slice by its own maximum. Slice-dependent scaling would partially erase physical annealing amplitude and leak time-dependent normalization into the learning target.
+
+\section{The complete Module 3 causal-PINN formulation}
+
+\subsection{Network input and output}
+
+For one fixed physical case,
+\begin{equation}
+\widehat{C}_{\thetav}
+=
+\mathcal{N}_{\thetav}(\hat{x},\hat{y},\hat{t}).
+\label{eq:single_case_network}
+\end{equation}
+For a parameterized surrogate,
+\begin{equation}
+\widehat{C}_{\thetav}
+=
+\mathcal{N}_{\thetav}
+(\hat{x},\hat{y},\hat{t},\muv).
+\label{eq:parametric_network}
+\end{equation}
+
+The first cPIN demonstration should use one fixed initial map or a low-dimensional analytic map family. Passing a full arbitrary Geant4 image requires an encoder or operator-learning architecture and should be postponed until the causal loss has been validated in the simpler setting.
+
+\subsection{Slice components}
+
+For every $t_i>0$, define:
+\begin{align}
+\widehat{\mathcal{L}}_{r,i}
+&=
+\frac{1}{N_r}
+\sum_{j=1}^{N_r}
+\left|
+\widehat{\mathcal{R}}_{\thetav}
+(\hat{\xv}_{r,j}^{(i)},\hat{t}_i)
+\right|^2,
+\\
+\widehat{\mathcal{L}}_{b,i}
+&=
+\frac{1}{N_b}
+\sum_{j=1}^{N_b}
+\left|
+\widehat{\mathcal{B}}
+\left[
+\widehat{C}_{\thetav}
+\right]
+(\hat{\xv}_{b,j}^{(i)},\hat{t}_i)
+\right|^2,
+\\
+\widehat{\mathcal{L}}_{s,i}
+&=
+\frac{1}{N_s}
+\sum_{j=1}^{N_s}
+\left|
+\widehat{C}_{\thetav}
+(\hat{\xv}_{s,j}^{(i)},\hat{t}_i)
+-\widehat{C}_{\mathrm{FEM}}
+(\hat{\xv}_{s,j}^{(i)},\hat{t}_i)
+\right|^2.
+\end{align}
+
+The boundary operator $\widehat{\mathcal B}$ is selected from zero flux, prescribed concentration, or reactive sink form.
+
+\subsection{Recommended residual-only causal weighting}
+
+The version closest to the published causal-PINN method causally weights the initial condition and PDE residual while enforcing boundary and supervised terms separately:
+\begin{equation}
+\mathcal{L}_0=\lambda_0\widehat{\Lic},
+\end{equation}
+\begin{equation}
+\mathcal{L}_i=\lambda_r\widehat{\mathcal{L}}_{r,i},
+\qquad i=1,\ldots,N_t.
+\end{equation}
+Define
+\begin{equation}
+w_0=1,
+\qquad
+w_i
+=
+\exp\left[
+-\epsc\,
+\stgrad\left(
+\sum_{k=0}^{i-1}\mathcal{L}_k
+\right)
+\right].
+\label{eq:module3_weight}
+\end{equation}
+Then
+\begin{equation}
+\boxed{
+\Ltotal^{\mathrm{Module\,3\,cPIN}}
+=
+\frac{1}{N_t+1}
+\sum_{i=0}^{N_t}
+w_i\mathcal{L}_i
++\frac{\lambda_b}{N_t}
+\sum_{i=1}^{N_t}
+\widehat{\mathcal{L}}_{b,i}
++\frac{\lambda_s}{N_t}
+\sum_{i=1}^{N_t}
+\widehat{\mathcal{L}}_{s,i}
++\lambda_{\mathrm{aux}}\mathcal{L}_{\mathrm{aux}}.
+}
+\label{eq:recommended_total}
+\end{equation}
+
+Here $\mathcal{L}_{\mathrm{aux}}$ may contain optional mass-balance or positivity penalties. This residual-only form is the recommended primary definition because it keeps the causal mechanism attached to temporal physics residuals and the initial condition.
+
+\subsection{Alternative full-slice weighting}
+
+One may instead define
+\begin{equation}
+\mathcal{L}_{\mathrm{slice},i}
+=
+\lambda_r\widehat{\mathcal{L}}_{r,i}
++\lambda_b\widehat{\mathcal{L}}_{b,i}
++\lambda_s\widehat{\mathcal{L}}_{s,i},
+\end{equation}
+and build the prefix from the full slice. This suppresses all information at later times, including FEM data and boundary loss. It is a defensible ablation, but it should not be silently mixed with the residual-only definition. The report must state which loss enters the prefix.
+
+\subsection{Why future supervised data require care}
+
+If dense FEM values at late times are included with a large unweighted $\lambda_s$, the network can learn late-time behavior directly from data even while the causal residual weight at that time is near zero. This is not mathematically forbidden, but it weakens the interpretation that later states activate only after earlier physics is learned.
+
+For a clean cPIN experiment:
+\begin{enumerate}[label=\arabic*.]
+    \item use no supervised data in the main physics-only comparison, or
+    \item use sparse data with identical placement and weight in ordinary and causal models, and
+    \item report whether data loss is weighted causally or globally.
+\end{enumerate}
+
+\section{Hard and soft constraints}
+\label{sec:hard_constraints}
+
+\subsection{Soft initial condition}
+
+The simplest method is Eq.~\eqref{eq:ic_loss}. It works with arbitrary imported $C_0$, but the network can violate the initial field during training and the initial-condition weight must be balanced against the residual.
+
+\subsection{Hard initial condition}
+
+An exact construction is
+\begin{equation}
+\widehat{C}_{\thetav}(\hat{\xv},\hat{t})
+=
+\hat{C}_0(\hat{\xv})
++g(\hat{t})\,
+\mathcal{N}_{\thetav}(\hat{\xv},\hat{t}),
+\label{eq:hard_ic}
+\end{equation}
+where $g(0)=0$, for example $g(\hat{t})=\hat{t}$ or
+\begin{equation}
+g(\hat{t})=1-e^{-\beta\hat{t}}.
+\end{equation}
+Then $\widehat{C}_{\thetav}(\hat{\xv},0)=\hat{C}_0(\hat{\xv})$ for every network parameter value.
+
+This construction requires $\hat{C}_0(\hat{\xv})$ to be differentiable enough for the PDE residual. A raw binned Geant4 histogram may be discontinuous or noisy. It should be represented by a differentiable interpolant, smoothed field, or separate encoder before using Eq.~\eqref{eq:hard_ic}.
+
+\subsection{Soft zero-flux boundary condition}
+
+For the rectangular domain, sample all four edges and use Eq.~\eqref{eq:neumann_loss}. This is the most general first implementation and matches the existing Module 3 default.
+
+\subsection{Hard zero-flux construction on a rectangle}
+
+For a rectangular domain $0\le\hat{x},\hat{y}\le1$, one possible coordinate embedding is
+\begin{equation}
+\xi_x=\cos(\pi\hat{x}),
+\qquad
+\xi_y=\cos(\pi\hat{y}).
+\end{equation}
+If the network depends on $\hat{x}$ and $\hat{y}$ only through $\xi_x$ and $\xi_y$, its normal derivatives vanish at $\hat{x}=0,1$ and $\hat{y}=0,1$ because the sine factor in the chain rule vanishes. This is elegant for homogeneous Neumann boundaries, but it may limit flexibility or complicate parameterized geometries. Soft boundary enforcement is easier for the first Module 3 cPIN.
+
+\subsection{Nonnegative output}
+
+Defect concentration should satisfy
+\begin{equation}
+C(\xv,t)\ge0.
+\end{equation}
+Three strategies are available:
+\begin{enumerate}[label=\arabic*.]
+    \item \textbf{Unconstrained output plus diagnostic:} simplest and often sufficient for the analytic baseline.
+    \item \textbf{Penalty:}
+    \begin{equation}
+    \Lpos
+    =
+    \frac{1}{N_q}
+    \sum_{j=1}^{N_q}
+    \relu\left(
+    -\widehat{C}_{\thetav}(\hat{\xv}_j,\hat{t}_j)
+    \right)^2.
+    \end{equation}
+    \item \textbf{Positive transformation:}
+    \begin{equation}
+    \widehat{C}_{\thetav}
+    =
+    \softplus\left(
+    \widetilde{C}_{\thetav}
+    \right).
+    \end{equation}
+\end{enumerate}
+
+The positive transformation enforces the sign exactly but can saturate or distort a field spanning many orders of magnitude. The first experiment should use a direct scaled output, monitor minimum concentration, and add a positivity treatment only if negative predictions are material.
+
+\section{Architecture choices}
+
+\subsection{Baseline MLP}
+
+A suitable first network is a fully connected MLP:
+\begin{equation}
+\mathbf{h}^{(0)}
+=
+[\hat{x},\hat{y},\hat{t}]^{\mathsf T},
+\end{equation}
+\begin{equation}
+\mathbf{h}^{(\ell)}
+=
+\tanh\left(
+W^{(\ell)}\mathbf{h}^{(\ell-1)}
++\mathbf{b}^{(\ell)}
+\right),
+\end{equation}
+\begin{equation}
+\widehat{C}_{\thetav}
+=
+W^{(L+1)}\mathbf{h}^{(L)}
++b^{(L+1)}.
+\end{equation}
+
+A practical starting range is four to six hidden layers with 64--128 neurons per layer. This is not a guaranteed optimum; it is a controlled baseline large enough to represent a smooth 2D diffusion trajectory without immediately obscuring the causal-loss study behind architecture search.
+
+\subsection{Why smooth activations matter}
+
+The strong-form residual contains second spatial derivatives. The hyperbolic tangent is smooth and has well-defined derivatives of every order. A ReLU network is piecewise linear, so its second derivative is zero almost everywhere and undefined at kinks. ReLU is therefore a poor default for a strong-form diffusion PINN.
+
+\subsection{Input normalization}
+
+Map each input to approximately $[-1,1]$:
+\begin{equation}
+\tilde{x}
+=
+2\frac{x-x_{\min}}{x_{\max}-x_{\min}}-1,
+\end{equation}
+with analogous formulas for $y$ and $t$. This is deterministic feature scaling performed before the hidden layers. It is not batch normalization.
+
+Batch normalization is usually avoided in basic PINNs because the output at one collocation point would depend on the other points in the mini-batch, complicating pointwise differentiation and reproducibility. Layer normalization can be studied later, but it is not needed for the first causal comparison.
+
+\subsection{Output scaling}
+
+The network should predict dimensionless concentration of order unity. Convert back only for physical reporting:
+\begin{equation}
+C_{\mathrm{pred}}
+=
+\Cref\widehat{C}_{\thetav}.
+\end{equation}
+
+\subsection{When a field encoder becomes necessary}
+
+If the goal changes from solving one initial condition to learning an operator
+\begin{equation}
+C_0(x,y)
+\longmapsto
+C(x,y,t),
+\end{equation}
+then $(x,y,t)$ alone is insufficient because the network must know the entire input field $C_0$. Options include:
+\begin{enumerate}[label=\arabic*.]
+    \item low-dimensional parameterization of $C_0$;
+    \item a convolutional or latent encoder for the initial map;
+    \item DeepONet or another neural-operator architecture.
+\end{enumerate}
+The causal weighting concept can be applied to these architectures, but the first Module 3 tutorial should remain a single-case PINN so that the causal mechanism is isolated.
+
+\section{Sampling the space-time domain}
+
+\subsection{Ordered time slices}
+
+Select a nondecreasing time grid:
+\begin{equation}
+0=t_0<t_1<\cdots<t_{N_t}=T_f.
+\end{equation}
+The slice order must never be shuffled before the cumulative prefix is formed. Spatial points within a slice may be shuffled freely.
+
+\subsection{Uniform versus nonuniform time grids}
+
+A uniform grid is easiest to interpret. A nonuniform grid can be useful when early transients are fast:
+\begin{equation}
+t_i
+=
+T_f\left(\frac{i}{N_t}\right)^p,
+\qquad p>1,
+\end{equation}
+which places more slices near $t=0$. If a nonuniform grid is used, report it explicitly and compare models on the same grid.
+
+\subsection{Interior collocation points}
+
+At each $t_i$, draw spatial points uniformly or with a low-discrepancy scheme over $\Om$. For a localized Gaussian defect cloud, adaptive oversampling near high curvature can help, but it can also bias the residual estimate. A clean sequence is:
+\begin{enumerate}[label=\arabic*.]
+    \item begin with uniform spatial sampling;
+    \item inspect residual maps on a separate dense grid;
+    \item introduce residual-based refinement only as a documented extension.
+\end{enumerate}
+
+\subsection{Boundary points}
+
+Sample each boundary segment separately so that no edge is underrepresented. For a rectangle, equal numbers per edge are convenient. Corner points should not be counted multiple times unless the implementation intentionally weights them more strongly.
+
+\subsection{Initial-condition points}
+
+Use a dense enough sampling of $C_0$ to resolve the narrowest feature in the initial damage map. If the Gaussian width is $\sigma$, a point spacing much larger than $\sigma$ will alias the initial condition before any causal method can help.
+
+\subsection{Fixed versus resampled collocation}
+
+Fixed points simplify debugging and make ordinary-versus-causal comparisons deterministic. Periodic resampling improves domain coverage. The recommended development sequence is:
+\begin{enumerate}[label=\arabic*.]
+    \item fixed points for verification and unit tests;
+    \item resampling after the loss and derivatives are verified;
+    \item identical random seeds and sample budgets for the ordinary PINN and cPIN comparison.
+\end{enumerate}
+
+\section{Training algorithm}
+
+\subsection{Step-by-step algorithm}
+
+For one fixed Module 3 case:
+\begin{enumerate}[label=\arabic*.]
+    \item Define $\Om$, $T_f$, $C_0$, $D$, $k_{\mathrm{ann}}$, $S$, and boundary conditions.
+    \item Choose $L$, $\Dref$, $\Cref$, and $\tref=L^2/\Dref$.
+    \item Convert the PDE, fields, and data to dimensionless form.
+    \item Construct ordered times $\{\hat{t}_i\}_{i=0}^{N_t}$.
+    \item Sample IC, interior, boundary, and optional supervised points.
+    \item Initialize the same network architecture used by the ordinary-PINN baseline.
+    \item For each $\epsc$ in the schedule:
+    \begin{enumerate}[label=\alph*.]
+        \item evaluate $\widehat{\Lic}$;
+        \item evaluate $\widehat{\mathcal{L}}_{r,i}$ for all ordered slices;
+        \item build prefix sums from earlier slices;
+        \item compute stop-gradient weights $w_i$;
+        \item compute Eq.~\eqref{eq:recommended_total};
+        \item update $\thetav$ with gradient descent;
+        \item monitor $\min_iw_i$, validation errors, and slice losses;
+        \item end the stage if the stated stopping conditions are satisfied.
+    \end{enumerate}
+    \item Evaluate on a dense space-time test grid not used for training.
+    \item Compare against the FEM trajectory and analytic limiting cases.
+\end{enumerate}
+
+\subsection{Compact pseudocode}
+
+\begin{verbatim}
+scale inputs, output, coefficients, and source
+choose ordered time slices t[0] < ... < t[Nt]
+initialize network parameters theta
+
+for epsilon_c in [1e-2, 1e-1, 1, 10, 100]
+    for iteration = 1:maxIterations
+        L[0] = lambda_IC * IC_loss(theta)
+        for i = 1,...,Nt
+            L[i] = lambda_r * residual_loss_at_time(theta, t[i])
+        end
+
+        prefix[0] = 0
+        for i = 1,...,Nt
+            prefix[i] = prefix[i-1] + L[i-1]
+        end
+
+        w = exp(-epsilon_c * stop_gradient(prefix))
+        total = mean(w .* L) + boundary_loss + data_loss + auxiliaries
+        theta = optimizer_step(theta, gradient(total))
+
+        if min(w) > delta_stop and validation criteria are satisfied
+            break
+        end
+    end
+end
+\end{verbatim}
+
+\subsection{Optimizer sequence}
+
+Adam is a suitable first optimizer because it tolerates noisy mini-batch gradients. A later full-batch L-BFGS refinement can improve residual convergence, but it should be treated as an additional stage. Fair comparison requires the same optimizer budget for ordinary and causal models unless computational cost is itself being studied.
+
+\subsection{Learning-rate control}
+
+Use a fixed learning rate during initial debugging. After verifying the implementation, an exponential decay or plateau scheduler can be introduced. If the learning rate, causality schedule, collocation resampling, and architecture are all changed at once, it becomes impossible to attribute any improvement to causal weighting.
+
+\subsection{Long time horizons and time windows}
+
+For a long or stiff trajectory, divide
+\begin{equation}
+[0,T_f]
+=
+[T_0,T_1]\cup[T_1,T_2]\cup\cdots.
+\end{equation}
+Train one network per window or reuse the weights sequentially. The terminal prediction from one window supplies the next initial condition. Causal weighting can still be used \emph{inside} each window. Time marching and causal weighting are complementary, not mutually exclusive.
+
+\section{Module 3 verification hierarchy}
+
+\subsection{Why a hierarchy is necessary}
+
+A cPIN that agrees with one FEM trajectory may still contain a sign error, scaling error, or data leakage. Verification should proceed from cases with exact solutions to cases requiring numerical reference.
+
+\subsection{Case A: pure annealing}
+
+Use the existing structured-grid case:
+\begin{equation}
+D=0,
+\qquad
+k_{\mathrm{ann}}=5,
+\qquad
+C_0=1,
+\qquad
+0\le t\le0.2.
+\end{equation}
+The exact solution is
+\begin{equation}
+C(t)=e^{-5t}.
+\label{eq:pure_anneal_exact}
+\end{equation}
+
+This test isolates time differentiation, initial-condition enforcement, causal ordering, and reaction sign. No spatial derivatives are needed.
+
+\subsection{Case B: pure Gaussian diffusion}
+
+Use the existing unit-square baseline:
+\begin{equation}
+D=10^{-3},
+\qquad
+k_{\mathrm{ann}}=0,
+\qquad
+t_f=2\times10^{-2},
+\end{equation}
+with a Gaussian centered at $(0.5,0.5)$ and widths $\sigma_x=\sigma_y=0.08$. If the cloud remains far from the boundaries, the infinite-domain Gaussian solution provides a useful approximate analytic check; the FEM or structured-grid zero-flux result provides the finite-domain reference.
+
+The tests are:
+\begin{enumerate}[label=\arabic*.]
+    \item total inventory approximately conserved;
+    \item peak concentration decreases;
+    \item spatial variance increases;
+    \item symmetry about $x=0.5$ and $y=0.5$ is retained.
+\end{enumerate}
+
+\subsection{Case C: diffusion plus annealing}
+
+For constant coefficients and no source,
+\begin{equation}
+C(\xv,t)
+=
+e^{-k_{\mathrm{ann}}t}
+C_{\mathrm{diff}}(\xv,t),
+\label{eq:diffusion_annealing_product}
+\end{equation}
+where $C_{\mathrm{diff}}$ is the pure-diffusion solution with the same initial condition. This case tests simultaneous spatial and temporal derivatives.
+
+\subsection{Case D: imported Geant4-like map}
+
+Use the existing imported-map case with
+\begin{equation}
+D=5\times10^{-4},
+\qquad
+k_{\mathrm{ann}}=1,
+\qquad
+t_f=10^{-2}.
+\end{equation}
+The initial map is no longer analytically simple. Compare against both existing numerical paths where practical. The cPIN should be evaluated at FEM time snapshots withheld from any supervised loss.
+
+\subsection{Case E: material-aware coefficients}
+
+Prescribe $T(x,y,t)$ and compute $D(T)$ and $k_{\mathrm{ann}}(T)$ from Eq.~\eqref{eq:arrhenius}. This tests variable-coefficient differentiation:
+\begin{equation}
+\nabla\cdot(D\nabla C)
+=
+D\nabla^2C+\nabla D\cdot\nabla C.
+\label{eq:variable_diffusivity_expansion}
+\end{equation}
+Omitting the $\nabla D\cdot\nabla C$ term is a common implementation error if the divergence form is expanded manually.
+
+\subsection{Case F: multi-species reaction}
+
+Only after Cases A--E pass should the network output multiple defect concentrations and enforce Eq.~\eqref{eq:multi_species}. A vacancy-interstitial recombination example can test whether a coupled cPIN handles reaction stiffness and nonnegative species concentrations.
+
+\section{Fair ordinary-PINN versus causal-PINN experiment}
+
+\subsection{Controlled variables}
+
+Use identical:
+\begin{enumerate}[label=\arabic*.]
+    \item network architecture and initialization seed;
+    \item input and output scaling;
+    \item IC, boundary, and residual points;
+    \item optimizer and learning-rate schedule;
+    \item total gradient-update budget;
+    \item reference-data budget;
+    \item test grid.
+\end{enumerate}
+The only planned difference should initially be $w_i=1$ for the ordinary PINN versus Eq.~\eqref{eq:module3_weight} for cPIN.
+
+\subsection{Required ablations}
+
+At minimum compare:
+\begin{enumerate}[label=\arabic*.]
+    \item ordinary PINN: $w_i=1$;
+    \item cPIN with fixed $\epsc$;
+    \item cPIN with scheduled $\epsc$;
+    \item cPIN without stop-gradient, as a diagnostic rather than a recommended method;
+    \item optional hard-IC versus soft-IC variants.
+\end{enumerate}
+
+\subsection{Do not compare only final loss}
+
+The weighted cPIN objective and unweighted ordinary objective are not numerically identical. A lower weighted training loss does not prove a better physical solution. Compare both methods using the same independent physical metrics.
+
+\section{Validation metrics and diagnostics}
+
+\subsection{Relative field error}
+
+On a test set,
+\begin{equation}
+\varepsilon_C^{\mathrm{rel}}
+=
+\frac{
+\Norm{C_{\mathrm{pred}}-C_{\mathrm{ref}}}_2
+}{
+\Norm{C_{\mathrm{ref}}}_2
+}.
+\label{eq:relative_error}
+\end{equation}
+Report this metric globally and separately at selected times.
+
+\subsection{Maximum absolute error}
+
+\begin{equation}
+\varepsilon_C^{\infty}
+=
+\max_{\xv,t}
+\left|
+C_{\mathrm{pred}}(\xv,t)-C_{\mathrm{ref}}(\xv,t)
+\right|.
+\end{equation}
+This catches localized errors hidden by an average norm.
+
+\subsection{Inventory balance}
+
+Define
+\begin{equation}
+M(t)=\int_{\Om}C(\xv,t)\,\dd\Om.
+\end{equation}
+Integrating Eq.~\eqref{eq:module3_dimensional},
+\begin{equation}
+\dv{M}{t}
+=
+\int_{\partial\Om}
+\hat{\mathbf n}\cdot D\nabla C\,\dd\Gamma
+-\int_{\Om}k_{\mathrm{ann}}C\,\dd\Om
++\int_{\Om}S\,\dd\Om.
+\label{eq:inventory_balance}
+\end{equation}
+For zero flux, constant $k_{\mathrm{ann}}$, and $S=0$,
+\begin{equation}
+M(t)=M(0)e^{-k_{\mathrm{ann}}t}.
+\label{eq:inventory_exact}
+\end{equation}
+
+An optional physics diagnostic is
+\begin{equation}
+\mathcal{E}_M(t_i)
+=
+\left|
+\frac{
+M_{\mathrm{pred}}(t_i)-M_{\mathrm{expected}}(t_i)
+}{
+M_{\mathrm{expected}}(t_i)+\epsilon_M
+}
+\right|.
+\end{equation}
+
+\subsection{Residual by time slice}
+
+Plot
+\begin{equation}
+\widehat{\mathcal{L}}_{r,i}
+\quad\text{versus}\quad t_i
+\end{equation}
+at several training iterations. A successful cPIN should show an error-reduction front moving from earlier to later time.
+
+\subsection{Causal-weight history}
+
+Plot $w_i$ versus $t_i$ and iteration. Report:
+\begin{equation}
+w_{\min}=\min_i w_i,
+\qquad
+i_{\mathrm{front}}
+=
+\max\{i:w_i>\delta_{\mathrm{active}}\}.
+\end{equation}
+The weight plot verifies that the method actually operated causally. If all weights remain near one from the beginning, the cPIN effectively reduced to an ordinary PINN.
+
+\subsection{Initial and boundary errors}
+
+Report $\widehat{\Lic}$ and $\widehat{\mathcal{L}}_{b,i}$ independently. A low interior residual cannot compensate for a wrong initial condition.
+
+\subsection{Positivity}
+
+Report
+\begin{equation}
+C_{\min}
+=
+\min_{\xv,t}C_{\mathrm{pred}}(\xv,t)
+\end{equation}
+and the fraction of test points with negative concentration.
+
+\subsection{Diffusion-shape diagnostics}
+
+For a localized cloud with inventory $M(t)>0$, define the centroid
+\begin{equation}
+\bar{\xv}(t)
+=
+\frac{1}{M(t)}
+\int_{\Om}\xv C(\xv,t)\,\dd\Om
+\end{equation}
+and covariance
+\begin{equation}
+\Sigma_C(t)
+=
+\frac{1}{M(t)}
+\int_{\Om}
+(\xv-\bar{\xv})
+(\xv-\bar{\xv})^{\mathsf T}
+C(\xv,t)\,\dd\Om.
+\end{equation}
+Pure symmetric diffusion should preserve the centroid and increase the variance.
+
+\subsection{Computational cost}
+
+Record wall time, gradient updates, collocation evaluations, and peak memory. Causal weighting itself is inexpensive because the slice losses have already been computed, but ordered slicing and diagnostics can change batching efficiency.
+
+\section{Optional auxiliary physics losses}
+
+\subsection{Mass-balance loss}
+
+For known zero-flux, constant-rate evolution,
+\begin{equation}
+\Lmass
+=
+\frac{1}{N_t+1}
+\sum_{i=0}^{N_t}
+\left|
+\widehat{M}_{\thetav}(\hat{t}_i)
+-\widehat{M}_0e^{-\Da\hat{k}\hat{t}_i}
+\right|^2.
+\end{equation}
+This is useful for diagnostics and can be added weakly to the loss. It should not replace local PDE enforcement because many incorrect spatial fields have the correct total mass.
+
+\subsection{Source-aware balance loss}
+
+For general sources and boundary fluxes, use a discrete time-integrated version of Eq.~\eqref{eq:inventory_balance}. All terms must be evaluated with the same sign convention.
+
+\subsection{Monotonicity of total inventory}
+
+If $S=0$, $k_{\mathrm{ann}}\ge0$, and the boundary has no inward flux, total inventory cannot increase. A soft penalty is
+\begin{equation}
+\mathcal{L}_{\mathrm{mono}}
+=
+\frac{1}{N_t}
+\sum_{i=0}^{N_t-1}
+\relu\left(
+M_{\thetav}(t_{i+1})-M_{\thetav}(t_i)
+\right)^2.
+\end{equation}
+This constraint is case dependent. It is invalid when an active source or inward boundary flux is present.
+
+\subsection{Why auxiliaries should come later}
+
+The first study should compare ordinary and causal residual weighting with the same base PDE, IC, and BC losses. Adding many auxiliary losses immediately can hide whether causal weighting itself helped. Auxiliary constraints belong in a second-stage robustness study.
+
+\section{Common failure modes}
+
+\subsection{Using dimensional losses in the causal exponent}
+
+This causes unit-dependent weight collapse or no causal effect. Always use Eq.~\eqref{eq:dimensionless_residual}.
+
+\subsection{Calling the causal weights a physics term}
+
+The weights modify training. They do not represent a new defect interaction.
+
+\subsection{Shuffling the time order}
+
+The prefix sum must follow increasing physical time. A randomly ordered batch is not a causal sequence.
+
+\subsection{Incorrect sign in the residual}
+
+For
+\begin{equation}
+C_t=\nabla\cdot(D\nabla C)-kC+S,
+\end{equation}
+the zero residual is
+\begin{equation}
+\Rnet=C_t-\nabla\cdot(D\nabla C)+kC-S.
+\end{equation}
+A negative $kC$ in the residual would train growth rather than annealing.
+
+\subsection{Dropping the gradient of variable diffusivity}
+
+If $D=D(x,y,t)$,
+\begin{equation}
+\nabla\cdot(D\nabla C)
+\ne
+D\nabla^2C
+\end{equation}
+unless $\nabla D=0$. Use the divergence form in automatic differentiation whenever possible.
+
+\subsection{Under-resolving the initial map}
+
+Causal weighting cannot recover features absent from the IC sample. Narrow Geant4 hotspots require adequate spatial resolution or a differentiable reconstructed field.
+
+\subsection{Letting late-time data bypass causality}
+
+Large unweighted supervised losses at late time can teach later states directly. This may be useful for data assimilation but must not be described as a pure causal physics-only experiment.
+
+\subsection{Weight underflow}
+
+For a large prefix,
+\begin{equation}
+e^{-\epsc S}\rightarrow0
+\end{equation}
+in floating-point arithmetic. Remedies include correct nondimensionalization, smaller $\epsc$, clipping only for numerical safety with the clipping reported, and shorter time windows.
+
+\subsection{Too many time slices too early}
+
+A large $N_t$ increases memory and can make later slices remain inactive for most of training. Begin with 16--32 slices for simple cases, then refine after the activation behavior is understood.
+
+\subsection{Insufficient network smoothness}
+
+ReLU-like activations are unsuitable for a strong-form second-order diffusion residual. Use a smooth activation.
+
+\subsection{Incorrect claim of generalization}
+
+Solving one fixed $(C_0,D,k)$ case does not create a universal surrogate for arbitrary radiation histories. Generalization must be defined over held-out space-time points, parameter values, initial maps, or geometries.
+
+\subsection{Replacing FEM before validation}
+
+The first cPIN is a research comparison and surrogate candidate. FEM remains the trusted numerical reference until the neural path passes analytic tests, cross-solver comparisons, and parameter-range validation.
+
+\section{Connection to the existing FEM formulation}
+
+\subsection{Same strong physics, different approximation}
+
+The FEM weak form of Eq.~\eqref{eq:module3_dimensional} is obtained by multiplying by a test function $v$:
+\begin{equation}
+\int_{\Om}
+v\pdv{C}{t}\,\dd\Om
++\int_{\Om}
+\nabla v\cdot D\nabla C\,\dd\Om
++\int_{\Om}
+vk_{\mathrm{ann}}C\,\dd\Om
+=
+\int_{\Om}vS\,\dd\Om
++\int_{\partial\Om}
+v\hat{\mathbf n}\cdot D\nabla C\,\dd\Gamma.
+\label{eq:weak_form}
+\end{equation}
+With homogeneous zero flux, the boundary term vanishes.
+
+Linear triangular elements yield
+\begin{equation}
+\mathbf{M}\dot{\mathbf C}
++(\mathbf{K}_D+\mathbf{K}_R)\mathbf C
+=
+\mathbf f.
+\end{equation}
+Backward Euler gives
+\begin{equation}
+\left[
+\mathbf M+\Delta t(\mathbf K_D+\mathbf K_R)
+\right]\mathbf C^{n+1}
+=
+\mathbf M\mathbf C^n+\Delta t\,\mathbf f^{n+1}.
+\label{eq:fem_be}
+\end{equation}
+
+\subsection{What the comparison tests}
+
+FEM approximates the weak form on a mesh and advances time step by step. The PINN approximates a continuous space-time function and minimizes strong-form, IC, and BC residuals at points. Agreement between the two is evidence that distinct discretization strategies solve the same physical problem.
+
+\subsection{Reference-data protocol}
+
+For each test case:
+\begin{enumerate}[label=\arabic*.]
+    \item run the FEM solver on a sufficiently refined mesh and time step;
+    \item perform a refinement check before labeling it ``reference'';
+    \item export only selected training snapshots if supervised data are used;
+    \item reserve additional times and locations for testing;
+    \item compare the cPIN to both FEM and analytic limits.
+\end{enumerate}
+
+\section{Coupling Module 3 cPIN to the larger project}
+
+\subsection{Input from Module 1}
+
+Module 1 supplies a damage-precursor or defect-generation map. For a post-event calculation,
+\begin{equation}
+C_0(x,y)
+=
+\mathcal{G}
+\left[
+E_{\mathrm{dep}}(x,y),\text{particle type},\text{material response}
+\right],
+\end{equation}
+where $\mathcal{G}$ is the chosen deposition-to-defect mapping.
+
+\subsection{Output to Module 2}
+
+For charged species,
+\begin{equation}
+\rho_{\mathrm{def}}(x,y,t)
+=
+q\sum_jz_jC_j(x,y,t).
+\end{equation}
+Module 2 then solves
+\begin{equation}
+\nabla\cdot(\varepsilon\nabla\phi)
+=
+-\rho.
+\end{equation}
+The temporal causal path is established in Module 3; Module 2 computes the quasi-static electrostatic response to each resulting snapshot.
+
+\subsection{Input from Module 4}
+
+Module 4 supplies $T(x,y,t)$, which changes $D$ and $k_{\mathrm{ann}}$. In a one-way cPIN study, temperature can be prescribed. In a self-consistent Module 6 study, the coupled fields must be iterated.
+
+\subsection{Input from and feedback to Module 2}
+
+If charged-defect kinetics depend on electric field,
+\begin{equation}
+D=D(T,q_d,N_{\mathrm{dop}},|\mathbf E|),
+\end{equation}
+then Module 2 feeds back into Module 3. A first cPIN test should keep $D$ prescribed. Full feedback should be introduced only after the standalone cPIN is verified.
+
+\subsection{Output to Module 5}
+
+Module 5 uses $C_j(x,y,t)$ to construct trap, lifetime, recombination, or mobility effects. The cPIN output must therefore include physical units, metadata, and uncertainty or validation range rather than only a normalized tensor.
+
+\subsection{Role inside Module 6}
+
+Three future roles are possible:
+\begin{enumerate}[label=\arabic*.]
+    \item \textbf{Drop-in trajectory surrogate:} replace repeated Module 3 solves within a validated parameter range.
+    \item \textbf{Warm start:} predict an approximate trajectory used to initialize a conventional solver.
+    \item \textbf{Data assimilation:} combine sparse measurements with the Module 3 residual.
+\end{enumerate}
+The first implementation should be evaluated as a standalone solver/surrogate comparison before being inserted into the coupled loop.
+
+\section{Recommended first project experiment}
+
+\subsection{Phase 1: exact pure-annealing tutorial}
+
+Use the existing pure-annealing parameters and a network $\widehat{C}_{\thetav}(\hat{t})$ or the full $(x,y,t)$ network with uniform IC. Train:
+\begin{enumerate}[label=\arabic*.]
+    \item ordinary PINN;
+    \item cPIN with fixed $\epsc=1$;
+    \item cPIN with the schedule in Eq.~\eqref{eq:epsilon_schedule}.
+\end{enumerate}
+Verify Eq.~\eqref{eq:pure_anneal_exact}, plot $w_i$, and confirm that the spatial derivatives remain zero.
+
+\subsection{Phase 2: Gaussian diffusion}
+
+Use the existing \texttt{gaussian\_diffusion} case. Compare field error, mass conservation, peak decay, variance growth, residual-by-time, and causal weights.
+
+\subsection{Phase 3: diffusion plus annealing}
+
+Turn on both $D$ and $k_{\mathrm{ann}}$. Verify Eq.~\eqref{eq:diffusion_annealing_product} and inventory decay.
+
+\subsection{Phase 4: imported map}
+
+Use the Geant4-like imported initial field. Train with the initial map and physics residual. Reserve FEM snapshots for testing. This is the first directly project-relevant demonstration.
+
+\subsection{Phase 5: variable thermal coefficients}
+
+Prescribe a smooth temperature field and test the full divergence-form residual. Only after this case passes should the cPIN enter a Module 6 coupling experiment.
+
+\section{MATLAB implementation and extension blueprint}
+
+\subsection{Implemented scope}
+
+The first implementation keeps the complete training pipeline in one self-contained driver, following the style of the existing Module 2 PINN examples. Local functions inside the driver define scaling, sampling, automatic-differentiation derivatives, residual-only causal weighting, training history, reference construction, evaluation, plotting, and summary output. This minimizes coupling to the existing FEM code while the causal formulation is being validated.
+
+\begin{longtable}{p{0.43\textwidth}p{0.49\textwidth}}
+\toprule
+\textbf{Path} & \textbf{Role and status} \\
+\midrule
+\path{matlab/main_module3_CPINN_Defect_Evolution.m} & Implemented top-level causal-PINN driver for pure annealing, Gaussian diffusion, and uniform-state preservation. It uses dimensionless residuals, physical-time slices, stop-gradient exponential weights, an $\epsc$ schedule, optional sparse anchors, analytic/FEM references, and saved diagnostics. \\
+\path{matlab/tests/test_module3_cpinn_pure_annealing.m} & Implemented short regression and physics test. It verifies array contracts, causal-weight ordering and bounds, finite predictions/residuals, and the independent exact exponential reference without pretending that four optimizer updates establish convergence. \\
+\path{matlab/src/module3_cpin/} & Optional future refactor if the driver grows beyond the first scalar constant-coefficient study. Candidate functions include defaults, residual evaluation, causal weights, training, and plotting. \\
+\path{matlab/tests/test_module3_cpinn_gaussian_diffusion.m} & Planned longer-running convergence test for symmetry, inventory, variance growth, and FEM-reference field error. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Suggested parameter structure}
+
+\begin{verbatim}
+params.domain
+params.physics
+params.initialCondition
+params.boundary
+params.scaling
+params.network
+params.sampling
+params.causal.epsilonSchedule
+params.causal.stopThreshold
+params.lossWeights
+params.optimizer
+params.referenceData
+params.output
+\end{verbatim}
+
+\subsection{Required saved outputs}
+
+Every cPIN run should save:
+\begin{enumerate}[label=\arabic*.]
+    \item all physical and scaled parameters;
+    \item network architecture and random seed;
+    \item optimizer and causality schedules;
+    \item loss histories by component and time slice;
+    \item causal weights by slice and iteration;
+    \item validation metrics and FEM reference metadata;
+    \item predicted fields at standard project snapshots;
+    \item units and scaling constants required to reconstruct dimensional output.
+\end{enumerate}
+
+\section{Interpretation: what success would demonstrate}
+
+A successful Module 3 cPIN result would demonstrate that:
+\begin{enumerate}[label=\arabic*.]
+    \item the neural network represents a continuous solution of the same diffusion-reaction physics used by the numerical solvers;
+    \item automatic differentiation correctly evaluates time and spatial derivatives;
+    \item the initial Geant4-derived damage state anchors the trajectory;
+    \item causal residual weighting creates an observable early-to-late activation front;
+    \item the cPIN improves accuracy, robustness, or training efficiency relative to an otherwise matched ordinary PINN;
+    \item the resulting trajectory preserves inventory trends, symmetry, nonnegativity, and analytic limiting behavior;
+    \item the model remains valid only within a clearly tested physical and parameter domain.
+\end{enumerate}
+
+It would \emph{not} by itself demonstrate universal superiority over FEM, arbitrary-geometry generalization, or accurate atomistic defect physics. Those are separate questions.
+
+\section{Summary of the recommended mathematical specification}
+
+The physical problem is
+\begin{equation}
+C_t
+=
+\nabla\cdot(D\nabla C)-k_{\mathrm{ann}}C+S
+\quad\text{in }\Om\times(0,T_f],
+\end{equation}
+with
+\begin{equation}
+C(\xv,0)=C_0(\xv),
+\qquad
+\hat{\mathbf n}\cdot D\nabla C=0
+\quad\text{on }\partial\Om
+\end{equation}
+for the default case.
+
+After nondimensionalization,
+\begin{equation}
+\widehat{\mathcal R}_{\thetav}
+=
+\widehat{C}_{\thetav,\hat t}
+-\hat\nabla\cdot
+(\hat D\hat\nabla\widehat C_{\thetav})
++\Da\hat k\widehat C_{\thetav}
+-\hat S.
+\end{equation}
+
+Define the IC loss $\mathcal L_0=\lambda_0\widehat{\Lic}$ and residual losses
+\begin{equation}
+\mathcal L_i
+=
+\frac{\lambda_r}{N_r}
+\sum_{j=1}^{N_r}
+\left|
+\widehat{\mathcal R}_{\thetav}
+(\hat\xv_{r,j}^{(i)},\hat t_i)
+\right|^2.
+\end{equation}
+Use
+\begin{equation}
+w_0=1,
+\qquad
+w_i
+=
+\exp\left[
+-\epsc\,
+\stgrad\left(
+\sum_{k=0}^{i-1}\mathcal L_k
+\right)
+\right],
+\end{equation}
+and minimize Eq.~\eqref{eq:recommended_total}.
+
+\begin{physicsbox}
+\textbf{Final project recommendation.} Use Module 3, not Module 2, as the base tutorial and primary benchmark for temporal causal PINN. Begin with pure annealing, progress to Gaussian diffusion and combined diffusion-annealing, then test an imported Geant4-derived initial map against the existing FEM trajectory. Retain Module 2 cPIN as a secondary ordered quasi-static continuation study.
+\end{physicsbox}
+
+\appendix
+
+\section{Worked analytic solution: pure annealing}
+
+Start from
+\begin{equation}
+\dv{C}{t}=-kC.
+\end{equation}
+Separate variables:
+\begin{equation}
+\frac{1}{C}\dd C=-k\,\dd t.
+\end{equation}
+Integrate from $(0,C_0)$ to $(t,C)$:
+\begin{equation}
+\int_{C_0}^{C(t)}\frac{1}{C'}\,\dd C'
+=
+-k\int_0^t\dd t'.
+\end{equation}
+Therefore
+\begin{equation}
+\ln\frac{C(t)}{C_0}=-kt,
+\end{equation}
+and
+\begin{equation}
+C(t)=C_0e^{-kt}.
+\end{equation}
+This exact curve tests the sign and magnitude of the reaction residual.
+
+\section{Worked analytic solution: two-dimensional Gaussian diffusion}
+
+For an unbounded domain with constant $D$, no reaction, and point inventory $M_0$ at $\xv_0$,
+\begin{equation}
+C(\xv,t)
+=
+\frac{M_0}{4\pi Dt}
+\exp\left[
+-\frac{|\xv-\xv_0|^2}{4Dt}
+\right].
+\end{equation}
+
+For an initial normalized Gaussian with covariance $\Sigma_0=\sigma_0^2I$,
+\begin{equation}
+C(\xv,t)
+=
+\frac{M_0}
+{2\pi(\sigma_0^2+2Dt)}
+\exp\left[
+-\frac{|\xv-\xv_0|^2}
+{2(\sigma_0^2+2Dt)}
+\right].
+\label{eq:gaussian_exact}
+\end{equation}
+The variance in each Cartesian direction is
+\begin{equation}
+\sigma^2(t)=\sigma_0^2+2Dt.
+\end{equation}
+With first-order annealing,
+\begin{equation}
+C_{\mathrm{diff+ann}}(\xv,t)
+=
+e^{-kt}C_{\mathrm{diff}}(\xv,t).
+\end{equation}
+
+On the finite unit square with zero-flux boundaries, Eq.~\eqref{eq:gaussian_exact} is only approximate until boundary-image effects become negligible. The FEM reference resolves the actual finite-domain solution.
+
+\section{Worked derivation: variable-diffusivity residual}
+
+For scalar $D(\xv,t)$,
+\begin{align}
+\nabla\cdot(D\nabla C)
+&=
+\pdv{}{x}\left(D\pdv{C}{x}\right)
++\pdv{}{y}\left(D\pdv{C}{y}\right)
+\\
+&=
+D\pdv[2]{C}{x}
++\pdv{D}{x}\pdv{C}{x}
++D\pdv[2]{C}{y}
++\pdv{D}{y}\pdv{C}{y}
+\\
+&=
+D\nabla^2C+\nabla D\cdot\nabla C.
+\end{align}
+
+Therefore
+\begin{equation}
+\Rnet
+=
+C_t
+-D\nabla^2C
+-\nabla D\cdot\nabla C
++kC-S.
+\end{equation}
+Implementing the divergence form directly is safer because automatic differentiation includes both contributions.
+
+\section{Implementation readiness checklist}
+
+\begin{longtable}{p{0.08\textwidth}p{0.82\textwidth}}
+\toprule
+\textbf{Check} & \textbf{Requirement} \\
+\midrule
+$\square$ & The same dimensional PDE and sign convention are used by FEM, ordinary PINN, and cPIN. \\
+$\square$ & Inputs, output, coefficients, source, and residual are nondimensionalized. \\
+$\square$ & The initial condition is sampled adequately or enforced exactly. \\
+$\square$ & Time slices are sorted before prefix sums are computed. \\
+$\square$ & Stop-gradient is applied to the causal weights. \\
+$\square$ & The ordinary-PINN baseline is identical except for $w_i=1$. \\
+$\square$ & Pure annealing passes the exact exponential test. \\
+$\square$ & Pure diffusion preserves inventory and symmetry within tolerance. \\
+$\square$ & Variable-$D$ residual retains $\nabla D\cdot\nabla C$. \\
+$\square$ & Weight history, residual by time, IC error, BC error, and test error are saved. \\
+$\square$ & FEM reference results have a mesh/time-step refinement check. \\
+$\square$ & Late-time supervised data do not silently bypass the stated causal design. \\
+$\square$ & The tested parameter and initial-map range is documented. \\
+$\square$ & No claim is made that cPIN replaces FEM outside the validated range. \\
+\bottomrule
+\end{longtable}
+
+\section{Frequently asked questions}
+
+\subsection*{Does causal PINN predict the future without earlier states?}
+
+No. The trained network can be queried at a later time, but its training objective is constructed so that the later portion becomes active only after earlier losses are reduced. The resulting function still represents the whole initial-value solution.
+
+\subsection*{Is causal PINN a recurrent neural network?}
+
+Not necessarily. The baseline is an MLP taking $(x,y,t)$ as input. Temporal order enters the loss weights, not a recurrent hidden state.
+
+\subsection*{Does the network need FEM potential values from Module 2?}
+
+Not for the baseline Module 3 problem. It needs $C_0$, coefficients, source, and boundary conditions. Module 2 electric field is required only if the chosen defect kinetics explicitly depend on $\mathbf E$.
+
+\subsection*{Are FEM concentration values mandatory?}
+
+No. They are optional supervised anchors and essential independent validation data. A physics-only PINN can train from the PDE, IC, and BC.
+
+\subsection*{Why not apply cPIN only to Module 2?}
+
+Poisson electrostatics is quasi-static. Module 2 can be ordered by upstream damage time, but its equation does not itself evolve the state. Module 3 contains the genuine time derivative and is therefore the clearer causal example.
+
+\subsection*{What happens when $\epsc=0$?}
+
+Then $w_i=1$ for every slice and the causal residual reduces to the ordinary time-averaged residual.
+
+\subsection*{What happens when $\epsc$ is too large?}
+
+Later weights can remain nearly zero because early residuals must become extremely small before later slices activate. The schedule in Eq.~\eqref{eq:epsilon_schedule} reduces this risk.
+
+\subsection*{Does a small residual guarantee an accurate solution?}
+
+No. Residuals are sampled, the network has finite capacity, and IC/BC errors may remain. Analytic and FEM comparisons are required.
+
+\subsection*{Can cPIN handle multiple defect species?}
+
+Yes. Output a vector of concentrations and aggregate the species residuals at each time slice before computing the next weight. Begin with one species to validate the method.
+
+\subsection*{Can cPIN use convolutional networks?}
+
+Yes, especially when an initial defect map must be encoded. The physics residual is computed from the differentiable output regardless of whether the internal architecture is fully connected, convolutional, or operator based. The baseline MLP is chosen for simplicity, not because PINNs fundamentally require it.
+
+\section{References}
+
+\begin{thebibliography}{99}
+
+\bibitem{raissi2019}
+M. Raissi, P. Perdikaris, and G. E. Karniadakis,
+``Physics-informed neural networks: A deep learning framework for solving forward and inverse problems involving nonlinear partial differential equations,''
+\emph{Journal of Computational Physics}, vol. 378, pp. 686--707, 2019.
+\url{https://doi.org/10.1016/j.jcp.2018.10.045}
+
+\bibitem{wang2024causal}
+S. Wang, S. Sankaran, and P. Perdikaris,
+``Respecting causality for training physics-informed neural networks,''
+\emph{Computer Methods in Applied Mechanics and Engineering}, vol. 421, 116813, 2024.
+\url{https://doi.org/10.1016/j.cma.2024.116813}
+
+\bibitem{wang2022preprint}
+S. Wang, S. Sankaran, and P. Perdikaris,
+``Respecting causality is all you need for training physics-informed neural networks,''
+arXiv:2203.07404, 2022.
+\url{https://arxiv.org/abs/2203.07404}
+
+\bibitem{wang2021gradient}
+S. Wang, Y. Teng, and P. Perdikaris,
+``Understanding and mitigating gradient flow pathologies in physics-informed neural networks,''
+\emph{SIAM Journal on Scientific Computing}, vol. 43, no. 5, pp. A3055--A3081, 2021.
+\url{https://doi.org/10.1137/20M1318043}
+
+\bibitem{wang2022ntk}
+S. Wang, X. Yu, and P. Perdikaris,
+``When and why PINNs fail to train: A neural tangent kernel perspective,''
+\emph{Journal of Computational Physics}, vol. 449, 110768, 2022.
+\url{https://doi.org/10.1016/j.jcp.2021.110768}
+
+\bibitem{krishnapriyan2021}
+A. S. Krishnapriyan, A. Gholami, S. Zhe, R. M. Kirby, and M. W. Mahoney,
+``Characterizing possible failure modes in physics-informed neural networks,''
+\emph{Advances in Neural Information Processing Systems}, vol. 34, pp. 26548--26560, 2021.
+\url{https://arxiv.org/abs/2109.01050}
+
+\bibitem{karniadakis2021}
+G. E. Karniadakis, I. G. Kevrekidis, L. Lu, P. Perdikaris, S. Wang, and L. Yang,
+``Physics-informed machine learning,''
+\emph{Nature Reviews Physics}, vol. 3, pp. 422--440, 2021.
+\url{https://doi.org/10.1038/s42254-021-00314-5}
+
+\bibitem{fick1855}
+A. Fick,
+``Ueber Diffusion,''
+\emph{Annalen der Physik}, vol. 170, pp. 59--86, 1855.
+
+\bibitem{crank1975}
+J. Crank,
+\emph{The Mathematics of Diffusion}, 2nd ed.,
+Oxford University Press, 1975.
+
+\bibitem{fahey1989}
+P. M. Fahey, P. B. Griffin, and J. D. Plummer,
+``Point defects and dopant diffusion in silicon,''
+\emph{Reviews of Modern Physics}, vol. 61, pp. 289--384, 1989.
+\url{https://doi.org/10.1103/RevModPhys.61.289}
+
+\bibitem{zienkiewicz2013}
+O. C. Zienkiewicz, R. L. Taylor, and J. Z. Zhu,
+\emph{The Finite Element Method: Its Basis and Fundamentals}, 7th ed.,
+Elsevier, 2013.
+
+\bibitem{griewank2008}
+A. Griewank and A. Walther,
+\emph{Evaluating Derivatives: Principles and Techniques of Algorithmic Differentiation}, 2nd ed.,
+SIAM, 2008.
+
+\end{thebibliography}
+
+\end{document}

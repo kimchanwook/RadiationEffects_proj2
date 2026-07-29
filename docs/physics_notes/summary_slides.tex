@@ -900,6 +900,173 @@ w_k=\exp\left[-\eta\sum_{j=0}^{k-1}\mathcal L_j\right]
 \end{frame}
 
 % -----------------------------------------------------------------------------
+\begin{frame}{Module 3 cPINN: physical time makes causality intrinsic}
+\small
+\textbf{Module 3 is the preferred causal-PINN base case because it is a genuine initial-value problem.}
+
+\vspace{0.2em}
+\begin{equation*}
+\boxed{
+\frac{\partial C}{\partial t}
+=
+\nabla\cdot(D\nabla C)
+-k_{\mathrm{ann}}C
++S,
+\qquad
+C(\mathbf x,0)=C_0(\mathbf x)
+}
+\end{equation*}
+
+\vspace{-0.1em}
+\begin{equation*}
+\hat{\mathbf n}\cdot D\nabla C=0
+\quad\text{on }\partial\Omega,
+\qquad
+\widehat C_{\theta}
+=\mathcal N_{\theta}(\hat x,\hat y,\hat t).
+\end{equation*}
+
+\vspace{-0.1em}
+\begin{itemize}
+    \item $C_0(\mathbf x)$ is the Module 1 damage-derived initial field; every later state must remain consistent with this causal anchor.
+    \item Diffusion redistributes defects, $-k_{\mathrm{ann}}C$ removes them locally, and $S(\mathbf x,t)$ represents continuing production.
+    \item Unlike Module 2 Poisson electrostatics, physical time appears directly in the governing equation: the solution at later time depends on the earlier trajectory.
+    \item ``Causal'' changes the optimization curriculum, not the defect-physics equation.
+\end{itemize}
+\end{frame}
+
+% -----------------------------------------------------------------------------
+\begin{frame}{Module 3 cPINN: scaled residual and time slices}
+\footnotesize
+\textbf{Only dimensionless losses may enter the causal exponent.}
+
+\vspace{-0.15em}
+\begin{align*}
+\hat x&=\frac{x}{L},&
+\hat y&=\frac{y}{L},&
+\hat t&=\frac{t}{t_{\mathrm{ref}}},&
+\widehat C&=\frac{C}{C_{\mathrm{ref}}},&
+\mathrm{Da}&=k_{\mathrm{ref}}t_{\mathrm{ref}},\\[-0.1em]
+\widehat{\mathcal R}_{\theta}
+&=
+\frac{\partial\widehat C_{\theta}}{\partial\hat t}
+-\hat\nabla\cdot
+\left(\widehat D\hat\nabla\widehat C_{\theta}\right)
++\mathrm{Da}\,\hat k\,\widehat C_{\theta}
+-\widehat S.
+\end{align*}
+
+\vspace{-0.25em}
+\begin{equation*}
+0=\hat t_0<\hat t_1<\cdots<\hat t_{N_t}=1,
+\qquad
+\widehat{\mathcal L}_{r,i}
+=
+\frac{1}{N_r}\sum_{j=1}^{N_r}
+\left|
+\widehat{\mathcal R}_{\theta}
+(\hat{\mathbf x}_{r,j}^{(i)},\hat t_i)
+\right|^2.
+\end{equation*}
+
+\vspace{-0.25em}
+\begin{equation*}
+\widehat{\mathcal L}_{\mathrm{IC}}
+=
+\frac{1}{N_0}\sum_{j=1}^{N_0}
+\left|
+\widehat C_{\theta}(\hat{\mathbf x}_0^{(j)},0)
+-\widehat C_0(\hat{\mathbf x}_0^{(j)})
+\right|^2,
+\qquad
+\mathcal L_0=\lambda_0\widehat{\mathcal L}_{\mathrm{IC}}.
+\end{equation*}
+
+\vspace{-0.15em}
+\begin{itemize}
+    \item The ordered slices are physical times and must remain sorted when the causal prefix is constructed.
+    \item Nondimensionalization makes activation independent of whether concentration is stored in $\mathrm{m}^{-3}$, $\mathrm{cm}^{-3}$, or normalized units.
+    \item Smooth activations such as $\tanh$ are required because the residual contains first-time and second-space derivatives.
+\end{itemize}
+\end{frame}
+
+% -----------------------------------------------------------------------------
+\begin{frame}{Module 3 cPINN: causal weights activate early times first}
+\footnotesize
+\textbf{The initial condition and PDE residuals form the ordered causal prefix.}
+
+\vspace{-0.2em}
+\begin{equation*}
+\mathcal L_i=\lambda_r\widehat{\mathcal L}_{r,i}
+\quad(i\geq1),
+\qquad
+w_0=1,
+\qquad
+\boxed{
+w_i=
+\exp\left[
+-\epsilon_{\mathrm c}\,
+\operatorname{stopgrad}
+\left(
+\sum_{k=0}^{i-1}\mathcal L_k
+\right)
+\right]
+}.
+\end{equation*}
+
+\vspace{-0.3em}
+\begin{equation*}
+\boxed{
+\mathcal L_{\mathrm{total}}
+=
+\frac{1}{N_t+1}\sum_{i=0}^{N_t}w_i\mathcal L_i
++\frac{\lambda_b}{N_t}\sum_{i=1}^{N_t}\widehat{\mathcal L}_{b,i}
++\frac{\lambda_s}{N_t}\sum_{i=1}^{N_t}\widehat{\mathcal L}_{s,i}
++\lambda_{\mathrm{aux}}\mathcal L_{\mathrm{aux}}
+}.
+\end{equation*}
+
+\vspace{-0.2em}
+\begin{itemize}
+    \item Large early-time error makes later $w_i$ small; as the prefix losses decrease, an activation front moves toward later time.
+    \item $\operatorname{stopgrad}$ prevents the optimizer from reducing the objective by manipulating the weights themselves.
+    \item A staged schedule such as
+    $\epsilon_{\mathrm c}\in\{10^{-2},10^{-1},10^0,10^1,10^2\}$
+    progressively sharpens temporal ordering.
+    \item Full activation may be diagnosed by $\min_i w_i>\delta_{\mathrm{stop}}$, with $\delta_{\mathrm{stop}}\approx0.99$ as a starting criterion.
+\end{itemize}
+\end{frame}
+
+% -----------------------------------------------------------------------------
+\begin{frame}{Module 3 cPINN: verification and coupling}
+\small
+\textbf{A causal loss is useful only if the learned trajectory also satisfies independent physics checks.}
+
+\vspace{-0.1em}
+\begin{align*}
+D=0,\ S=0
+&\quad\Rightarrow\quad
+C(t)=C_0e^{-k_{\mathrm{ann}}t},
+\\[-0.1em]
+D=\text{constant},\ S=0
+&\quad\Rightarrow\quad
+C(\mathbf x,t)=e^{-k_{\mathrm{ann}}t}C_{\mathrm{diff}}(\mathbf x,t),
+\\[-0.1em]
+\hat{\mathbf n}\cdot D\nabla C=0,\ S=0
+&\quad\Rightarrow\quad
+M(t)=\int_{\Omega}C\,d\Omega=M(0)e^{-k_{\mathrm{ann}}t}.
+\end{align*}
+
+\vspace{-0.2em}
+\begin{itemize}
+    \item Compare against the ordinary PINN using the same network, initialization, collocation points, optimizer, data budget, and test grid; initially change only $w_i=1$ to causal $w_i$.
+    \item Report field error, maximum error, residual by time slice, $w_i$ history, inventory balance, symmetry, variance growth, and minimum predicted concentration.
+    \item Progress from exact pure annealing to Gaussian diffusion, diffusion plus annealing, an imported Geant4-like map, temperature-dependent coefficients, and finally multi-species reactions.
+    \item The validated output $C(\mathbf x,t)$ supplies time-ordered defect charge to Module 2 and defect-dependent coefficients to Modules 4--6.
+\end{itemize}
+\end{frame}
+
+% -----------------------------------------------------------------------------
 \begin{frame}{Module 11 GNN: target physical dependency graph}
 \small
 \textbf{Module 11 learns directed relations among physical variables, not mesh adjacency or numerical solver order.}
@@ -1576,4 +1743,3 @@ Q_{\mathrm{off},i}&=\int \rho_{\mathrm{trap}}\psi_i\,d\Omega,
 \end{frame}
 
 \end{document}
-
