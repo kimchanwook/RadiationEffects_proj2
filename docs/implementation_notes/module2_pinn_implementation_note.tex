@@ -1,0 +1,1197 @@
+\documentclass[11pt]{article}
+\input{../shared/project_style.tex}
+\usepackage{listings}
+\usepackage{caption}
+
+\rhead{Module 2 PINN Implementation Note}
+
+\definecolor{CodeBackground}{HTML}{F7F9FC}
+\definecolor{CodeFrame}{HTML}{C8D3E0}
+\definecolor{CodeKeyword}{HTML}{163A5F}
+\definecolor{CodeComment}{HTML}{2D6F73}
+\definecolor{CodeString}{HTML}{8A4B08}
+
+\lstdefinestyle{projectmatlab}{
+  language=Matlab,
+  basicstyle=\ttfamily\small,
+  keywordstyle=\color{CodeKeyword}\bfseries,
+  commentstyle=\color{CodeComment},
+  stringstyle=\color{CodeString},
+  backgroundcolor=\color{CodeBackground},
+  frame=single,
+  rulecolor=\color{CodeFrame},
+  breaklines=true,
+  breakatwhitespace=false,
+  columns=fullflexible,
+  keepspaces=true,
+  showstringspaces=false,
+  numbers=left,
+  numberstyle=\scriptsize\color{gray},
+  numbersep=8pt,
+  xleftmargin=1.2em,
+  framexleftmargin=1.0em,
+  aboveskip=0.8em,
+  belowskip=0.8em
+}
+
+\lstdefinestyle{projectshell}{
+  basicstyle=\ttfamily\small,
+  backgroundcolor=\color{CodeBackground},
+  frame=single,
+  rulecolor=\color{CodeFrame},
+  breaklines=true,
+  columns=fullflexible,
+  keepspaces=true,
+  showstringspaces=false,
+  xleftmargin=1.2em,
+  framexleftmargin=1.0em,
+  aboveskip=0.8em,
+  belowskip=0.8em
+}
+
+\newcommand{\matlabfile}[1]{\path{#1}}
+\newcommand{\phinn}{\ensuremath{\phi_{\theta}}}
+\newcommand{\Evec}{\ensuremath{\mathbf{E}}}
+\newcommand{\Lpde}{\ensuremath{\mathcal{L}_{\mathrm{PDE}}}}
+\newcommand{\Ldir}{\ensuremath{\mathcal{L}_{\mathrm{D}}}}
+\newcommand{\Lneu}{\ensuremath{\mathcal{L}_{\mathrm{N}}}}
+\newcommand{\Ldata}{\ensuremath{\mathcal{L}_{\mathrm{data}}}}
+\newcommand{\Ltot}{\ensuremath{\mathcal{L}_{\mathrm{total}}}}
+
+\begin{document}
+
+\DocTitle{Module 2 PINN Implementation Note}{Detailed How-To Guide for \texttt{RadiationEffects\_proj2}}{Running, testing, inspecting, tuning, and diagnosing the two-dimensional electrostatic physics-informed neural network}
+
+\hrule
+\vspace{0.8em}
+
+\begin{overviewbox}
+\textbf{Purpose and scope.} This is the operational companion to the Module 2 PINN physics note and the Module 2 FEM implementation note. It documents the executable MATLAB PINN path beginning at \matlabfile{main_module2_pinn_electrostatics.m}: required software, exact commands, the seven-file call chain, every user option, nondimensionalization, automatic differentiation, loss construction, returned data, verification plots, tests, diagnostic probes, and common failures. The objective is that a reader can first establish that the reference FEM solver is healthy, then run the smallest PINN smoke test, then perform scientifically meaningful analytical and FEM comparisons without guessing what any function does.
+\end{overviewbox}
+
+\begin{notebox}
+\textbf{Fastest safe start.} Open MATLAB in \matlabfile{RadiationEffects_proj2/matlab/}, run \texttt{setup\_project\_paths}, confirm the Deep Learning Toolbox is available, run the four Module 2 FEM tests, and then run \texttt{test\_module2\_pinn\_electrostatics}. After those preflight checks, train the analytical linear-potential case before the Gaussian defect case.
+\end{notebox}
+
+\ProjectTOC
+
+\SymbolsAcronymsSection
+
+\renewcommand{\arraystretch}{1.2}
+\setlength{\tabcolsep}{5pt}
+\begin{symtable}
+PINN & Physics-informed neural network & Neural representation trained using the governing PDE, boundary conditions, and optional FEM anchors. \\
+MLP & Multilayer perceptron & Fully connected feed-forward network used by this implementation. \\
+FEM & Finite-element method & Reference Module 2 solver used to construct anchors and validate the trained PINN. \\
+AD & Automatic differentiation & MATLAB differentiation of network outputs with respect to coordinates and trainable parameters. \\
+$\Omega$ & Computational domain & Rectangle $[0,L_x]\times[0,L_y]$. \\
+$\phi$ & Electrostatic potential & Physical potential in volts. \\
+$\phinn$ & Network potential & PINN approximation to $\phi$. \\
+$\Evec$ & Electric field & $\Evec=-\nabla\phi$, in volts per meter. \\
+$\rho$ & Space-charge density & Physical source in coulombs per cubic meter. \\
+$\varepsilon_{\mathrm{Si}}$ & Silicon permittivity & Constant scalar permittivity used by the current FEM and PINN paths. \\
+$\hat{x},\hat{y}$ & Normalized coordinates & $\hat{x}=x/L_x$ and $\hat{y}=y/L_y$. \\
+$\hat{\phi}$ & Normalized potential & Network output $\hat{\phi}=\phi/V_s$. \\
+$V_s$ & Potential scale & Data-derived scale stored as \texttt{out.scales.V}. \\
+$\rho_s$ & Charge scale & Residual scale stored as \texttt{out.scales.rho}. \\
+$g_s$ & Gradient scale & Normal-derivative scale stored as \texttt{out.scales.gradPhi}. \\
+$\mathcal{R}$ & Poisson residual & $\varepsilon_{\mathrm{Si}}\nabla^2\phinn+\rho$. \\
+$\Lpde$ & PDE loss & Mean squared normalized Poisson residual at interior points. \\
+$\Ldir$ & Dirichlet loss & Mean squared normalized potential mismatch on Dirichlet boundaries. \\
+$\Lneu$ & Neumann loss & Mean squared normalized normal-derivative mismatch on Neumann boundaries. \\
+$\Ldata$ & Data loss & Mean squared normalized potential mismatch at sparse FEM anchors. \\
+$w_i$ & Loss weights & The four dimensionless multipliers applied to PDE, Dirichlet, Neumann, and data losses. \\
+CB & Channel-batch layout & \texttt{dlarray} label convention with coordinate channels by observations. \\
+Adam & Adaptive moment estimation & Optimizer used for every network update. \\
+\end{symtable}
+
+\section{What the current Module 2 PINN code actually implements}
+
+The present code trains one neural network for one fixed electrostatic case:
+\begin{equation}
+(x,y)\longmapsto \phinn(x,y).
+\end{equation}
+It solves the constant-permittivity Poisson equation
+\begin{equation}
+\varepsilon_{\mathrm{Si}}\left(
+\pdv[2]{\phi}{x}+\pdv[2]{\phi}{y}\right)+\rho(x,y)=0,
+\qquad
+\Evec=-\nabla\phi.
+\label{eq:poisson}
+\end{equation}
+The network is informed by four possible signals:
+\begin{equation}
+\Ltot=
+w_{\mathrm{PDE}}\Lpde+
+w_D\Ldir+
+w_N\Lneu+
+w_{\mathrm{data}}\Ldata.
+\label{eq:total-loss}
+\end{equation}
+The FEM data term is optional. With FEM anchors enabled, the code is a hybrid physics-data PINN. With anchors disabled, it is a pure single-case PINN.
+
+\subsection{Current scope versus the eventual surrogate target}
+
+The physics note describes three modeling modes. Their status in the executable code is:
+\begin{longtable}{>{\RaggedRight\arraybackslash}p{0.18\textwidth} >{\RaggedRight\arraybackslash}p{0.37\textwidth} >{\RaggedRight\arraybackslash}p{0.35\textwidth}}
+\toprule
+\textbf{Mode} & \textbf{Definition} & \textbf{Current status} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Mode} & \textbf{Definition} & \textbf{Current status} \\
+\midrule
+\endhead
+Mode A & One network learns $\phi(x,y)$ for one fixed source and one fixed boundary configuration. & Implemented. Optional sparse FEM anchors may be added. \\
+Mode B & One supervised network learns a family $(x,y,\boldsymbol{\mu})\mapsto\phi$ from many FEM cases. & Not implemented. \\
+Mode C & One physics-informed surrogate learns a family $(x,y,\boldsymbol{\mu})\mapsto\phi$ using FEM data, PDE residuals, and boundary losses. & Recommended future target, but not implemented. \\
+\bottomrule
+\end{longtable}
+
+\begin{physicsbox}
+\textbf{Interpretation rule.} The current code is an implementation and verification benchmark for PINN mechanics. It is not yet the amortized many-query surrogate that would provide the strongest computational speedup. Training a new network for every single FEM case may cost more than solving that case directly with FEM.
+\end{physicsbox}
+
+\subsection{Implemented capabilities}
+
+\begin{itemize}[leftmargin=*]
+  \item Two normalized spatial inputs, four default fully connected hidden layers, smooth \texttt{tanh} activations, and one normalized potential output.
+  \item First and second coordinate derivatives obtained by nested calls to \texttt{dlgradient}.
+  \item Strong-form Poisson residual for uniform scalar silicon permittivity.
+  \item Soft Dirichlet and soft Neumann boundary penalties on randomly sampled edge points.
+  \item Optional sparse FEM nodal anchors selected reproducibly with \texttt{randperm}.
+  \item Stochastic resampling of interior and boundary points at every Adam iteration.
+  \item Potential, electric field, dimensional residual, and normalized residual evaluated at arbitrary physical coordinates.
+  \item FEM comparison metrics, analytical checks for three simple cases, seven PNG diagnostics, a text summary, and a saved MAT result.
+\end{itemize}
+
+\subsection{Important current limitations}
+
+\begin{itemize}[leftmargin=*]
+  \item Physical parameters are selected by \texttt{default\_module2\_params(caseName)}. The top-level PINN driver accepts training options but does not accept arbitrary physical-parameter overrides.
+  \item Every network is tied to one fixed case. Source amplitude, width, center, voltage, geometry, and permittivity are not network inputs.
+  \item Boundary conditions are enforced softly. The predicted boundary value is not exact unless training makes the boundary error sufficiently small.
+  \item The PINN loss can represent a nonzero prescribed normal derivative, but the current reference FEM assembly does not apply nonzero Neumann flux. A nonzero-Neumann custom case would therefore make PINN training targets and FEM validation inconsistent until the FEM boundary integral is implemented.
+  \item The network uses constant scalar permittivity and a strong-form residual. Material interfaces and discontinuous permittivity are not supported.
+  \item The optional data anchors are nodal potential values only. Electric-field FEM values are not directly supervised.
+  \item The optimizer uses a fixed learning rate. There is no scheduler, early stopping, validation split, checkpoint recovery, L-BFGS phase, or adaptive loss weighting.
+  \item The current arrays are created on the CPU. No explicit \texttt{gpuArray} path is implemented.
+  \item The smoke test checks callability, sizes, and finite values. It does not enforce a scientific accuracy threshold or prove convergence.
+\end{itemize}
+
+\section{Software requirements and first-run preflight}
+
+\subsection{Required software}
+
+The PINN path requires MATLAB and Deep Learning Toolbox. The FEM reference path uses core MATLAB. The driver explicitly checks for:
+\begin{lstlisting}[style=projectmatlab]
+dlarray
+dlnetwork
+dlgradient
+dlfeval
+adamupdate
+\end{lstlisting}
+No Geant4 executable is called by this Module 2 PINN workflow.
+
+Check the installation from MATLAB:
+\begin{lstlisting}[style=projectmatlab]
+version
+ver
+license('test','Neural_Network_Toolbox')
+which dlarray -all
+which dlnetwork -all
+which dlgradient -all
+which adamupdate -all
+\end{lstlisting}
+The toolbox license identifier retains MATLAB's historical \texttt{Neural\_Network\_Toolbox} name. A value of \texttt{1} from \texttt{license('test',...)} indicates that MATLAB can check out the license at that moment.
+
+\subsection{Correct starting location}
+
+Start in the extracted project's MATLAB directory:
+\begin{lstlisting}[style=projectmatlab]
+cd('C:/path/to/RadiationEffects_proj2/matlab')
+setup_project_paths
+\end{lstlisting}
+The setup function adds \matlabfile{matlab/}, \matlabfile{matlab/cases/}, \matlabfile{matlab/tests/}, \matlabfile{matlab/pinn/}, and all folders below \matlabfile{matlab/src/}.
+
+\subsection{Path preflight check}
+
+Before training, verify that MATLAB resolves the intended project copy:
+\begin{lstlisting}[style=projectmatlab]
+which main_module2_pinn_electrostatics -all
+which module2_pinn_network -all
+which module2_pinn_loss -all
+which module2_pinn_train -all
+which module2_pinn_predict -all
+which module2_pinn_make_dataset -all
+which module2_pinn_verify -all
+which solve_poisson_defect_space_charge_2d -all
+which default_module2_params -all
+\end{lstlisting}
+Each result should point into the same extracted \matlabfile{RadiationEffects_proj2} tree. If \texttt{-all} displays older project copies, remove those paths or restart MATLAB before interpreting any result.
+
+\subsection{Verify the FEM dependency first}
+
+The dataset generator calls the FEM solver before building anchors. A PINN failure can therefore originate in the reference solver. Run these tests first:
+\begin{lstlisting}[style=projectmatlab]
+test_module2_zero_charge_2d
+test_module2_linear_potential_2d
+test_module2_uniform_space_charge_2d
+test_module2_localized_defect_charge_2d
+\end{lstlisting}
+If any FEM test fails, diagnose it with the Module 2 FEM implementation note before debugging the neural network.
+
+\section{Recommended run order}
+
+Use the following ladder. Do not begin scientific interpretation with the localized Gaussian case.
+
+\begin{enumerate}[leftmargin=*]
+  \item Confirm file resolution and Deep Learning Toolbox availability.
+  \item Run the four FEM tests.
+  \item Run the eight-iteration PINN smoke test.
+  \item Run a short linear-potential training job to confirm loss movement and file output.
+  \item Run the full linear-potential case and compare against the analytical solution.
+  \item Run the uniform-space-charge case to verify second derivatives and the source term.
+  \item Run the localized-defect case and compare against FEM.
+  \item Repeat important runs with several random seeds and a controlled hyperparameter study.
+  \item Perform the FEM-anchor ablation before claiming physics-only performance.
+\end{enumerate}
+
+\begin{physicsbox}
+\textbf{Why this order matters.} The linear-potential case isolates boundary enforcement and first derivatives. The uniform-charge case adds nonzero curvature and directly tests the PDE source sign. The Gaussian case is more difficult and has no configured closed-form solution, so FEM is its reference.
+\end{physicsbox}
+
+\section{Quick-start execution recipes}
+
+\subsection{Small smoke run without files or plots}
+
+This is the fastest direct call for confirming that the driver and optimizer execute:
+\begin{lstlisting}[style=projectmatlab]
+setup_project_paths
+
+opts = struct();
+opts.maxIterations = 25;
+opts.numInterior = 128;
+opts.numBoundaryPerSide = 16;
+opts.numDataAnchors = 32;
+opts.numHiddenLayers = 2;
+opts.numNeurons = 16;
+opts.makePlots = false;
+opts.writeSummary = false;
+opts.saveResults = false;
+opts.verbose = true;
+opts.printEvery = 5;
+
+out = main_module2_pinn_electrostatics('linear_potential', opts);
+\end{lstlisting}
+This run is a plumbing check, not an accuracy result.
+
+\subsection{Repository smoke test}
+
+\begin{lstlisting}[style=projectmatlab]
+setup_project_paths
+test_module2_pinn_electrostatics
+\end{lstlisting}
+The test uses two hidden layers, 16 neurons per layer, 64 interior points, 12 boundary points per side, 32 FEM anchors, and eight Adam iterations.
+
+\subsection{Default run}
+
+Omitting the case name selects \texttt{localized\_defect\_charge}:
+\begin{lstlisting}[style=projectmatlab]
+setup_project_paths
+out = main_module2_pinn_electrostatics;
+\end{lstlisting}
+The explicit equivalent is:
+\begin{lstlisting}[style=projectmatlab]
+out = main_module2_pinn_electrostatics( ...
+    'localized_defect_charge');
+\end{lstlisting}
+
+\subsection{Recommended first full analytical run}
+
+\begin{lstlisting}[style=projectmatlab]
+setup_project_paths
+outLinear = main_module2_pinn_electrostatics( ...
+    'linear_potential');
+\end{lstlisting}
+This uses the driver defaults: four hidden layers, 48 neurons per layer, 1200 iterations, 1024 interior points per iteration, 96 boundary points per side, and 160 FEM anchors.
+
+\subsection{Uniform charge and localized defect runs}
+
+\begin{lstlisting}[style=projectmatlab]
+outUniform = main_module2_pinn_electrostatics( ...
+    'uniform_space_charge');
+
+outDefect = main_module2_pinn_electrostatics( ...
+    'localized_defect_charge');
+\end{lstlisting}
+
+\subsection{Pure PINN run without FEM anchors}
+
+\begin{lstlisting}[style=projectmatlab]
+opts = struct();
+opts.useDataAnchors = false;
+opts.numDataAnchors = 0;
+opts.wData = 0.0;
+opts.outputDir = fullfile('outputs', ...
+    'module2_pinn_2d_pure');
+
+outPure = main_module2_pinn_electrostatics( ...
+    'linear_potential', opts);
+\end{lstlisting}
+Setting \texttt{useDataAnchors=false} makes the data arrays empty. Setting \texttt{wData=0} additionally records the intended ablation unambiguously.
+
+\subsection{Headless terminal run}
+
+\begin{lstlisting}[style=projectshell]
+matlab -batch "cd('C:/path/to/RadiationEffects_proj2/matlab'); setup_project_paths; out = main_module2_pinn_electrostatics('linear_potential');"
+\end{lstlisting}
+The terminal process returns a nonzero exit status for an uncaught MATLAB error.
+
+\section{File map and call graph}
+
+\begin{longtable}{>{\RaggedRight\arraybackslash}p{0.42\textwidth} >{\RaggedRight\arraybackslash}p{0.48\textwidth}}
+\toprule
+\textbf{File} & \textbf{Responsibility} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{File} & \textbf{Responsibility} \\
+\midrule
+\endhead
+\matlabfile{matlab/main_module2_pinn_electrostatics.m} & Public driver. Validates requirements and options, seeds randomness, calls all six PINN functions, packages output, and optionally saves the MAT-file. \\
+\matlabfile{matlab/pinn/module2_pinn_make_dataset.m} & Loads one built-in physical case, runs the reference FEM solver, computes scales, and chooses optional nodal anchors. \\
+\matlabfile{matlab/pinn/module2_pinn_network.m} & Builds the smooth two-input, one-output \texttt{dlnetwork}. \\
+\matlabfile{matlab/pinn/module2_pinn_train.m} & Resamples collocation and boundary points, calls the loss through \texttt{dlfeval}, performs Adam updates, and records component losses. \\
+\matlabfile{matlab/pinn/module2_pinn_loss.m} & Computes PDE, Dirichlet, Neumann, and data losses plus gradients with respect to network parameters. \\
+\matlabfile{matlab/pinn/module2_pinn_predict.m} & Evaluates physical $\phi$, $\Evec$, and residuals at a mesh or arbitrary $N\times2$ coordinates. \\
+\matlabfile{matlab/pinn/module2_pinn_verify.m} & Computes FEM and analytical metrics, writes seven plots and a summary when enabled. \\
+\matlabfile{matlab/tests/test_module2_pinn_electrostatics.m} & Lightweight regression and finite-value smoke test. \\
+\matlabfile{matlab/src/module2_electrostatics/default_module2_params.m} & Defines the four supported physical cases. \\
+\matlabfile{matlab/src/module2_electrostatics/build_space_charge_module2_2d.m} & Evaluates exactly the same $\rho(x,y)$ used by FEM and PINN training. \\
+\matlabfile{matlab/src/module2_electrostatics/solve_poisson_defect_space_charge_2d.m} & Produces the reference FEM solution used for anchors and validation. \\
+\bottomrule
+\end{longtable}
+
+The runtime call sequence is
+\begin{align*}
+\boxed{\text{driver}}
+&\rightarrow
+\boxed{\text{FEM dataset and scales}}
+\rightarrow
+\boxed{\text{network}}\\
+&\rightarrow
+\boxed{\text{training and loss}}
+\rightarrow
+\boxed{\text{prediction}}
+\rightarrow
+\boxed{\text{verification and save}}.
+\end{align*}
+
+\section{Exact execution sequence inside the driver}
+
+For \texttt{out = main\_module2\_pinn\_electrostatics(caseName,opts)}, MATLAB performs:
+\begin{enumerate}[leftmargin=*]
+  \item Select \texttt{localized\_defect\_charge} if \texttt{caseName} is absent.
+  \item Create an empty \texttt{opts} structure if options are absent.
+  \item Add the FEM source, cases, and PINN directories to the path.
+  \item Require the five essential Deep Learning Toolbox operations.
+  \item Fill each unspecified option with a default and validate counts, rates, decay factors, and weights.
+  \item Seed MATLAB's Twister random stream using \texttt{opts.randomSeed}.
+  \item Resolve and create the output directory.
+  \item Call \texttt{module2\_pinn\_make\_dataset}; this runs one complete FEM reference solve.
+  \item Call \texttt{module2\_pinn\_network} to create an untrained \texttt{dlnetwork}.
+  \item Call \texttt{module2\_pinn\_train}; Adam updates the network for exactly \texttt{maxIterations} iterations.
+  \item Call \texttt{module2\_pinn\_predict} on every FEM mesh node.
+  \item Call \texttt{module2\_pinn\_verify} for metrics, analytical comparisons, plots, and summary text.
+  \item Package all results into \texttt{out}.
+  \item Save \texttt{out} with MAT version 7.3 when \texttt{saveResults=true}.
+  \item Print the principal errors, residual, time, and output directory.
+\end{enumerate}
+
+\section{Nondimensionalization and automatic differentiation}
+
+\subsection{Network input and output}
+
+The network receives
+\begin{equation}
+\hat{x}=\frac{x}{L_x},\qquad
+\hat{y}=\frac{y}{L_y},
+\end{equation}
+and returns
+\begin{equation}
+\hat{\phi}_{\theta}=\frac{\phinn}{V_s}.
+\end{equation}
+Coordinates therefore normally lie in $[0,1]^2$. The input layer has \texttt{Normalization='none'} because normalization is performed explicitly before the network is called.
+
+The \texttt{dlarray} layout is
+\begin{equation}
+\begin{bmatrix}
+\hat{x}_1 & \cdots & \hat{x}_N\\
+\hat{y}_1 & \cdots & \hat{y}_N
+\end{bmatrix},
+\end{equation}
+with label \texttt{'CB'}: two channels and $N$ batch observations.
+
+\subsection{Scales chosen by the dataset generator}
+
+Let $L_s=\max(L_x,L_y)$. The code measures the FEM and boundary potential scale, estimates an equivalent source scale, and then stores
+\begin{align}
+\rho_s & = \max\left(\max|\rho_{\mathrm{FEM}}|,
+\frac{\varepsilon_{\mathrm{Si}}V_{\mathrm{estimate}}}{L_s^2},
+\texttt{realmin}\right),\\
+V_s & = \max\left(\max|\phi_{\mathrm{FEM}}|,
+\frac{\rho_sL_s^2}{\varepsilon_{\mathrm{Si}}},10^{-12}\right),\\
+g_s & = \frac{V_s}{L_s}.
+\end{align}
+Inspect the realized values rather than assuming them:
+\begin{lstlisting}[style=projectmatlab]
+out.scales
+\end{lstlisting}
+
+\subsection{Chain rule used for fields and curvature}
+
+Because the network differentiates with respect to normalized coordinates,
+\begin{align}
+\pdv{\phi}{x}
+&=\frac{V_s}{L_x}\pdv{\hat{\phi}}{\hat{x}}, &
+\pdv{\phi}{y}
+&=\frac{V_s}{L_y}\pdv{\hat{\phi}}{\hat{y}},\\
+\pdv[2]{\phi}{x}
+&=\frac{V_s}{L_x^2}\pdv[2]{\hat{\phi}}{\hat{x}}, &
+\pdv[2]{\phi}{y}
+&=\frac{V_s}{L_y^2}\pdv[2]{\hat{\phi}}{\hat{y}}.
+\end{align}
+The code first calls \texttt{dlgradient} for $\partial\hat{\phi}/\partial\hat{x}$ and $\partial\hat{\phi}/\partial\hat{y}$, then differentiates those first derivatives again. \texttt{'EnableHigherDerivatives',true} is required for this nested calculation.
+
+\subsection{Normalized Poisson residual}
+
+The physical residual is
+\begin{equation}
+\mathcal{R}=
+\varepsilon_{\mathrm{Si}}V_s\left(
+\frac{1}{L_x^2}\pdv[2]{\hat{\phi}}{\hat{x}}+
+\frac{1}{L_y^2}\pdv[2]{\hat{\phi}}{\hat{y}}
+\right)+\rho.
+\end{equation}
+The quantity minimized is $\hat{\mathcal{R}}=\mathcal{R}/\rho_s$, giving
+\begin{equation}
+\Lpde=\frac{1}{N_r}\sum_{i=1}^{N_r}
+\hat{\mathcal{R}}_i^2.
+\end{equation}
+The dimensional residual returned in \texttt{out.pinn.residual} has units of \si{C.m^{-3}}. The normalized residual returned in \texttt{out.pinn.residualNormalized} is dimensionless.
+
+\section{Loss terms and what each one proves}
+
+\subsection{Interior PDE loss}
+
+At every iteration, \texttt{numInterior} new points are drawn uniformly in normalized coordinates. The source builder evaluates physical $\rho$ at those coordinates. A small \Lpde{} indicates that the current network approximately satisfies Poisson's equation at the sampled points. It does not independently establish correct boundary values or the unique correct solution.
+
+\subsection{Dirichlet loss}
+
+For all sides marked \texttt{dirichlet}, the code samples \texttt{numBoundaryPerSide} points and computes
+\begin{equation}
+\Ldir=\frac{1}{N_D}\sum_i
+\left(\hat{\phi}_{\theta,i}-\frac{\phi_{D,i}}{V_s}\right)^2.
+\end{equation}
+This is soft enforcement. Verify boundary errors after training; do not assume a high weight makes them exactly zero.
+
+\subsection{Neumann loss}
+
+For all sides marked \texttt{neumann}, outward normals are constructed explicitly. The code computes
+\begin{equation}
+\Lneu=\frac{1}{N_N}\sum_i
+\left[
+\frac{\nvec_i\cdot\nabla\phinn-(\partial\phi/\partial n)_i}{g_s}
+\right]^2.
+\end{equation}
+The standard cases use zero normal derivative on top and bottom.
+
+\subsection{Sparse FEM-anchor loss}
+
+When enabled, the dataset generator selects up to \texttt{numDataAnchors} unique FEM mesh nodes once, before training:
+\begin{equation}
+\Ldata=\frac{1}{N_s}\sum_i
+\left(\hat{\phi}_{\theta,i}-\hat{\phi}_{\mathrm{FEM},i}\right)^2.
+\end{equation}
+The anchors remain fixed across iterations, while collocation and boundary points are resampled. The selected FEM indices and normalized values are preserved in \texttt{out.anchors}.
+
+\subsection{Weighted versus unweighted histories}
+
+The arrays \texttt{history.pde}, \texttt{history.dirichlet}, \texttt{history.neumann}, and \texttt{history.data} store unweighted losses. \texttt{history.total} stores their weighted sum. To inspect the actual optimizer competition:
+\begin{lstlisting}[style=projectmatlab]
+h = out.trainingHistory;
+o = out.options;
+
+weightedPDE  = o.wPDE       .* h.pde;
+weightedDir  = o.wDirichlet .* h.dirichlet;
+weightedNeu  = o.wNeumann   .* h.neumann;
+weightedData = o.wData      .* h.data;
+
+semilogy(h.iteration, ...
+    [weightedPDE, weightedDir, weightedNeu, weightedData])
+grid on
+legend('weighted PDE','weighted Dirichlet', ...
+       'weighted Neumann','weighted data')
+\end{lstlisting}
+This plot answers whether one term dominated the objective after weighting.
+
+\section{Complete option reference}
+
+Only fields explicitly set by the caller replace defaults. All other fields are filled by the driver.
+
+\begin{longtable}{>{\RaggedRight\arraybackslash}p{0.26\textwidth} >{\RaggedRight\arraybackslash}p{0.15\textwidth} >{\RaggedRight\arraybackslash}p{0.49\textwidth}}
+\toprule
+\textbf{Option} & \textbf{Default} & \textbf{Meaning and diagnostic effect} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Option} & \textbf{Default} & \textbf{Meaning and diagnostic effect} \\
+\midrule
+\endhead
+\texttt{randomSeed} & 7 & Seeds weight initialization, anchor selection, and stochastic collocation for reproducibility. \\
+\texttt{numHiddenLayers} & 4 & Number of fully connected hidden layers. Must be a positive integer. \\
+\texttt{numNeurons} & 48 & Width of every hidden layer. Must be a positive integer. \\
+\texttt{maxIterations} & 1200 & Exact number of Adam updates. There is no early stopping. \\
+\texttt{learnRate} & $2.0\times10^{-3}$ & Fixed Adam learning rate. Too large can produce unstable or oscillatory training; too small can stall progress. \\
+\texttt{gradientDecayFactor} & 0.9 & Adam first-moment decay factor. Must satisfy $0\leq\beta_1<1$. \\
+\texttt{squaredGradient}\newline\texttt{DecayFactor} & 0.999 & Adam second-moment decay factor. Must satisfy $0\leq\beta_2<1$. \\
+\texttt{numInterior} & 1024 & Fresh interior collocation points per iteration. Increasing it improves coverage but increases every gradient evaluation. \\
+\texttt{numBoundaryPerSide} & 96 & Fresh points on each active boundary side per iteration. The total depends on how many sides have each boundary type. \\
+\texttt{numDataAnchors} & 160 & Requested unique FEM nodal anchors. The code caps this at the number of FEM nodes. \\
+\texttt{useDataAnchors} & \texttt{true} & Enables or disables anchor selection. \\
+\texttt{wPDE} & 1.0 & Weight on normalized Poisson residual loss. \\
+\texttt{wDirichlet} & 20.0 & Weight on fixed-potential mismatch. The default emphasizes voltage anchoring. \\
+\texttt{wNeumann} & 2.0 & Weight on normal-derivative mismatch. \\
+\texttt{wData} & 2.0 & Weight on sparse FEM potential anchors. \\
+\texttt{verbose} & \texttt{true} & Enables periodic console loss reporting. \\
+\texttt{printEvery} & 100 & Iteration interval for progress output; iteration 1 and the final iteration are also printed. \\
+\texttt{makePlots} & \texttt{true} & Writes seven PNG diagnostics with invisible figures. \\
+\texttt{writeSummary} & \texttt{true} & Writes a human-readable text summary. \\
+\texttt{saveResults} & \texttt{true} & Saves the complete \texttt{out} structure as MAT version 7.3. \\
+\texttt{outputDir} & \matlabfile{outputs/module2_pinn_2d} & Relative paths are resolved under \matlabfile{matlab/}; absolute Windows and Unix paths are accepted. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Safe custom option pattern}
+
+\begin{lstlisting}[style=projectmatlab]
+opts = struct();
+opts.randomSeed = 41;
+opts.numHiddenLayers = 4;
+opts.numNeurons = 64;
+opts.maxIterations = 2500;
+opts.learnRate = 1.0e-3;
+opts.numInterior = 2048;
+opts.numBoundaryPerSide = 128;
+opts.numDataAnchors = 200;
+opts.useDataAnchors = true;
+opts.wPDE = 1.0;
+opts.wDirichlet = 20.0;
+opts.wNeumann = 2.0;
+opts.wData = 2.0;
+opts.printEvery = 100;
+opts.outputDir = fullfile('outputs', ...
+    'module2_pinn_linear_seed41');
+
+out = main_module2_pinn_electrostatics( ...
+    'linear_potential', opts);
+\end{lstlisting}
+Use a distinct output directory for each controlled experiment. Otherwise a rerun of the same case overwrites files with the same deterministic names.
+
+\section{Built-in physical cases and expected behavior}
+
+\begin{longtable}{>{\RaggedRight\arraybackslash}p{0.23\textwidth} >{\RaggedRight\arraybackslash}p{0.27\textwidth} >{\RaggedRight\arraybackslash}p{0.40\textwidth}}
+\toprule
+\textbf{Case name} & \textbf{Physical setup} & \textbf{What it verifies} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Case name} & \textbf{Physical setup} & \textbf{What it verifies} \\
+\midrule
+\endhead
+\path{zero_charge} & $\rho=0$, left and right potentials both zero. & The exact solution is zero potential and zero field. Useful for finite-value and scale handling, but relative error denominators require care. \\
+\path{linear_potential} & $\rho=0$, left potential 0 V, right potential 1 V. & Exact linear potential, uniform $E_x$, zero $E_y$, boundary loss, and first derivatives. \\
+\path{uniform_space_charge} & Uniform $\rho=5.0\times10^{-4}\ \si{C.m^{-3}}$, both contacts at 0 V. & Exact parabolic potential, spatially linear $E_x$, curvature, source sign, and second derivatives. \\
+\path{localized_defect_charge} & Positive Gaussian defect concentration centered in the rectangle, zero contact voltages. & Localized Poisson response and FEM agreement. No simple closed-form rectangular solution is configured. \\
+\bottomrule
+\end{longtable}
+
+All four cases use $L_x=10\ \mu\mathrm{m}$, $L_y=4\ \mu\mathrm{m}$, a $41\times21$ structured node grid split into triangles, and silicon relative permittivity 11.7. The top and bottom boundaries use zero normal derivative.
+
+\section{Function-by-function code guide}
+
+\subsection{Top-level driver}
+
+\par\smallskip\noindent\textbf{Signature.}
+\begin{lstlisting}[style=projectmatlab]
+out = main_module2_pinn_electrostatics(caseName, opts)
+\end{lstlisting}
+Use this function for normal runs. Its local helper functions are private to the file: they check toolbox availability, fill defaults, validate options, and recognize absolute output paths.
+
+\subsection{Network builder}
+
+\par\smallskip\noindent\textbf{Signature.}
+\begin{lstlisting}[style=projectmatlab]
+net = module2_pinn_network(opts)
+\end{lstlisting}
+The builder requires \texttt{opts.numHiddenLayers} and \texttt{opts.numNeurons}. It constructs
+\begin{equation}
+(\hat{x},\hat{y})
+\xrightarrow{\text{repeated fully connected + tanh}}
+\hat{\phi}.
+\end{equation}
+The final layer is linear. \texttt{tanh} is used because the PDE loss needs smooth second derivatives.
+
+Inspect a trained network with:
+\begin{lstlisting}[style=projectmatlab]
+out.net
+out.net.Layers
+out.net.Learnables
+size(out.net.Learnables)
+\end{lstlisting}
+
+\subsection{FEM dataset and scale builder}
+
+\par\smallskip\noindent\textbf{Signature.}
+\begin{lstlisting}[style=projectmatlab]
+dataset = module2_pinn_make_dataset(caseName, opts)
+\end{lstlisting}
+It calls \texttt{default\_module2\_params}, disables FEM plot and MAT output, runs the FEM solver, computes scales, and selects anchor nodes. It returns \texttt{dataset.params}, \texttt{dataset.fem}, \texttt{dataset.scales}, \texttt{dataset.anchors}, and \texttt{dataset.caseName}.
+
+This function can be probed independently after supplying the required anchor options:
+\begin{lstlisting}[style=projectmatlab]
+opts = struct('useDataAnchors', true, ...
+              'numDataAnchors', 20);
+rng(7,'twister')
+dataset = module2_pinn_make_dataset( ...
+    'linear_potential', opts);
+
+dataset.scales
+dataset.anchors.nodeIndices
+dataset.fem.params
+\end{lstlisting}
+
+\subsection{Training loop}
+
+\par\smallskip\noindent\textbf{Signature.}
+\begin{lstlisting}[style=projectmatlab]
+[net, history, trainingInfo] = ...
+    module2_pinn_train(net, dataset, opts)
+\end{lstlisting}
+The training function assumes that the driver has already filled all defaults. It preallocates five history arrays, maintains Adam's first and second moment states, resamples a complete batch every iteration, evaluates the loss through \texttt{dlfeval}, updates all learnables, and records CPU double scalars.
+
+The local batch sampler is intentionally private. It draws points uniformly, converts them back to meters only for source evaluation, constructs edge normals, and reuses fixed anchors.
+
+\subsection{Loss and gradients}
+
+\par\smallskip\noindent\textbf{Signature.}
+\begin{lstlisting}[style=projectmatlab]
+[loss, gradients, terms] = module2_pinn_loss( ...
+    net, batch, params, scales, opts)
+\end{lstlisting}
+Call it through \texttt{dlfeval}; direct ordinary evaluation will not establish the differentiation trace needed by \texttt{dlgradient}. The returned \texttt{terms} structure contains the four unweighted components. The final call
+\begin{lstlisting}[style=projectmatlab]
+gradients = dlgradient(loss, net.Learnables);
+\end{lstlisting}
+differentiates the weighted total loss with respect to all network weights and biases.
+
+\subsection{Prediction at a mesh or arbitrary coordinates}
+
+\par\smallskip\noindent\textbf{Signature.}
+\begin{lstlisting}[style=projectmatlab]
+prediction = module2_pinn_predict( ...
+    net, query, params, scales)
+\end{lstlisting}
+The query can be a structure containing \texttt{query.nodes} or an $N\times2$ numeric array in meters. Example:
+\begin{lstlisting}[style=projectmatlab]
+xLine = linspace(0, out.params.Lx, 201).';
+yLine = 0.5*out.params.Ly*ones(size(xLine));
+xy = [xLine, yLine];
+
+centerline = module2_pinn_predict( ...
+    out.net, xy, out.params, out.scales);
+
+plot(xLine, centerline.phi)
+xlabel('x [m]')
+ylabel('PINN potential [V]')
+grid on
+\end{lstlisting}
+The function does not reject coordinates outside the training rectangle. Such values are extrapolations and should not be trusted merely because a finite number is returned.
+
+\subsection{Verification function}
+
+\par\smallskip\noindent\textbf{Signature.}
+\begin{lstlisting}[style=projectmatlab]
+verification = module2_pinn_verify( ...
+    fem, pinn, history, params, opts, scales, outputDir)
+\end{lstlisting}
+Normal users should let the driver call this. It calculates FEM comparison metrics for every case, analytical metrics for \texttt{zero\_charge}, \texttt{linear\_potential}, and \texttt{uniform\_space\_charge}, then optionally writes plots and summary text.
+
+\section{Returned structure: what to inspect}
+
+The top-level output contains:
+\begin{longtable}{>{\RaggedRight\arraybackslash}p{0.29\textwidth} >{\RaggedRight\arraybackslash}p{0.61\textwidth}}
+\toprule
+\textbf{Field} & \textbf{Meaning} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Field} & \textbf{Meaning} \\
+\midrule
+\endhead
+\texttt{out.params} & Physical FEM/PINN case structure, including domain, mesh, source, material, and boundary data. \\
+\texttt{out.options} & Fully populated training and output options actually used. \\
+\texttt{out.scales} & Coordinate, voltage, charge, gradient, and reference-length scales. \\
+\texttt{out.net} & Trained \texttt{dlnetwork}. \\
+\texttt{out.anchors} & Selected FEM node indices and normalized coordinates/potential. Empty in pure-PINN mode. \\
+\texttt{out.fem} & Complete reference FEM result, including mesh, $\rho$, $\phi$, and electric field. \\
+\texttt{out.pinn} & PINN nodes, $\rho$, $\phi$, field, residual, normalized residual, and extrema. \\
+\texttt{out.trainingHistory} & Iteration plus total, PDE, Dirichlet, Neumann, and data loss arrays. \\
+\texttt{out.trainingInfo} & Elapsed seconds, number of updates, and final total loss. \\
+\texttt{out.metrics} & FEM-relative potential/field errors, absolute errors, residual metrics, and maximum predicted field. \\
+\texttt{out.analytic} & Exact arrays and exact-error metrics when supported; otherwise \texttt{available=false}. \\
+\texttt{out.plotFiles} & Paths to plots written by the verification function. \\
+\texttt{out.summaryFile} & Summary-text path, or empty when disabled. \\
+\texttt{out.resultFile} & MAT-file path, or empty when saving is disabled. \\
+\texttt{out.outputDir} & Resolved absolute or project-relative output directory. \\
+\bottomrule
+\end{longtable}
+
+Start an inspection with:
+\begin{lstlisting}[style=projectmatlab]
+out.options
+out.scales
+out.trainingInfo
+out.metrics
+out.analytic
+
+[min(out.pinn.phi), max(out.pinn.phi)]
+[min(out.pinn.residualNormalized), ...
+ max(out.pinn.residualNormalized)]
+\end{lstlisting}
+
+\section{Generated outputs and how to interpret them}
+
+With default output flags, files are written under \matlabfile{matlab/outputs/module2_pinn_2d/}. For a case prefix such as \texttt{linear\_potential}, the actual verification function writes:
+\begin{itemize}[leftmargin=*]
+  \item \path{*_fem_potential_reference.png};
+  \item \path{*_pinn_potential.png};
+  \item \path{*_pinn_potential_error.png};
+  \item \path{*_fem_electric_field_magnitude.png};
+  \item \path{*_pinn_electric_field_magnitude.png};
+  \item \path{*_pinn_pde_residual.png};
+  \item \path{*_pinn_training_loss.png};
+  \item \path{*_module2_pinn_summary.txt};
+  \item \path{*_module2_pinn_results.mat}.
+\end{itemize}
+
+Inspect them in this order:
+\begin{enumerate}[leftmargin=*]
+  \item \textbf{Training loss:} check every component, not only the total.
+  \item \textbf{FEM and PINN potential:} confirm sign, scale, boundary behavior, and spatial structure.
+  \item \textbf{Signed potential error:} look for systematic boundary bias, source-localized error, or domain-wide offset.
+  \item \textbf{FEM and PINN field magnitude:} derivative agreement is usually harder than potential agreement.
+  \item \textbf{Residual map:} look for localized PDE violations that an RMS scalar can hide.
+  \item \textbf{Text summary:} confirm the architecture, scales, weights, and metrics match the intended run.
+  \item \textbf{MAT-file:} retain the trained network and all metadata needed to reproduce or probe it.
+\end{enumerate}
+
+\section{Verification metrics and their limitations}
+
+\subsection{Potential and electric-field errors}
+
+The FEM comparison uses
+\begin{equation}
+\epsilon_{\phi}=\frac{\|\phi_{\mathrm{PINN}}-\phi_{\mathrm{FEM}}\|_2}{D_{\phi}},
+\qquad
+\epsilon_E=\frac{\|\Evec_{\mathrm{PINN}}-\Evec_{\mathrm{FEM}}\|_2}{D_E},
+\end{equation}
+with scale-aware denominators to keep zero-reference cases finite. Maximum and mean absolute potential error, maximum field-component error, and maximum predicted field are also reported.
+
+\subsection{Residual metrics}
+
+The reported residual statistics are evaluated on FEM mesh nodes after training:
+\begin{equation}
+\max_i|\mathcal{R}_i|,
+\qquad
+\sqrt{\frac{1}{N}\sum_i\mathcal{R}_i^2},
+\qquad
+\sqrt{\frac{1}{N}\sum_i\hat{\mathcal{R}}_i^2}.
+\end{equation}
+These nodes are not the same random points used in the final training iteration, so the residual metric is a useful independent spatial check. A stronger study should also evaluate a denser independent grid or random test set.
+
+\subsection{No universal pass threshold is encoded}
+
+The code intentionally reports errors but does not define a scientific pass threshold. The acceptable error depends on the downstream quantity. For example, peak field near a defect may require a stricter local derivative criterion than a domain-averaged potential. Define acceptance criteria before tuning, record them, and apply the same criteria to all compared models.
+
+\section{Repository smoke test: what it checks and what it does not}
+
+Run:
+\begin{lstlisting}[style=projectmatlab]
+test_module2_pinn_electrostatics
+\end{lstlisting}
+The test first asserts that all six PINN module files are discoverable. If Deep Learning Toolbox is absent, it prints a skip message and returns. If available, it runs a tiny linear-potential job and checks:
+\begin{itemize}[leftmargin=*]
+  \item the output, FEM, PINN, training-history, and metric structures exist;
+  \item nodal potential, residual, and electric-field array sizes match the FEM mesh;
+  \item every stored loss, prediction, residual, and selected metric is finite;
+  \item the training history contains the requested eight iterations;
+  \item the summary file exists when summary output is active.
+\end{itemize}
+
+It does \emph{not} prove:
+\begin{itemize}[leftmargin=*]
+  \item that eight iterations converge;
+  \item that the final loss is smaller than the initial loss;
+  \item that analytical or FEM errors satisfy a fixed tolerance;
+  \item that the same behavior holds for uniform or Gaussian charge;
+  \item that different random seeds produce consistent results;
+  \item that the PINN is faster than FEM.
+\end{itemize}
+
+The smoke test omits explicit \texttt{makePlots}, \texttt{writeSummary}, and \texttt{saveResults} overrides, so the driver fills their defaults as \texttt{true}. It can therefore write normal output files even though its numerical workload is small.
+
+\section{Numerical probes after a run}
+
+\subsection{Check sizes, ranges, and finiteness}
+
+\begin{lstlisting}[style=projectmatlab]
+N = size(out.fem.mesh.nodes,1);
+
+assert(numel(out.pinn.phi) == N)
+assert(size(out.pinn.field.Enodal,1) == N)
+assert(size(out.pinn.field.Enodal,2) == 2)
+assert(all(isfinite(out.pinn.phi)))
+assert(all(isfinite(out.pinn.field.Enodal(:))))
+assert(all(isfinite(out.pinn.residual)))
+assert(all(isfinite(out.trainingHistory.total)))
+
+disp(out.metrics)
+\end{lstlisting}
+
+\subsection{Check the analytical solution directly}
+
+For a supported case:
+\begin{lstlisting}[style=projectmatlab]
+assert(out.analytic.available)
+
+phiExactError = out.pinn.phi - out.analytic.phi;
+fieldExactError = out.pinn.field.Enodal - ...
+                  out.analytic.Enodal;
+
+max(abs(phiExactError))
+max(abs(fieldExactError),[],'all')
+\end{lstlisting}
+
+\subsection{Probe boundary errors independently}
+
+\begin{lstlisting}[style=projectmatlab]
+Ny = 201;
+y = linspace(0,out.params.Ly,Ny).';
+
+leftXY  = [zeros(Ny,1), y];
+rightXY = [out.params.Lx*ones(Ny,1), y];
+
+leftPred = module2_pinn_predict( ...
+    out.net,leftXY,out.params,out.scales);
+rightPred = module2_pinn_predict( ...
+    out.net,rightXY,out.params,out.scales);
+
+leftError = max(abs(leftPred.phi - ...
+    out.params.bc.left.value));
+rightError = max(abs(rightPred.phi - ...
+    out.params.bc.right.value));
+
+[leftError,rightError]
+\end{lstlisting}
+
+\subsection{Probe the Neumann boundary through the field}
+
+For zero normal derivative on the bottom and top, $E_y=-\partial\phi/\partial y$ should be near zero:
+\begin{lstlisting}[style=projectmatlab]
+Nx = 201;
+x = linspace(0,out.params.Lx,Nx).';
+
+bottomXY = [x, zeros(Nx,1)];
+topXY = [x, out.params.Ly*ones(Nx,1)];
+
+bottomPred = module2_pinn_predict( ...
+    out.net,bottomXY,out.params,out.scales);
+topPred = module2_pinn_predict( ...
+    out.net,topXY,out.params,out.scales);
+
+max(abs(bottomPred.field.Ey_nodal))
+max(abs(topPred.field.Ey_nodal))
+\end{lstlisting}
+
+\subsection{Evaluate an independent dense residual grid}
+
+\begin{lstlisting}[style=projectmatlab]
+xv = linspace(0,out.params.Lx,101);
+yv = linspace(0,out.params.Ly,61);
+[X,Y] = meshgrid(xv,yv);
+xyDense = [X(:),Y(:)];
+
+dense = module2_pinn_predict( ...
+    out.net,xyDense,out.params,out.scales);
+
+denseRMS = sqrt(mean( ...
+    dense.residualNormalized.^2));
+denseMax = max(abs(dense.residualNormalized));
+[denseRMS,denseMax]
+\end{lstlisting}
+This includes boundaries. If the goal is an interior-only residual, omit the first and last coordinate rows before forming \texttt{xyDense}.
+
+\subsection{Inspect anchors spatially}
+
+\begin{lstlisting}[style=projectmatlab]
+if ~isempty(out.anchors.nodeIndices)
+    anchorXY = [out.anchors.xHat*out.params.Lx, ...
+                out.anchors.yHat*out.params.Ly];
+    scatter(anchorXY(:,1),anchorXY(:,2),20, ...
+            out.anchors.phiHat,'filled')
+    axis equal tight
+    colorbar
+end
+\end{lstlisting}
+
+\section{Training convergence and ablation studies}
+
+\subsection{Do not judge convergence from one total-loss curve}
+
+A credible run should show:
+\begin{itemize}[leftmargin=*]
+  \item finite and generally decreasing validation errors;
+  \item no single weighted term permanently overwhelming all others;
+  \item small boundary error on a dense independent boundary sample;
+  \item small normalized residual on an independent interior sample;
+  \item stable conclusions across more than one random seed;
+  \item agreement of the actual downstream quantity, such as peak field, not only potential.
+\end{itemize}
+Because collocation points change every iteration, component histories can fluctuate even during useful training. Assess trends and independent metrics rather than requiring monotonic loss.
+
+\subsection{Minimum controlled experiments}
+
+Change one factor at a time and give every run a distinct output directory:
+\begin{enumerate}[leftmargin=*]
+  \item iterations: 600, 1200, 2400;
+  \item interior points: 512, 1024, 2048;
+  \item network width: 32, 48, 64;
+  \item FEM anchors: 0, 40, 160;
+  \item at least three random seeds;
+  \item one targeted loss-weight sweep after examining weighted loss contributions.
+\end{enumerate}
+Record training time, potential error, field error, dense residual, boundary error, and peak-field error for every run.
+
+\subsection{Anchor ablation}
+
+The most informative first ablation compares:
+\begin{itemize}[leftmargin=*]
+  \item hybrid training with the default 160 anchors;
+  \item reduced supervision with 40 anchors;
+  \item pure PINN with no anchors.
+\end{itemize}
+Keep architecture, random seed, iterations, collocation counts, and loss weights fixed. This isolates how strongly FEM supervision contributes to the result.
+
+There is one implementation-level qualification: the current driver selects FEM anchors before constructing the network. Anchor selection consumes random numbers, so using the same \texttt{randomSeed} with different anchor settings does \emph{not} guarantee identical initial network weights. For the current code, compare distributions over several seeds. For a strictly paired ablation, refactor the driver to use separate saved random streams or separate seeds for anchor selection, network initialization, and collocation sampling.
+
+\subsection{Loss-weight sweep}
+
+Weights do not directly measure physical importance. They condition the optimization. A useful sweep changes one weight over a logarithmic range, then compares independent validation metrics. For example:
+\begin{lstlisting}[style=projectmatlab]
+dirWeights = [2,20,200];
+results = cell(size(dirWeights));
+
+for k = 1:numel(dirWeights)
+    opts = struct();
+    opts.randomSeed = 7;
+    opts.wDirichlet = dirWeights(k);
+    opts.outputDir = fullfile('outputs', ...
+        sprintf('module2_pinn_wD_%g',dirWeights(k)));
+    results{k} = main_module2_pinn_electrostatics( ...
+        'linear_potential',opts);
+end
+\end{lstlisting}
+Judge the sweep by boundary, interior, field, and analytical/FEM metrics. The smallest total training loss across differently weighted objectives is not a valid comparison by itself.
+
+\section{Reproducibility and timing}
+
+The driver calls \texttt{rng(opts.randomSeed,'twister')} before the FEM anchors are selected and before the network is built. The same project code, MATLAB numerical environment, options, and seed should therefore reproduce the same random sequence. Exact bitwise reproducibility can still vary across MATLAB releases or hardware math libraries.
+
+For a timed comparison:
+\begin{lstlisting}[style=projectmatlab]
+tic
+out = main_module2_pinn_electrostatics( ...
+    'linear_potential',opts);
+totalWallTime = toc;
+
+trainingTime = out.trainingInfo.elapsedSeconds;
+overheadTime = totalWallTime - trainingTime;
+\end{lstlisting}
+The stored training time covers only the Adam loop. It excludes the FEM reference solve, network construction, prediction, verification, plotting, summary writing, and MAT-file saving.
+
+For a fair surrogate timing claim, distinguish:
+\begin{itemize}[leftmargin=*]
+  \item one-time FEM data generation cost;
+  \item one-time network training cost;
+  \item per-query trained-network evaluation cost;
+  \item per-case FEM solve cost;
+  \item number of future queries over which up-front cost is amortized.
+\end{itemize}
+The current single-case implementation does not yet provide the final amortized many-case comparison.
+
+\section{Debugging and interactive code tracing}
+
+\subsection{Stop at the first MATLAB error}
+
+\begin{lstlisting}[style=projectmatlab]
+dbstop if error
+out = main_module2_pinn_electrostatics( ...
+    'linear_potential');
+\end{lstlisting}
+At the prompt, inspect \texttt{dbstack}, local variables, array sizes, and the current options. Use \texttt{dbquit} to leave debug mode.
+
+\subsection{Enter specific stages}
+
+\begin{lstlisting}[style=projectmatlab]
+dbstop in module2_pinn_make_dataset at 1
+dbstop in module2_pinn_network at 1
+dbstop in module2_pinn_train at 1
+dbstop in module2_pinn_loss at 1
+dbstop in module2_pinn_predict at 1
+dbstop in module2_pinn_verify at 1
+\end{lstlisting}
+The loss function is entered once per iteration, so clear that breakpoint after inspecting one batch:
+\begin{lstlisting}[style=projectmatlab]
+dbclear in module2_pinn_loss
+\end{lstlisting}
+
+\subsection{Open and resolve source files}
+
+\begin{lstlisting}[style=projectmatlab]
+open main_module2_pinn_electrostatics
+open module2_pinn_train
+open module2_pinn_loss
+which module2_pinn_loss -all
+\end{lstlisting}
+
+\section{Common failures and diagnostic actions}
+
+\begin{longtable}{>{\RaggedRight\arraybackslash}p{0.29\textwidth} >{\RaggedRight\arraybackslash}p{0.61\textwidth}}
+\toprule
+\textbf{Symptom} & \textbf{Likely cause and next action} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Symptom} & \textbf{Likely cause and next action} \\
+\midrule
+\endhead
+Missing \texttt{dlarray}, \texttt{dlnetwork}, or \texttt{adamupdate} & Deep Learning Toolbox is absent, not licensed, or not on the path. Check \texttt{ver}, the license test, and \texttt{which}. \\
+Undefined PINN or FEM function & \texttt{setup\_project\_paths} was not run, the working copy is incomplete, or an older path shadows the current one. Use \texttt{which ... -all}. \\
+Unknown case name & Only the four names in \texttt{default\_module2\_params.m} are accepted. Check spelling and capitalization-independent underscore names. \\
+Loss becomes NaN or Inf & Learning rate may be too large, scales or parameters may be invalid, or gradients may have exploded. Stop at the loss function, inspect each term, reduce the learning rate, and verify \texttt{out}-equivalent scales through the dataset stage. \\
+Total loss falls but boundary error remains large & The weighted objective is dominated elsewhere. Plot weighted components and evaluate dense boundary errors; adjust weights only after confirming scaling. \\
+Potential agrees but electric field is poor & Derivatives amplify approximation error. Increase training quality, inspect field and residual maps, and use field-specific acceptance criteria. \\
+Residual is small only near training points & Collocation coverage is inadequate or the network overfits sparse locations. Increase and resample points, then evaluate a dense independent residual grid. \\
+Gaussian case converges poorly & The localized source creates higher curvature. Increase collocation density or capacity cautiously and compare against the simpler analytical cases first. \\
+Results change between runs & The random seed or some option changed, a different project copy was resolved, or the MATLAB environment differs. Save \texttt{out.options}, archive version, and \texttt{which} results. \\
+Output files disappear or change unexpectedly & Reusing the same case and output directory overwrites deterministic filenames. Use one directory per experiment. \\
+Training is slow & Second derivatives are expensive. Reduce points or network size for debugging; disable plots and saving when benchmarking; do not confuse a smoke configuration with the final accuracy configuration. \\
+Out-of-domain prediction looks plausible & The predictor accepts arbitrary coordinates but the network was trained only on the rectangle. Treat out-of-domain values as unsupported extrapolation. \\
+Zero-charge relative errors look surprising & A near-zero reference needs a scale-aware denominator. Inspect absolute errors and residuals as well as relative metrics. \\
+\bottomrule
+\end{longtable}
+
+\section{Changing physics and adding a new case}
+
+The public PINN driver does not accept a physical \texttt{params} structure. For a one-off change, the safest current workflow is:
+\begin{enumerate}[leftmargin=*]
+  \item create a new named case branch in \texttt{default\_module2\_params.m};
+  \item verify that the FEM solver supports the source and boundary configuration;
+  \item add an FEM test or independent reference;
+  \item run the PINN through the new case name;
+  \item extend analytical verification only when a correct closed-form solution exists.
+\end{enumerate}
+
+Do not change \texttt{out.params} after training and then reuse \texttt{out.net}. The network learned the original case even though its input has no case parameter. Changing metadata does not retrain the model.
+
+For repeated custom physical studies, improve the API rather than editing defaults for every run. A future dataset function should accept either a validated \texttt{params} structure or a parameter vector $\boldsymbol{\mu}$ and should preserve the exact training-case metadata.
+
+\section{Extending to the many-case surrogate}
+
+The eventual Module 2 surrogate should add physical parameters to the network input, for example
+\begin{equation}
+(x,y,\rho_{\mathrm{bg}},A_{\rho},x_c,y_c,\sigma_x,\sigma_y,V_L,V_R)
+\mapsto\phi.
+\end{equation}
+That extension requires more than looping the current single-case driver. It needs:
+\begin{itemize}[leftmargin=*]
+  \item explicit parameter ranges and normalized parameter inputs;
+  \item training, validation, and held-out test case splits;
+  \item FEM dataset generation across the parameter space;
+  \item collocation and boundary samples tagged with the correct case parameters;
+  \item a loss that evaluates $\rho(x,y;\boldsymbol{\mu})$ and boundary targets for each observation;
+  \item out-of-distribution detection or at least range checks;
+  \item comparison of amortized prediction time against FEM;
+  \item saved training-domain metadata with the network.
+\end{itemize}
+
+\begin{notebox}
+\textbf{Do not overstate the current result.} A successful current run demonstrates that a smooth MLP can be trained with Poisson, boundary, and optional FEM losses for one case. It does not yet demonstrate generalization to unseen defect distributions or a multi-case surrogate speedup.
+\end{notebox}
+
+\section{Recommended verification ladder before using a result}
+
+\begin{enumerate}[leftmargin=*]
+  \item \textbf{Archive and path:} record the project version and confirm one resolved code tree.
+  \item \textbf{Toolbox:} confirm every required Deep Learning Toolbox operation.
+  \item \textbf{Reference FEM:} pass all four Module 2 FEM tests.
+  \item \textbf{PINN plumbing:} pass the PINN smoke test.
+  \item \textbf{Boundary and first derivative:} validate \texttt{linear\_potential} analytically.
+  \item \textbf{Curvature and source sign:} validate \texttt{uniform\_space\_charge} analytically.
+  \item \textbf{Localized source:} compare \texttt{localized\_defect\_charge} with FEM.
+  \item \textbf{Independent points:} evaluate dense interior residual and dense boundary errors.
+  \item \textbf{Loss balance:} inspect weighted and unweighted component histories.
+  \item \textbf{Robustness:} repeat with multiple seeds and controlled convergence studies.
+  \item \textbf{Ablation:} compare default anchors, reduced anchors, and pure PINN.
+  \item \textbf{Downstream metric:} verify the quantity that later modules will consume, especially $\Evec$ and peak field.
+\end{enumerate}
+
+\section{Minimal handoff checklist}
+
+Before presenting or transferring a Module 2 PINN result, record:
+\begin{itemize}[leftmargin=*]
+  \item project archive version, MATLAB version, and Deep Learning Toolbox version;
+  \item physical case name and source/boundary configuration;
+  \item random seed, architecture, optimizer settings, sample counts, anchors, and weights;
+  \item normalization scales from \texttt{out.scales};
+  \item final unweighted and weighted loss components;
+  \item FEM and analytical error metrics where available;
+  \item dense independent residual and boundary checks;
+  \item training time and the scope of that timer;
+  \item repeated-seed or convergence evidence;
+  \item output directory and exact figure/MAT filenames;
+  \item whether the result is hybrid or pure PINN;
+  \item the explicit limitation that the present network represents one fixed case.
+\end{itemize}
+
+\section{Code-reading order for a new reader}
+
+To understand the implementation without jumping between files randomly, read:
+\begin{enumerate}[leftmargin=*]
+  \item \matlabfile{main_module2_pinn_electrostatics.m} through the call sequence and default options;
+  \item \matlabfile{module2_pinn_make_dataset.m} to understand FEM reference data and scaling;
+  \item \matlabfile{module2_pinn_network.m} to understand the map $[\hat{x},\hat{y}]\mapsto\hat{\phi}$;
+  \item \matlabfile{module2_pinn_train.m} to see stochastic batch construction and Adam;
+  \item \matlabfile{module2_pinn_loss.m} slowly, following the PDE, boundary, data, and gradient calculations;
+  \item \matlabfile{module2_pinn_predict.m} to follow the inverse scaling and $\Evec=-\nabla\phi$;
+  \item \matlabfile{module2_pinn_verify.m} to see exactly how each metric and output file is constructed;
+  \item \matlabfile{test_module2_pinn_electrostatics.m} to understand the minimum automated contract.
+\end{enumerate}
+
+\begin{physicsbox}
+\textbf{Final takeaway.} The correct workflow is reference first, smallest neural test second, analytical verification third, localized-source comparison fourth, and hyperparameter or architecture tuning last. A trained network is credible only when its boundary behavior, Poisson residual, potential, electric field, reproducibility, and intended downstream metric have all been checked independently.
+\end{physicsbox}
+
+\end{document}

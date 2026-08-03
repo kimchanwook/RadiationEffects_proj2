@@ -1,5 +1,9 @@
 # Module 2 FEM implementation note
 
+> The detailed, authoritative operational guide is now
+> `module2_fem_implementation_note.tex/.pdf`. This Markdown file is retained as
+> a concise overview for compatibility with the earlier documentation set.
+
 This note summarizes the implemented MATLAB path for Module 2.
 
 ## Governing equation
