@@ -8,7 +8,7 @@ Tool split
 
 Current implementation status
 -----------------------------
-This package now includes eight working code paths:
+This package now includes nine working code paths:
 
 1. Module 2: first 2D finite-element electrostatic Poisson implementation
 1b. Module 2 PINN: standalone physics-inspired neural-network Poisson surrogate demo
@@ -18,6 +18,7 @@ This package now includes eight working code paths:
 4. Module 5: first linear-triangle FEM drift-diffusion carrier-transport path
 5. Module 6: first staggered linear-triangle FEM coupling scaffold for Modules 2-5
 6. Legacy Module 4a: archived 2D Fourier thermal baseline for comparison
+7. Module 9: reduced transmon x-z geometry, substrate mesh, surface tags, validation, and visualization
 
 
 Module 2 electrostatics pieces now included:
@@ -87,6 +88,16 @@ Module 6 FEM pieces now included:
 - coupling convergence metrics and charge-consistency diagnostics
 - smoke and charge-consistency verification tests
 
+Module 9 reduced-geometry pieces now included:
+- parameterized 3 mm by 0.5 mm high-resistivity-silicon substrate cross-section
+- nonuniform linear-triangle substrate mesh with every feature endpoint inserted exactly
+- named surface tags for Al pads, leads, effective JJ, normal trap, bond pads, and backside sink
+- separate left/right electrode groups so the JJ-sensitive interface is not an electrical short
+- explicit omission of curved wire-bond arcs, with bond pads retained for later boundary conditions
+- presentation schematic with exaggerated film heights and true solver mesh/tag visualization
+- dimension, connectivity, tag-length, and no-wire-arc validation tests
+- no changes yet to Modules 2-6, Module 2 PINN, or the coupled solvers
+
 Legacy Module 4a baseline pieces retained:
 - explicit transient heat-equation stepping for a single temperature field
 - zero-normal-gradient boundary handling for diffusion-type thermal tests
@@ -119,33 +130,35 @@ The setup script now also adds the `tests` folder to the MATLAB path, so test fu
 21. `main_module6_multiphysics('smoke')`
 22. `main_module6_multiphysics('defect_field_coupling')`
 23. `main_module6_multiphysics('thermal_feedback')`
-24. `main_module4a_2d_continuum_thermal('uniform_equilibrium')`  % archived Fourier baseline
-25. `test_module2_zero_charge_2d`
-26. `test_module2_linear_potential_2d`
-27. `test_module2_uniform_space_charge_2d`
-28. `test_module2_localized_defect_charge_2d`
-29. `test_module2_pinn_electrostatics`
-30. `test_module3_gaussian_diffusion_2d`
-31. `test_module3_pure_annealing_2d`
-32. `test_module3_fem_gaussian_diffusion_2d`
-33. `test_module3_fem_pure_annealing_2d`
-34. `test_module3_fem_uniform_state_2d`
-35. `test_module3_cpinn_pure_annealing`
-36. `test_module4_bd_uniform_equilibrium_2d`
-37. `test_module4_bd_localized_pulse_2d`
-38. `test_module4_bd_boundary_heating_2d`
-39. `test_module4_fem_uniform_equilibrium_2d`
-40. `test_module4_fem_gaussian_diffusion_2d`
-41. `test_module4_fem_uniform_source_2d`
-42. `test_module5_fem_uniform_no_field_2d`
-43. `test_module5_fem_lifetime_recombination_2d`
-44. `test_module5_fem_gaussian_diffusion_2d`
-45. `test_module5_fem_field_drift_sign_2d`
-46. `test_module6_fem_smoke_2d`
-47. `test_module6_fem_charge_consistency_2d`
-48. `test_module4a_uniform_equilibrium_2d`
-49. `test_module4a_hotspot_diffusion_2d`
-50. `test_module4a_steady_source_2d`
+24. `main_module9_transmon_geometry_2d`
+25. `main_module4a_2d_continuum_thermal('uniform_equilibrium')`  % archived Fourier baseline
+26. `test_module2_zero_charge_2d`
+27. `test_module2_linear_potential_2d`
+28. `test_module2_uniform_space_charge_2d`
+29. `test_module2_localized_defect_charge_2d`
+30. `test_module2_pinn_electrostatics`
+31. `test_module3_gaussian_diffusion_2d`
+32. `test_module3_pure_annealing_2d`
+33. `test_module3_fem_gaussian_diffusion_2d`
+34. `test_module3_fem_pure_annealing_2d`
+35. `test_module3_fem_uniform_state_2d`
+36. `test_module3_cpinn_pure_annealing`
+37. `test_module4_bd_uniform_equilibrium_2d`
+38. `test_module4_bd_localized_pulse_2d`
+39. `test_module4_bd_boundary_heating_2d`
+40. `test_module4_fem_uniform_equilibrium_2d`
+41. `test_module4_fem_gaussian_diffusion_2d`
+42. `test_module4_fem_uniform_source_2d`
+43. `test_module5_fem_uniform_no_field_2d`
+44. `test_module5_fem_lifetime_recombination_2d`
+45. `test_module5_fem_gaussian_diffusion_2d`
+46. `test_module5_fem_field_drift_sign_2d`
+47. `test_module6_fem_smoke_2d`
+48. `test_module6_fem_charge_consistency_2d`
+49. `test_module9_transmon_geometry_2d`
+50. `test_module4a_uniform_equilibrium_2d`
+51. `test_module4a_hotspot_diffusion_2d`
+52. `test_module4a_steady_source_2d`
 
 Outputs written automatically
 -----------------------------
@@ -171,6 +184,9 @@ Module 5 FEM outputs:
 
 Module 6 FEM outputs:
 - `matlab/outputs/module6_fem_2d/`
+
+Module 9 geometry outputs:
+- `matlab/outputs/module9_geometry/`
 
 Legacy Module 4a outputs:
 - `matlab/outputs/module4a_2d/`
@@ -200,6 +216,10 @@ Generated files include:
 - `module6_fem_final_potential.png` (Module 6 FEM)
 - `module6_fem_final_temperature.png` (Module 6 FEM)
 - `module6_fem_coupling_convergence.png` (Module 6 FEM)
+- `module9_transmon_geometry_2d.png` (Module 9 presentation schematic)
+- `module9_transmon_mesh_tags_2d.png` (Module 9 solver mesh/tag view)
+- `module9_transmon_geometry_2d.mat` (reusable geometry, mesh, and tag structure)
+- `module9_transmon_geometry_summary.txt` (Module 9 dimensions and validation report)
 - `*_centerline_cuts.png`
 - `*_history_metrics.png`
 - `*_summary.txt`
@@ -210,6 +230,11 @@ The current Module 2 solver is steady-state linear finite-element assembly. The 
 
 Near-term next steps
 --------------------
+- run `main_module9_transmon_geometry_2d` and `test_module9_transmon_geometry_2d` in MATLAB
+- connect Module 2 to the Module 9 mesh and named electrode tags without changing the legacy rectangle cases
+- after Module 2 FEM validation, add the bond-pad heating to backside-sink thermal test in Module 4
+- pass one shared Module 9 mesh/tags structure through Modules 3-6
+- adapt the Module 2 PINN only after the tagged FEM chain is stable
 - run the Module 3 causal-PINN regression test and the Module 3, Module 4, Module 5, and Module 6 FEM verification tests in MATLAB
 - compare Module 4 FEM results against the structured-grid ballistic-diffusive path and archived Fourier baseline
 - couple Module 4 FEM temperature output into Module 3 and Module 5 coefficient updates
