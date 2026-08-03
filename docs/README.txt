@@ -19,6 +19,12 @@ Current physics notes
 - module10_bcs_gl_tdgl_superconductivity_theory.tex/.pdf
 - module11_gnn_physical_dependency_graph.tex/.pdf
 
+Current implementation notes
+----------------------------
+- implementation_notes/module2_fem_implementation_note.tex/.pdf - detailed
+  run, dependency, parameter, test, output, probing, and troubleshooting guide
+  for the Module 2 FEM electrostatics code path.
+
 Module summary slides
 ---------------------
 - summary_slides.tex/.pdf - expandable Beamer summary deck. The current version contains thirty-one slides: three Module 2 baseline electrostatics slides, three Module 3 defect-evolution slides, four Module 4 thermal-transport slides, four Module 5 carrier-transport slides, four Module 6 coupled-multiphysics slides, four Module 2 PINN slides, four Module 2 CPINN slides, and five Module 11 GNN physical-dependency-graph slides. It intentionally keeps the deck equations-and-bullets only, with no drawings, illustrations, diagrams, or plots.
