@@ -1,0 +1,878 @@
+\documentclass[11pt]{article}
+\input{../shared/project_style.tex}
+\usepackage{listings}
+\usepackage{caption}
+
+\rhead{Module 9 Geometry Implementation Note}
+
+\definecolor{CodeBackground}{HTML}{F7F9FC}
+\definecolor{CodeFrame}{HTML}{C8D3E0}
+\definecolor{CodeKeyword}{HTML}{163A5F}
+\definecolor{CodeComment}{HTML}{2D6F73}
+\definecolor{CodeString}{HTML}{8A4B08}
+
+\lstdefinestyle{projectmatlab}{
+  language=Matlab,
+  basicstyle=\ttfamily\small,
+  keywordstyle=\color{CodeKeyword}\bfseries,
+  commentstyle=\color{CodeComment},
+  stringstyle=\color{CodeString},
+  backgroundcolor=\color{CodeBackground},
+  frame=single,
+  rulecolor=\color{CodeFrame},
+  breaklines=true,
+  breakatwhitespace=false,
+  columns=fullflexible,
+  keepspaces=true,
+  showstringspaces=false,
+  numbers=left,
+  numberstyle=\scriptsize\color{gray},
+  numbersep=8pt,
+  xleftmargin=1.2em,
+  framexleftmargin=1.0em,
+  aboveskip=0.8em,
+  belowskip=0.8em
+}
+
+\lstdefinestyle{projectshell}{
+  basicstyle=\ttfamily\small,
+  backgroundcolor=\color{CodeBackground},
+  frame=single,
+  rulecolor=\color{CodeFrame},
+  breaklines=true,
+  columns=fullflexible,
+  keepspaces=true,
+  showstringspaces=false,
+  xleftmargin=1.2em,
+  framexleftmargin=1.0em,
+  aboveskip=0.8em,
+  belowskip=0.8em
+}
+
+\newcommand{\matlabfile}[1]{\path{#1}}
+\newcommand{\geom}{\texttt{geom}}
+\newcommand{\params}{\texttt{params}}
+\newcommand{\tags}{\texttt{tags}}
+
+\begin{document}
+
+\DocTitle{Module 9 Transmon Geometry Implementation Note}{Detailed How-To Guide for \texttt{RadiationEffects\_proj2}}{Building, testing, inspecting, modifying, and handing off the reduced two-dimensional MATLAB geometry}
+
+\hrule
+\vspace{0.8em}
+
+\begin{overviewbox}
+\textbf{Purpose and scope.} This is the operational companion to the Module 9 physics note. It documents the geometry-only MATLAB layer: the code-ready transmon coordinates, the substrate mesh, named surface tags, automated validation, visualization, saved outputs, and the exact test procedure. It does \emph{not} claim that Modules 2--6 or the Module 2 PINN already solve physics on this geometry. Those integrations are deliberately gated follow-on tasks.
+\end{overviewbox}
+
+\begin{notebox}
+\textbf{Fastest correct start.} Open MATLAB in the repository's \matlabfile{matlab/} directory, run \texttt{setup\_project\_paths}, run the master test \texttt{test\_module9\_transmon\_geometry\_2d}, then run \texttt{out = main\_module9\_transmon\_geometry\_2d();}. Passing the test suite and visually accepting both generated PNG files are separate requirements.
+\end{notebox}
+
+\ProjectTOC
+
+\SymbolsAcronymsSection
+
+\renewcommand{\arraystretch}{1.18}
+\setlength{\tabcolsep}{5pt}
+\begin{symtable}
+2D & Two-dimensional & The implemented cross-section uses coordinates $(x,z)$. \\
+FEM & Finite-element method & Later physics solvers will use the triangular substrate mesh. \\
+JJ & Josephson junction & A one-micrometre sensitive interface tag, not a resolved oxide and not an electrical short. \\
+$x$ & Lateral coordinate & Horizontal coordinate, stored in metres. \\
+$z$ & Depth coordinate & Vertical coordinate; the substrate top is $z=0$. \\
+$\Omega_s$ & Substrate domain & Rectangle $[-1.5,1.5]\,\mathrm{mm}\times[-0.5,0],\mathrm{mm}$. \\
+$\Gamma_k$ & Named boundary segment & An edge collection such as a pad, lead, bond pad, or backside sink. \\
+$h_x,h_z$ & Mesh spacings & Target lateral and depth increments before exact endpoint insertion. \\
+CCW & Counter-clockwise & Required node ordering for every triangular element. \\
+SI & International System of Units & All numerical geometry values are stored in metres. \\
+\end{symtable}
+
+\section{What has been implemented}
+
+Module 9 currently supplies a reusable geometry description rather than a new field solver. The code performs four operations:
+
+\begin{enumerate}[leftmargin=*]
+  \item defines the material identities, dimensions, coordinates, mesh controls, visualization controls, and output controls;
+  \item creates a nonuniform, substrate-only triangular mesh whose lateral coordinate vector contains every required feature endpoint exactly;
+  \item converts the thin films and package features into named boundary-edge tags; and
+  \item validates the dimensions and topology, then creates a schematic view and a solver-facing mesh/tag view.
+\end{enumerate}
+
+The implementation follows the corrected, code-ready convention in \matlabfile{docs/physics_notes/module9_transmon_geometry_microwave_package_fem_domains.pdf}. The large pads, junction leads, and JJ-sensitive interval form one geometrically connected centerline chain. The left and right solver electrode groups nevertheless remain disjoint because the JJ is excluded from both groups.
+
+\subsection{What is intentionally not implemented}
+
+\begin{itemize}[leftmargin=*]
+  \item The curved wire-bond arcs are not mesh regions or tags. Their future electrical or thermal effects must enter at the bond-pad tags through a flux, source, Robin condition, or lumped link.
+  \item The $100\,\mathrm{nm}$ aluminum, $80\,\mathrm{nm}$ trap, and $1\,\mathrm{\mu m}$ backside patch are not resolved as bulk elements. Their physical thicknesses are metadata attached to surface regions.
+  \item No electrostatic, thermal, defect, carrier, or coupled solve is called by the Module 9 driver.
+  \item The present code does not use MATLAB PDE Toolbox. It constructs the nodes, triangles, boundary edges, and tags directly with core MATLAB operations.
+  \item There is no visual regression test. A person must inspect the two generated figures.
+\end{itemize}
+
+\begin{physicsbox}
+\textbf{Central modeling rule.} The presentation schematic exaggerates film height only to make nanometre films visible next to a $0.5\,\mathrm{mm}$ substrate. The physics mesh contains only the substrate and zero-thickness surface tags. Never pass the schematic display heights into a solver as physical layer thicknesses.
+\end{physicsbox}
+
+\section{Files and call graph}
+
+\subsection{Public entry points}
+
+\begin{longtable}{>{\RaggedRight\arraybackslash}p{0.35\textwidth} >{\RaggedRight\arraybackslash}p{0.58\textwidth}}
+\toprule
+\textbf{File} & \textbf{Operational role} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{File} & \textbf{Operational role} \\
+\midrule
+\endhead
+\matlabfile{matlab/main_module9_transmon_geometry_2d.m} & Main driver. Builds the geometry, throws on failed validation, makes the output directory, optionally generates two figures, saves a MAT-file and summary text, and returns the complete result. \\
+\matlabfile{matlab/tests/test_module9_transmon_geometry_2d.m} & Master Module 9 test runner. Calls the four focused regression tests in a fixed order. This is the normal test command. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Geometry implementation files}
+
+All reusable functions live in \matlabfile{matlab/src/module9_geometry/}.
+
+\begin{longtable}{>{\RaggedRight\arraybackslash}p{0.39\textwidth} >{\RaggedRight\arraybackslash}p{0.54\textwidth}}
+\toprule
+\textbf{Function file} & \textbf{Responsibility} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Function file} & \textbf{Responsibility} \\
+\midrule
+\endhead
+\matlabfile{default_module9_transmon_geometry_2d.m} & Produces the baseline \params{} structure in SI units. This is the authoritative executable parameter specification. \\
+\matlabfile{build_module9_transmon_geometry_2d.m} & Orchestrates mesh creation, tagging, and non-throwing validation; returns the reusable \geom{} structure. \\
+\matlabfile{make_module9_transmon_mesh_2d.m} & Inserts required $x$ anchors, creates refined $x$ and $z$ vectors, makes nodes and CCW triangles, and records complete boundary node/edge arrays. \\
+\matlabfile{tag_module9_transmon_mesh_2d.m} & Selects boundary edges by midpoint, forms overlapping physical tags and disjoint solver electrode groups, and records the omitted wire arcs. \\
+\matlabfile{validate_module9_transmon_geometry_2d.m} & Executes 27 aggregate checks and either returns a diagnostic report or throws one summarized error. \\
+\matlabfile{plot_module9_transmon_geometry_2d.m} & Creates the presentation schematic with exaggerated film heights. \\
+\matlabfile{plot_module9_transmon_mesh_tags_2d.m} & Creates the true-scale mesh/tag view and a central zoom that exposes the one-micrometre JJ tag. \\
+\matlabfile{README.txt} & Records the strict integration gates that follow geometry acceptance. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Focused tests}
+
+The master test runner calls:
+
+\begin{enumerate}[leftmargin=*]
+  \item \matlabfile{test_module9_geometry_dimensions_2d.m};
+  \item \matlabfile{test_module9_geometry_connectivity_2d.m};
+  \item \matlabfile{test_module9_geometry_tags_2d.m}; and
+  \item \matlabfile{test_module9_geometry_no_wire_arc_2d.m}.
+\end{enumerate}
+
+\subsection{Execution flow}
+
+\begin{equation}
+\text{parameters}
+\longrightarrow
+\text{substrate mesh}
+\longrightarrow
+\text{surface tags}
+\longrightarrow
+\text{validation}
+\longrightarrow
+\text{figures and saved geometry}.
+\end{equation}
+
+The driver calls \texttt{build\_module9\_transmon\_geometry\_2d}, which attaches a non-throwing validation report. The driver then calls the validator again with \texttt{throwOnFailure=true}. Therefore no output is saved by the driver when a geometry invariant fails.
+
+\begin{notebox}
+\textbf{Direct-builder subtlety.} Calling \texttt{geom = build\_module9\_transmon\_geometry\_2d(params)} directly does not throw when validation fails. Always inspect \texttt{geom.validation.passed}, or call \texttt{validate\_module9\_transmon\_geometry\_2d(geom,true)} before consuming a custom geometry.
+\end{notebox}
+
+\section{Prerequisites and path verification}
+
+\subsection{Software requirements}
+
+The geometry and tests require MATLAB with ordinary matrix, structure, plotting, and file-I/O functionality. No Deep Learning Toolbox and no PDE Toolbox are required. The plotting code prefers \texttt{exportgraphics} when available and falls back to \texttt{print}; it also uses \texttt{sgtitle} only when the installed release provides it.
+
+MATLAB is required for the official runtime check. GNU Octave or an external script may help inspect numerical data, but neither replaces the MATLAB test result because figure handles, plotting behavior, export behavior, and MATLAB language details can differ.
+
+\subsection{Start from one unambiguous project copy}
+
+Extract one newly versioned project archive into a clean directory. Do not place two project copies on the same MATLAB path. Open MATLAB and change the Current Folder to the extracted \matlabfile{RadiationEffects_proj2/matlab/} directory.
+
+Run:
+
+\begin{lstlisting}[style=projectmatlab]
+setup_project_paths
+which main_module9_transmon_geometry_2d -all
+which default_module9_transmon_geometry_2d -all
+which test_module9_transmon_geometry_2d -all
+version
+\end{lstlisting}
+
+Each \texttt{which -all} result should resolve to the same extracted project. If an older project appears first, stop and remove that stale path before testing. The setup function adds \matlabfile{matlab/}, \matlabfile{matlab/cases/}, \matlabfile{matlab/tests/}, \matlabfile{matlab/pinn/}, and every directory below \matlabfile{matlab/src/}.
+
+\subsection{Check the baseline parameter function before a long inspection}
+
+\begin{lstlisting}[style=projectmatlab]
+params = default_module9_transmon_geometry_2d();
+disp(params.schema)
+disp(params.domain)
+disp(params.modeling)
+\end{lstlisting}
+
+The schema should be \texttt{module9\_transmon\_geometry\_2d\_v1}; curved wires should be disabled; and the substrate-only bulk-mesh flag should be true.
+
+\section{Baseline geometry specification}
+
+\subsection{Domain, layers, and materials}
+
+\begin{longtable}{>{\RaggedRight\arraybackslash}p{0.28\textwidth} >{\RaggedRight\arraybackslash}p{0.25\textwidth} >{\RaggedRight\arraybackslash}p{0.38\textwidth}}
+\toprule
+\textbf{Quantity} & \textbf{Baseline value} & \textbf{Implementation meaning} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Quantity} & \textbf{Baseline value} & \textbf{Implementation meaning} \\
+\midrule
+\endhead
+Substrate $x$ range & $[-1.5,+1.5]\,\mathrm{mm}$ & Full lateral bulk domain. \\
+Substrate $z$ range & $[-0.5,0]\,\mathrm{mm}$ & Bottom to top of the bulk substrate. \\
+Substrate area & $1.5\,\mathrm{mm^2}$ & Cross-sectional area; not a three-dimensional volume. \\
+Default substrate & High-resistivity silicon & Bulk material with relative permittivity $11.7$. \\
+Alternative metadata & Sapphire & Stored option with relative permittivity $9.4$ but not an automatic selector. \\
+Aluminum thickness & $100\,\mathrm{nm}$ & Physical metadata for pads, leads, and bond pads. \\
+Normal-trap thickness & $80\,\mathrm{nm}$ & Stored above the aluminum film. \\
+Backside-patch thickness & $1\,\mathrm{\mu m}$ & Effective metadata for a later sheet/boundary model. \\
+Lead out-of-plane width & $8\,\mathrm{\mu m}$ & Collapsed third-dimension metadata; not an $x$--$z$ mesh length. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Code-ready feature intervals}
+
+All coordinates below are stored in metres; millimetres are shown for readability.
+
+\begin{longtable}{>{\RaggedRight\arraybackslash}p{0.22\textwidth} >{\RaggedRight\arraybackslash}p{0.28\textwidth} >{\RaggedRight\arraybackslash}p{0.18\textwidth} >{\RaggedRight\arraybackslash}p{0.22\textwidth}}
+\toprule
+\textbf{Feature} & \textbf{$x$ interval (mm)} & \textbf{Length} & \textbf{Role} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Feature} & \textbf{$x$ interval (mm)} & \textbf{Length} & \textbf{Role} \\
+\midrule
+\endhead
+Left bond pad & $[-1.480,-1.400]$ & $80\,\mathrm{\mu m}$ & Future package-interface BC location. \\
+Left Al pad & $[-0.630,-0.030]$ & $600\,\mathrm{\mu m}$ & Left electrode surface. \\
+Left Al lead & $[-0.0405,-0.0005]$ & $40\,\mathrm{\mu m}$ & Connects left pad to JJ; overlaps pad by $10.5\,\mathrm{\mu m}$. \\
+JJ-sensitive interval & $[-0.0005,+0.0005]$ & $1\,\mathrm{\mu m}$ & Scoring/interface tag, excluded from electrode unions. \\
+Right Al lead & $[+0.0005,+0.0405]$ & $40\,\mathrm{\mu m}$ & Connects JJ to right pad; overlaps pad by $10.5\,\mathrm{\mu m}$. \\
+Right Al pad & $[+0.030,+0.630]$ & $600\,\mathrm{\mu m}$ & Right electrode surface. \\
+Normal-metal trap & $[+0.450,+0.550]$ & $100\,\mathrm{\mu m}$ & Overlay on the right pad. \\
+Right bond pad & $[+1.400,+1.480]$ & $80\,\mathrm{\mu m}$ & Future package-interface BC location. \\
+Backside sink & $[-0.150,+0.150]$ & $300\,\mathrm{\mu m}$ & Bottom thermalization segment. \\
+Pad-gap reference & $[-0.030,+0.030]$ & $60\,\mathrm{\mu m}$ & Large-pad inner-edge window; centerline lead/JJ metal covers it. \\
+\bottomrule
+\end{longtable}
+
+The reference pad-gap window is not a separate exposed material region along this selected centerline. Consequently, \texttt{tags.reference.exposed\_pad\_gap.length} is expected to be zero.
+
+\section{Mesh construction and interpretation}
+
+\subsection{Why the films are surface tags}
+
+Resolving a $100\,\mathrm{nm}$ film next to a $0.5\,\mathrm{mm}$ substrate creates a thickness ratio of
+\begin{equation}
+\frac{0.5\,\mathrm{mm}}{100\,\mathrm{nm}}=5000.
+\end{equation}
+A uniform element size small enough for the film would be wasteful and poorly conditioned for the present reduced model. The first implementation therefore meshes only $\Omega_s$ and retains physical layers as boundary metadata. Later weak-form terms can integrate over the named boundary edges.
+
+\subsection{Baseline mesh controls}
+
+\begin{longtable}{>{\RaggedRight\arraybackslash}p{0.34\textwidth} >{\RaggedRight\arraybackslash}p{0.18\textwidth} >{\RaggedRight\arraybackslash}p{0.39\textwidth}}
+\toprule
+\textbf{Field} & \textbf{Value} & \textbf{Meaning} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Field} & \textbf{Value} & \textbf{Meaning} \\
+\midrule
+\endhead
+\matlabfile{params.mesh.bulkDx} & $25\,\mathrm{\mu m}$ & Requested lateral spacing in nominal bulk intervals. \\
+\matlabfile{params.mesh.featureDx} & $10\,\mathrm{\mu m}$ & Requested spacing near pads, trap, and bond pads. \\
+\matlabfile{params.mesh.centralDx} & $5\,\mathrm{\mu m}$ & Requested spacing near the central device. Feature endpoints remain exact even when a segment is shorter. \\
+\matlabfile{params.mesh.bulkDz} & $25\,\mathrm{\mu m}$ & Requested depth spacing away from surfaces. \\
+\matlabfile{params.mesh.surfaceDz} & $5\,\mathrm{\mu m}$ & Requested depth spacing near top and bottom surfaces. \\
+\matlabfile{params.mesh.surfaceRefinementDepth} & $50\,\mathrm{\mu m}$ & Nominal refined depth at each surface. \\
+\matlabfile{params.mesh.alternateCellDiagonals} & \texttt{true} & Alternates triangle diagonals to reduce a single directional pattern. \\
+\bottomrule
+\end{longtable}
+
+Target spacings are upper targets inside intervals, not promises that every cell has exactly that width. The code uses \texttt{ceil} and \texttt{linspace}; short anchored intervals can be substantially smaller. Every domain, pad, lead, JJ, trap, bond-pad, pad-gap, and sink endpoint is inserted before interval filling.
+
+\subsection{Mesh arrays}
+
+\begin{longtable}{>{\RaggedRight\arraybackslash}p{0.32\textwidth} >{\RaggedRight\arraybackslash}p{0.59\textwidth}}
+\toprule
+\textbf{Field} & \textbf{Meaning} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Field} & \textbf{Meaning} \\
+\midrule
+\endhead
+\matlabfile{geom.mesh.nodes} & $N_n\times2$ array of $(x,z)$ node coordinates in metres. \\
+\matlabfile{geom.mesh.elems} & $N_e\times3$ array of one-based triangle node indices. \\
+\matlabfile{geom.mesh.x}, \matlabfile{geom.mesh.z} & Structured coordinate vectors used to form the nodes. \\
+\matlabfile{geom.mesh.nx}, \matlabfile{geom.mesh.nz} & Numbers of coordinates in each direction. \\
+\matlabfile{geom.mesh.boundary.*} & Node IDs on each complete outer boundary. \\
+\matlabfile{geom.mesh.boundaryEdges.*} & Two-node edge arrays for top, bottom, left, and right. \\
+\matlabfile{geom.mesh.y}, \matlabfile{geom.mesh.ny}, \matlabfile{geom.mesh.Ly} & Compatibility aliases mapping the second generic coordinate to $z$. \\
+\matlabfile{geom.mesh.origin} & Lower-left domain point $(-1.5,-0.5)\,\mathrm{mm}$. \\
+\bottomrule
+\end{longtable}
+
+Nodes are created with $z$ varying fastest. Each structured quadrilateral becomes two three-node triangles. The validator requires every triangle's signed area to be positive, which verifies non-degeneracy and CCW ordering.
+
+\subsection{Probe the mesh directly}
+
+\begin{lstlisting}[style=projectmatlab]
+geom = build_module9_transmon_geometry_2d();
+mesh = geom.mesh;
+
+fprintf('nx=%d, nz=%d\n', mesh.nx, mesh.nz);
+fprintf('nodes=%d, triangles=%d\n', ...
+    size(mesh.nodes,1), size(mesh.elems,1));
+fprintf('dx range = [%.3g, %.3g] um\n', ...
+    min(diff(mesh.x))*1e6, max(diff(mesh.x))*1e6);
+fprintf('dz range = [%.3g, %.3g] um\n', ...
+    min(diff(mesh.z))*1e6, max(diff(mesh.z))*1e6);
+\end{lstlisting}
+
+Do not turn the default node or triangle count into a permanent scientific acceptance criterion. Counts legitimately change when mesh parameters change. Required coordinates, positive areas, correct tags, and convergence of the later physics quantity are the meaningful checks.
+
+\section{Boundary tags and solver semantics}
+
+Every tag stores its side name, boundary-local edge IDs, explicit global node pairs, unique node IDs, edge midpoints, and total physical length. The selection routine uses edge midpoints and a floating-point tolerance; exact endpoint insertion prevents ambiguous partial edges.
+
+\subsection{Physical and derived tag groups}
+
+\begin{longtable}{>{\RaggedRight\arraybackslash}p{0.38\textwidth} >{\RaggedRight\arraybackslash}p{0.53\textwidth}}
+\toprule
+\textbf{Tag path} & \textbf{Meaning} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Tag path} & \textbf{Meaning} \\
+\midrule
+\endhead
+\matlabfile{tags.boundary.left/right/top/bottom} & Complete outer substrate boundaries. \\
+\matlabfile{tags.top.left_pad/right_pad} & Large aluminum pad intervals. \\
+\matlabfile{tags.top.left_lead/right_lead} & Aluminum junction-lead intervals. \\
+\matlabfile{tags.top.jj_sensitive} & Effective JJ-sensitive interface. \\
+\matlabfile{tags.top.normal_trap} & Trap overlay; intentionally overlaps the right-pad tag. \\
+\matlabfile{tags.top.left_bond_pad/right_bond_pad} & Future wire/package boundary-condition locations. \\
+\matlabfile{tags.bottom.backside_sink} & Centered bottom thermalization segment. \\
+\matlabfile{tags.electrode.left_electrode} & Union of left pad and left lead only. \\
+\matlabfile{tags.electrode.right_electrode} & Union of right pad and right lead only. \\
+\matlabfile{tags.derived.central_metal_chain} & Geometric union of pads, leads, and JJ. Do not use as a common-potential electrode. \\
+\matlabfile{tags.derived.exposed_substrate_top} & Top-boundary edges not covered by primary aluminum features. \\
+\matlabfile{tags.reference.pad_gap_window} & Nominal large-pad gap interval. \\
+\matlabfile{tags.reference.exposed_pad_gap} & Empty in the current centerline convention. \\
+\matlabfile{tags.omissions.curved_wire_arcs} & Machine-readable record that curved wires are absent. \\
+\bottomrule
+\end{longtable}
+
+\begin{notebox}
+\textbf{Overlapping tags are intentional.} A physical overlay such as the trap can share edges with the right pad, and a lead can overlap a pad. Do not assume that all tag edge-ID sets form a partition. The left and right \emph{electrode groups}, however, must remain disjoint.
+\end{notebox}
+
+\subsection{Inspect one tag}
+
+\begin{lstlisting}[style=projectmatlab]
+geom = build_module9_transmon_geometry_2d();
+tag = geom.tags.top.jj_sensitive;
+
+disp(tag)
+disp(geom.mesh.nodes(tag.nodeIds,:)*1e3)  % coordinates in mm
+fprintf('JJ tag length = %.6f um\n', tag.length*1e6);
+\end{lstlisting}
+
+The reported length should be $1\,\mathrm{\mu m}$, and every associated node should lie on $z=0$.
+
+\section{Exact run procedure}
+
+\subsection{Acceptance sequence}
+
+Use this order for a fresh project copy:
+
+\begin{enumerate}[leftmargin=*]
+  \item Verify path resolution with \texttt{which -all}.
+  \item Create the default parameter structure and inspect its schema/modeling flags.
+  \item Run the master automated test suite.
+  \item Run the driver with figures enabled.
+  \item Inspect the Command Window validation count.
+  \item Inspect both PNG files manually.
+  \item Open the summary text and load the MAT-file.
+  \item Perform the direct probes in this note before modifying coordinates.
+\end{enumerate}
+
+\subsection{Run all Module 9 automated tests}
+
+From \matlabfile{RadiationEffects_proj2/matlab/}:
+
+\begin{lstlisting}[style=projectmatlab]
+setup_project_paths
+test_module9_transmon_geometry_2d
+\end{lstlisting}
+
+Expected pass messages are:
+
+\begin{lstlisting}[style=projectshell]
+test_module9_geometry_dimensions_2d passed.
+test_module9_geometry_connectivity_2d passed.
+test_module9_geometry_tags_2d passed: 27 checks validated.
+test_module9_geometry_no_wire_arc_2d passed.
+All Module 9 reduced-geometry tests passed.
+\end{lstlisting}
+
+MATLAB stops at the first failed \texttt{assert}. Read that assertion message first; it normally identifies the broken invariant more precisely than the final aggregate validator would.
+
+\subsection{Run the driver and generate outputs}
+
+\begin{lstlisting}[style=projectmatlab]
+setup_project_paths
+out = main_module9_transmon_geometry_2d();
+\end{lstlisting}
+
+The driver should print the number of nodes and triangles, report \texttt{27/27 passed}, restate that curved wire arcs are omitted, and display the absolute output directory.
+
+\subsection{Run without interactive windows}
+
+For a remote or headless MATLAB session:
+
+\begin{lstlisting}[style=projectmatlab]
+setup_project_paths
+params = default_module9_transmon_geometry_2d();
+params.visualization.figureVisible = 'off';
+out = main_module9_transmon_geometry_2d(params);
+\end{lstlisting}
+
+The PNGs are still written when \texttt{saveFigures=true}. If graphics are entirely unavailable, use \texttt{params.makePlots=false} for data-only debugging, but later rerun with plots because visual acceptance remains required.
+
+\subsection{Run an individual test during diagnosis}
+
+\begin{lstlisting}[style=projectmatlab]
+test_module9_geometry_connectivity_2d
+\end{lstlisting}
+
+Running one focused test is appropriate while repairing a specific failure. Before accepting the project, rerun the master suite so a local fix is not mistaken for complete acceptance.
+
+\section{What each test proves}
+
+\subsection{Dimension test}
+
+\matlabfile{test_module9_geometry_dimensions_2d.m} verifies:
+
+\begin{itemize}[leftmargin=*]
+  \item $3\,\mathrm{mm}$ substrate width, $0.5\,\mathrm{mm}$ substrate thickness, and $1.5\,\mathrm{mm^2}$ cross-sectional area;
+  \item $100\,\mathrm{nm}$ Al, $80\,\mathrm{nm}$ trap, and $1\,\mathrm{\mu m}$ backside-patch metadata;
+  \item correct vertical stacking metadata for the normal trap;
+  \item $60\,\mathrm{\mu m}$ pad-gap reference width;
+  \item $600\,\mathrm{\mu m}$ pad widths, $1\,\mathrm{\mu m}$ JJ width, $100\,\mathrm{\mu m}$ trap length, and $300\,\mathrm{\mu m}$ sink width.
+\end{itemize}
+
+It checks parameter/region metadata; it does not by itself prove that every boundary edge was tagged correctly.
+
+\subsection{Connectivity test}
+
+\matlabfile{test_module9_geometry_connectivity_2d.m} verifies the interval chain
+\begin{equation}
+\text{left pad}\rightarrow\text{left lead}\rightarrow\text{JJ}
+\rightarrow\text{right lead}\rightarrow\text{right pad},
+\end{equation}
+checks that the normal trap lies only on the right pad, confirms the JJ metadata still forbids an imposed short, and asserts that the two solver electrode edge-ID sets do not overlap.
+
+This test proves interval contact or overlap in the reduced centerline geometry. It does not solve a circuit and does not prove Josephson behavior.
+
+\subsection{Tag test}
+
+\matlabfile{test_module9_geometry_tags_2d.m} first requests the full 27-check validator report, then independently compares primary tag lengths with analytical interval lengths. It also verifies that every top tag lies on $z=0$, the sink lies on $z=-0.5\,\mathrm{mm}$, the pad-gap window is $60\,\mathrm{\mu m}$, and the exposed centerline pad-gap length is zero.
+
+\subsection{No-wire-arc test}
+
+\matlabfile{test_module9_geometry_no_wire_arc_2d.m} makes the model reduction executable rather than merely descriptive. It requires the include flag to be false, the omission tag to report no wire arc, no wire-arc region field to exist, both bond-pad tags to remain nonempty, and the replacement description to refer to a boundary/lumped representation.
+
+\subsection{The 27 aggregate validator checks}
+
+The validator groups its checks as follows:
+
+\begin{longtable}{>{\RaggedRight\arraybackslash}p{0.30\textwidth} >{\RaggedRight\arraybackslash}p{0.13\textwidth} >{\RaggedRight\arraybackslash}p{0.47\textwidth}}
+\toprule
+\textbf{Group} & \textbf{Count} & \textbf{Checks} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Group} & \textbf{Count} & \textbf{Checks} \\
+\midrule
+\endhead
+Domain dimensions & 3 & Width, thickness, and area. \\
+Mesh structure & 2 & Every required $x$ anchor is present; every triangle has positive signed area. \\
+Central connectivity & 4 & Four pad/lead/JJ contact or overlap relations. \\
+Trap placement & 2 & Contained in the right pad and does not bridge electrodes. \\
+Primary tag lengths & 9 & Two pads, two leads, JJ, trap, two bond pads, and backside sink. \\
+Headline dimensions & 4 & Pad-gap, JJ, backside-sink, and both bond-pad widths. \\
+Stored layer ranges & 1 & Al, trap, and sink $z$-range metadata. \\
+Reduced wiring decision & 1 & Curved wire arcs remain absent. \\
+Tag indexing & 1 & Every primary tag edge ID lies within its named boundary array. \\
+\midrule
+Total & 27 & All checks must pass. \\
+\bottomrule
+\end{longtable}
+
+To print failures and values without throwing:
+
+\begin{lstlisting}[style=projectmatlab]
+geom = build_module9_transmon_geometry_2d();
+report = validate_module9_transmon_geometry_2d(geom,false);
+disp(struct2table(report.checks))
+\end{lstlisting}
+
+\section{Visual verification}
+
+\subsection{Presentation schematic}
+
+Inspect \matlabfile{matlab/outputs/module9_geometry/module9_transmon_geometry_2d.png}. Confirm:
+
+\begin{itemize}[leftmargin=*]
+  \item one $3\,\mathrm{mm}\times0.5\,\mathrm{mm}$ substrate rectangle;
+  \item two large central Al pads and their narrow central leads;
+  \item a visible central red JJ marker;
+  \item the orange trap above the right pad only;
+  \item one package bond pad near each lateral chip edge;
+  \item one centered backside sink; and
+  \item no curved wire arcs.
+\end{itemize}
+
+The visible film heights are deliberately false. They must not be used to measure Al, trap, or sink thickness.
+
+\subsection{Solver mesh and tag view}
+
+Inspect \matlabfile{matlab/outputs/module9_geometry/module9_transmon_mesh_tags_2d.png}. The upper panel must show the full true-scale substrate mesh, top surface tags, bond pads, and centered bottom sink. The lower panel must magnify the central pad/lead/JJ area so the $1\,\mathrm{\mu m}$ JJ is visible as a surface tag.
+
+Check for missing colored segments, a JJ displaced from $x=0$, a trap on the wrong pad, a sink on $z=0$, or colors extending off the substrate boundary. Any of these is a failure even if the automated suite passes.
+
+\subsection{Why both images are required}
+
+The schematic answers ``does the intended device layout look correct?'' The mesh view answers ``what geometry will a later FEM solver actually consume?'' One cannot replace the other. The first uses visual-only film rectangles; the second uses exact mesh-edge segments.
+
+\section{Saved outputs and returned data}
+
+The default driver writes to \matlabfile{matlab/outputs/module9_geometry/}.
+
+\begin{longtable}{>{\RaggedRight\arraybackslash}p{0.43\textwidth} >{\RaggedRight\arraybackslash}p{0.48\textwidth}}
+\toprule
+\textbf{Output} & \textbf{Use} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Output} & \textbf{Use} \\
+\midrule
+\endhead
+\matlabfile{module9_transmon_geometry_2d.png} & Presentation schematic with exaggerated vertical film heights. \\
+\matlabfile{module9_transmon_mesh_tags_2d.png} & Solver-facing substrate mesh and zero-thickness tags. \\
+\matlabfile{module9_transmon_geometry_2d.mat} & Reusable variable named \texttt{geometry}, containing parameters, mesh, tags, regions, materials, and validation. \\
+\matlabfile{module9_transmon_geometry_summary.txt} & Human-readable dimensions, region intervals, mesh counts, validation checks, and modeling decisions. \\
+\bottomrule
+\end{longtable}
+
+The returned driver structure contains \texttt{out.geometry}, figure handles under \texttt{out.figures}, file paths under \texttt{out.files}, and \texttt{out.outputDir}.
+
+\begin{notebox}
+\textbf{File-path subtlety.} The driver populates \texttt{out.files.*} paths even when a corresponding save option is false. A nonempty path field therefore does not prove that the file exists. Check \texttt{isfile(out.files.mat)} or \texttt{isfile(out.files.geometryPng)} when testing output creation.
+\end{notebox}
+
+\subsection{Load and inspect the saved geometry}
+
+\begin{lstlisting}[style=projectmatlab]
+S = load(out.files.mat);
+geometry = S.geometry;
+
+assert(geometry.validation.passed)
+disp(fieldnames(geometry))
+disp(fieldnames(geometry.tags))
+disp(geometry.tags.electrode)
+\end{lstlisting}
+
+The MAT-file intentionally excludes graphics handles. It is the object a future Module 2--6 integration should load or receive directly.
+
+\section{Independent probes before trusting or modifying the geometry}
+
+\subsection{Verify every required coordinate is a mesh line}
+
+\begin{lstlisting}[style=projectmatlab]
+geom = out.geometry;
+names = fieldnames(geom.regions);
+for k = 1:numel(names)
+    r = geom.regions.(names{k});
+    err = max(arrayfun(@(q) min(abs(geom.mesh.x-q)), r.xRange));
+    fprintf('%-18s max endpoint error = %.3e m\n', names{k}, err);
+end
+\end{lstlisting}
+
+The endpoint error should be at roundoff level. If the pad-gap reference changes, repeat this check for \matlabfile{geom.reference.padGap.xRange}.
+
+\subsection{Verify electrode separation}
+
+\begin{lstlisting}[style=projectmatlab]
+leftIds = geom.tags.electrode.left_electrode.edgeIds;
+rightIds = geom.tags.electrode.right_electrode.edgeIds;
+jjIds = geom.tags.top.jj_sensitive.edgeIds;
+
+assert(isempty(intersect(leftIds,rightIds)))
+assert(isempty(intersect(leftIds,jjIds)))
+assert(isempty(intersect(rightIds,jjIds)))
+\end{lstlisting}
+
+This is the solver-facing protection against accidentally applying one Dirichlet value through the JJ to both electrodes.
+
+\subsection{Verify tag locations and lengths}
+
+\begin{lstlisting}[style=projectmatlab]
+topNames = fieldnames(geom.tags.top);
+for k = 1:numel(topNames)
+    t = geom.tags.top.(topNames{k});
+    fprintf('%-18s edges=%4d length=%9.3f um\n', ...
+        topNames{k}, size(t.edges,1), t.length*1e6);
+    assert(all(abs(geom.mesh.nodes(t.nodeIds,2)) < 1e-12))
+end
+
+sink = geom.tags.bottom.backside_sink;
+assert(all(abs(geom.mesh.nodes(sink.nodeIds,2)+0.5e-3) < 1e-12))
+\end{lstlisting}
+
+\subsection{Verify triangle orientation independently}
+
+\begin{lstlisting}[style=projectmatlab]
+p1 = geom.mesh.nodes(geom.mesh.elems(:,1),:);
+p2 = geom.mesh.nodes(geom.mesh.elems(:,2),:);
+p3 = geom.mesh.nodes(geom.mesh.elems(:,3),:);
+A2 = (p2(:,1)-p1(:,1)).*(p3(:,2)-p1(:,2)) ...
+   - (p3(:,1)-p1(:,1)).*(p2(:,2)-p1(:,2));
+fprintf('minimum triangle area = %.6e m^2\n', min(A2)/2);
+assert(all(A2>0))
+\end{lstlisting}
+
+\section{Controlled parameter studies}
+
+\subsection{Safe pattern}
+
+Always begin from a fresh default structure, make one coherent change, rebuild, validate with throwing enabled, and save to a separate output directory.
+
+\begin{lstlisting}[style=projectmatlab]
+params = default_module9_transmon_geometry_2d();
+params.outputDir = fullfile('outputs','module9_geometry_study_A');
+params.visualization.figureVisible = 'on';
+
+% Example mesh-only change; physical geometry is unchanged.
+params.mesh.centralDx = 2.5e-6;
+
+outStudy = main_module9_transmon_geometry_2d(params);
+\end{lstlisting}
+
+For mesh refinement, compare later physics quantities, not only the number of triangles. Geometry validation can pass on both a coarse and a fine mesh.
+
+\subsection{Changing a region interval}
+
+Region structures contain both \texttt{xRange} and the derived field \texttt{length}. If \texttt{xRange} changes, recompute \texttt{length}. If physical thickness changes, also update the appropriate global thickness metadata and region \texttt{zRange}. The code currently has no public ``recompute all derived geometry fields'' function.
+
+\begin{lstlisting}[style=projectmatlab]
+params = default_module9_transmon_geometry_2d();
+params.regions.normalTrap.xRange = [0.440e-3, 0.560e-3];
+params.regions.normalTrap.length = diff(params.regions.normalTrap.xRange);
+params.outputDir = fullfile('outputs','module9_geometry_wider_trap');
+outStudy = main_module9_transmon_geometry_2d(params);
+\end{lstlisting}
+
+Changing only \texttt{xRange} and leaving stale \texttt{length} metadata should fail the tag-length validation. That failure is protective, not a nuisance.
+
+\subsection{Changing the substrate material}
+
+The alternative sapphire structure is stored as metadata, but there is no string-valued material selector. A consistent change must assign the complete alternative structure:
+
+\begin{lstlisting}[style=projectmatlab]
+params = default_module9_transmon_geometry_2d();
+params.materials.substrate = ...
+    params.materials.substrateOptions.sapphire;
+\end{lstlisting}
+
+This changes metadata only at the present geometry stage. A later FEM solver must actually read \texttt{geometry.materials.substrate} and assign the correct coefficients; Module 9 alone does not change any field equation.
+
+\subsection{Output and visualization controls}
+
+\begin{longtable}{>{\RaggedRight\arraybackslash}p{0.38\textwidth} >{\RaggedRight\arraybackslash}p{0.16\textwidth} >{\RaggedRight\arraybackslash}p{0.37\textwidth}}
+\toprule
+\textbf{Parameter} & \textbf{Default} & \textbf{Effect} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Parameter} & \textbf{Default} & \textbf{Effect} \\
+\midrule
+\endhead
+\matlabfile{params.makePlots} & \texttt{true} & Calls both plotting functions. \\
+\matlabfile{params.saveFigures} & \texttt{true} & Exports both figures when plots are made. \\
+\matlabfile{params.saveMat} & \texttt{true} & Saves the reusable geometry variable. \\
+\matlabfile{params.saveSummary} & \texttt{true} & Writes the human-readable summary. \\
+\matlabfile{params.visualization.figureVisible} & \texttt{'on'} & Opens interactive figure windows; use \texttt{'off'} for headless export. \\
+\matlabfile{params.visualization.showLabels} & \texttt{true} & Adds schematic labels. \\
+\matlabfile{params.visualization.imageResolution} & 220 & PNG export resolution in dots per inch. \\
+\matlabfile{params.outputDir} & \matlabfile{outputs/module9_geometry} & Path relative to the MATLAB directory. \\
+\bottomrule
+\end{longtable}
+
+Use a distinct \texttt{outputDir} for each study. Otherwise deterministic filenames overwrite earlier outputs.
+
+\section{Troubleshooting}
+
+\begin{longtable}{>{\RaggedRight\arraybackslash}p{0.30\textwidth} >{\RaggedRight\arraybackslash}p{0.63\textwidth}}
+\toprule
+\textbf{Symptom} & \textbf{Likely cause and response} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Symptom} & \textbf{Likely cause and response} \\
+\midrule
+\endhead
+Undefined function & Run \texttt{setup\_project\_paths}; use \texttt{which -all}; confirm MATLAB is in the correct extracted project's \matlabfile{matlab/} directory. \\
+Wrong geometry appears & An older project copy is earlier on the path. Resolve all Module 9 functions with \texttt{which -all}; do not continue until they come from one tree. \\
+Tag-length validation fails & A feature endpoint is missing, an interval changed without updating its derived \texttt{length}, or a boundary selector no longer captures the intended edges. Inspect \texttt{requestedXRange}, edge midpoints, and mesh anchors. \\
+Positive-area check fails & Triangle ordering became clockwise or an $x$/$z$ interval collapsed. Inspect the minimum signed area and the edited coordinate vectors. \\
+Connectivity test fails & A pad/lead/JJ interval has a positive gap. Compare the four central \texttt{xRange} fields in millimetres. \\
+Electrode tags overlap & The JJ was accidentally included in both electrode unions or a left/right interval crosses the center. Do not bypass this assertion. \\
+Trap containment fails & The normal-trap interval extends off the right pad or toward the left electrode. Restore containment before using the geometry. \\
+No-wire test fails & A curved wire was added as a region/tag, the omission flag changed, or the bond-pad replacement locations disappeared. Revisit the deliberate reduced-wiring model. \\
+No PNG files & Check \texttt{makePlots}, \texttt{saveFigures}, output-directory permissions, and graphics availability. Remember that \texttt{out.files} paths exist even when saving is disabled. \\
+Figures open but look vertically thick & Expected in the schematic. Use the mesh/tag figure for solver truth; do not interpret schematic height quantitatively. \\
+JJ invisible in full-chip panel & Expected at true scale. Inspect the lower zoom panel or query \texttt{tags.top.jj\_sensitive}. \\
+Summary or MAT missing & Check \texttt{saveSummary} and \texttt{saveMat}; verify with \texttt{isfile}; confirm the driver reached output writing after validation. \\
+Output was overwritten & The same output directory and deterministic filenames were reused. Assign a unique \texttt{params.outputDir}. \\
+Tests pass but a plot is wrong & The tests do not compare images. Treat manual visual inspection as a separate acceptance gate and diagnose the relevant plotting function. \\
+\bottomrule
+\end{longtable}
+
+\section{What the current tests do not prove}
+
+Passing the master runner is necessary but not sufficient. The suite currently does not:
+
+\begin{itemize}[leftmargin=*]
+  \item execute the top-level driver or assert that PNG, MAT, and summary files were written;
+  \item compare rendered images against approved reference images;
+  \item solve any physics equation on the mesh;
+  \item establish mesh convergence for potential, field, temperature, carrier density, or defect concentration;
+  \item test sapphire coefficients in a downstream solver;
+  \item test a resolved thin-film model;
+  \item validate a three-dimensional package geometry; or
+  \item establish that a lumped wire-bond model is quantitatively accurate.
+\end{itemize}
+
+Therefore the geometry acceptance record should contain the test transcript, two reviewed images, summary text, saved MAT-file, project version, and MATLAB version.
+
+\section{Code-reading order}
+
+For a reader studying the implementation line by line:
+
+\begin{enumerate}[leftmargin=*]
+  \item Read \matlabfile{default_module9_transmon_geometry_2d.m} to learn every physical and numerical assumption.
+  \item Read \matlabfile{main_module9_transmon_geometry_2d.m} to see the public workflow and output behavior.
+  \item Read \matlabfile{build_module9_transmon_geometry_2d.m} to see how mesh, tags, and validation are assembled.
+  \item Read \matlabfile{make_module9_transmon_mesh_2d.m} and sketch the node/triangle indexing.
+  \item Read \matlabfile{tag_module9_transmon_mesh_2d.m} to understand edge IDs, overlapping tags, unions, and omissions.
+  \item Read \matlabfile{validate_module9_transmon_geometry_2d.m} and count the 27 invariants.
+  \item Read both plotting functions, keeping display geometry separate from solver geometry.
+  \item Read the master test runner and then each focused test to understand the enforced contract.
+  \item Read \matlabfile{matlab/src/module9_geometry/README.txt} before changing any downstream module.
+\end{enumerate}
+
+\section{Strict follow-on integration plan}
+
+The accepted geometry becomes an upstream shared object. Integration should proceed through explicit gates so that a failure can be assigned to one layer.
+
+\subsection{Gate 1: accept Module 9 geometry}
+
+\begin{itemize}[leftmargin=*]
+  \item Run the full automated suite in MATLAB.
+  \item Run the driver and visually inspect both images.
+  \item Confirm the MAT-file contains mesh, tags, regions, materials, and a passing validation report.
+  \item Preserve the baseline output and test transcript before changing physics code.
+\end{itemize}
+
+\subsection{Gate 2: connect Module 2 FEM}
+
+Preserve every legacy rectangular Module 2 case while adding a geometry selection and a transmon case. Required changes are:
+
+\begin{longtable}{>{\RaggedRight\arraybackslash}p{0.43\textwidth} >{\RaggedRight\arraybackslash}p{0.48\textwidth}}
+\toprule
+\textbf{Existing or new location} & \textbf{Required change} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Existing or new location} & \textbf{Required change} \\
+\midrule
+\endhead
+\matlabfile{default_module2_params.m} & Add legacy-rectangle versus Module 9 geometry selection and tagged-electrode BC settings. \\
+\matlabfile{solve_poisson_defect_space_charge_2d.m} & Accept a supplied mesh/geometry instead of always constructing the old rectangle. \\
+\matlabfile{get_module2_dirichlet_nodes.m} & Consume \texttt{left\_electrode} and \texttt{right\_electrode} tags rather than whole chip sides. \\
+\matlabfile{plot_module2_result_2d.m} & Overlay Module 9 tags and label coordinates $(x,z)$. \\
+\matlabfile{main_module2_electrostatics.m} and \matlabfile{matlab/cases/} & Add a named transmon trapped-charge case without changing existing cases. \\
+\matlabfile{assemble_poisson_fem_2d.m} & Extend scalar permittivity only when nodal or elementwise material coefficients are actually needed. \\
+\matlabfile{matlab/tests/} & Add Module 2-on-Module 9 tests for tag BCs, electrode separation, source sign, field direction, and legacy regression. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Gate 3: first tagged thermal validation}
+
+Use the bond-pad and backside-sink tags in an intentionally simple thermal test:
+\begin{equation}
+\text{bond-pad heat input}
+\longrightarrow
+\text{substrate heat spreading}
+\longrightarrow
+\text{backside thermal sink}.
+\end{equation}
+This is the first clean test of segmented flux/source and sink boundary handling.
+
+\subsection{Gate 4: propagate one shared mesh through Modules 3--6}
+
+Module 3 should accept the external mesh; Module 4 should consume bond-pad and sink tags; Module 5 needs a genuine quasiparticle diffusion--reaction extension rather than relabeling electron--hole transport; and Module 6 should construct the Module 9 object once and pass the same mesh/tags to every participating module.
+
+\subsection{Gate 5: adapt the PINN last}
+
+The present Module 2 PINN assumes a simple rectangle, scalar permittivity, and boundary samples over complete sides. Adapt its sampling, boundary loss, input metadata, and reference data only after the tagged Module 2 FEM path has passed its own tests.
+
+\begin{notebox}
+\textbf{Immediate next task after geometry acceptance.} Connect Module 2 FEM to the shared Module 9 mesh and the named left/right electrode tags while preserving all legacy rectangular tests. Do not begin the PINN conversion at the same time.
+\end{notebox}
+
+\section{Minimal acceptance and handoff checklist}
+
+Before calling Module 9 geometry accepted, record:
+
+\begin{itemize}[leftmargin=*]
+  \item project archive version and exact extracted project path;
+  \item MATLAB version and operating system;
+  \item \texttt{which -all} results for the driver, default parameters, and master test;
+  \item complete master-test transcript showing all focused tests and 27/27 validator checks;
+  \item the two visually reviewed PNG files;
+  \item the summary text file and reusable MAT-file;
+  \item schema string and any parameter deviations from the baseline;
+  \item node/triangle counts and minimum/maximum coordinate spacings;
+  \item explicit confirmation that curved wire arcs were omitted;
+  \item explicit confirmation that JJ edges are excluded from both electrode groups;
+  \item any custom output directory used; and
+  \item the next gate to be attempted, without mixing later gates into the accepted geometry baseline.
+\end{itemize}
+
+\begin{physicsbox}
+\textbf{Final takeaway.} The correct Module 9 procedure is path verification, automated invariant testing, driver execution, visual review of both geometry representations, saved-data inspection, and only then downstream integration. The master test runner is the automated contract; the two figures and MAT-file are the human and solver-facing evidence that completes that contract.
+\end{physicsbox}
+
+\end{document}
