@@ -5,5 +5,6 @@ thisDir = fileparts(thisFile);
 addpath(thisDir);
 addpath(fullfile(thisDir, 'cases'));
 addpath(fullfile(thisDir, 'tests'));
+addpath(fullfile(thisDir, 'pinn'));
 addpath(genpath(fullfile(thisDir, 'src')));
 end

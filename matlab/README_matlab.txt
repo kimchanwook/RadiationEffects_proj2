@@ -30,7 +30,9 @@ Module 2 electrostatics pieces now included:
 
 
 Module 2 PINN pieces now included:
-- standalone MATLAB entry point `main_module2_pinn_electrostatics.m`
+- modular MATLAB entry point `main_module2_pinn_electrostatics.m`
+- six commented functions in `matlab/pinn/` for network construction, loss
+  evaluation, training, prediction, FEM-dataset generation, and verification
 - physics residual for eps_si*(d2phi/dx2 + d2phi/dy2) + rho = 0
 - Dirichlet and natural-Neumann boundary-condition loss terms
 - optional sparse FEM anchor data for stabilization
