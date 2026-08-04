@@ -79,9 +79,28 @@ end
 
 function draw_mesh(ax, mesh, mm)
 % DRAW_MESH Plot all triangular edges in a low-contrast solver view.
-meshHandle = triplot(ax, mesh.elems, mesh.nodes(:, 1) * mm, ...
-    mesh.nodes(:, 2) * mm);
-set(meshHandle, 'Color', [0.78, 0.80, 0.83], 'LineWidth', 0.35);
+%
+% Do not use triplot(ax,tri,x,z) here.  Some MATLAB releases do not accept
+% an axes handle as triplot's first input and consequently pass that handle
+% to triangulation as if it were the connectivity matrix.  The resulting
+% error misleadingly says that argument 1 must be a double matrix even when
+% mesh.elems is already double.  Building the unique edge list explicitly
+% is release-independent and also avoids drawing shared edges twice.
+triangles = double(mesh.elems);
+nodes = double(mesh.nodes);
+edges = [triangles(:, [1, 2]); ...
+         triangles(:, [2, 3]); ...
+         triangles(:, [3, 1])];
+edges = unique(sort(edges, 2), 'rows');
+
+p1 = nodes(edges(:, 1), :) * mm;
+p2 = nodes(edges(:, 2), :) * mm;
+xSegments = [p1(:, 1), p2(:, 1), nan(size(edges, 1), 1)].';
+zSegments = [p1(:, 2), p2(:, 2), nan(size(edges, 1), 1)].';
+
+meshHandle = line('Parent', ax, ...
+    'XData', xSegments(:), 'YData', zSegments(:), ...
+    'Color', [0.78, 0.80, 0.83], 'LineWidth', 0.35);
 grid(ax, 'on');
 box(ax, 'on');
 end
