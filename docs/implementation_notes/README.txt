@@ -6,12 +6,16 @@ verification requirements, data schemas, and staged implementation plans.
 
 Current notes
 -------------
+- module9_transmon_geometry_implementation_note.tex/.pdf: detailed how-to guide
+  for running, testing, visually inspecting, probing, modifying, accepting,
+  and handing the reduced Module 9 geometry to Module 2 FEM.
 - module2_pinn_implementation_note.tex/.pdf: detailed how-to guide for running,
   testing, probing, tuning, and diagnosing the single-case Module 2 PINN with
   optional FEM anchors.
 - module2_fem_implementation_note.tex/.pdf: detailed how-to guide for running,
-  testing, probing, modifying, and diagnosing the Module 2 finite-element
-  electrostatics implementation.
+  testing, probing, modifying, and diagnosing the legacy-rectangle and
+  Module 9 transmon finite-element electrostatics paths, including the
+  factorized multi-configuration FEM dataset pipeline.
 - module2_fem_implementation_note.md: earlier concise Module 2 FEM overview;
   the LaTeX/PDF note above is now the authoritative operational guide.
 - module3_fem_implementation_note.md: finite-element defect diffusion-reaction implementation.

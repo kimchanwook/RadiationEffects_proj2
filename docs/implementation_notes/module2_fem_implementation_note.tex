@@ -61,13 +61,11 @@
 \vspace{0.8em}
 
 \begin{overviewbox}
-\textbf{Purpose and scope.} This is the operational companion to the Module 2 physics note. It documents the MATLAB finite-element method (FEM) implementation of the two-dimensional electrostatic Poisson problem: what to run, which files are called, which parameters control the calculation, what each returned field means, how to execute the verification tests, and how to probe the numerical system when a result is unexpected. It documents only the FEM path beginning at \matlabfile{main_module2_electrostatics.m}. The separate Module 2 physics-informed neural-network (PINN) implementation will receive its own implementation note.
+\textbf{Purpose and scope.} This is the operational companion to the Module 2 physics note. It documents the MATLAB finite-element method (FEM) implementation of the two-dimensional electrostatic Poisson problem on both the original rectangular verification domain and the validated Module 9 transmon substrate mesh. It also documents the factorized multi-configuration FEM dataset path beginning at \matlabfile{main_module2_batch_fem_dataset.m}. It explains what to run, how named electrode tags are consumed, which files are called, what each returned field means, how to execute all legacy, transmon, and batch verification tests, and how to diagnose an unexpected result. The separate PINN guide remains authoritative for the neural-network path.
 \end{overviewbox}
 
 \begin{notebox}
-\textbf{Fastest correct start.} Open MATLAB in the repository's \matlabfile{matlab/} directory, run \texttt{setup\_project\_paths}, and then run
-\texttt{result = main\_module2\_electrostatics('localized\_defect\_charge');}.
-The default driver saves a MAT-file, three PNG figures, and a text summary in \matlabfile{matlab/outputs/module2_2d/}.
+\textbf{Fastest correct start.} Open MATLAB in the repository's \matlabfile{matlab/} directory, run \texttt{setup\_project\_paths}, then run \texttt{test\_module2\_fem\_all\_2d}. After the suite passes, generate the two geometry-aware demonstrations with \texttt{main\_module2\_electrostatics('transmon\_laplace')} and \texttt{main\_module2\_electrostatics('transmon\_trapped\_charge')}. Then generate the conditional-surrogate pilot data with \texttt{[dataset,report] = main\_module2\_batch\_fem\_dataset()}. The batch MAT-file and validation summary are written under \matlabfile{matlab/outputs/module2_batch_fem_2d/}; plots remain disabled by default.
 \end{notebox}
 
 \ProjectTOC
@@ -79,7 +77,7 @@ The default driver saves a MAT-file, three PNG figures, and a text summary in \m
 \begin{symtable}
 FEM & Finite-element method & Galerkin discretization using three-node linear triangular elements. \\
 T3 & Three-node triangle & Linear triangular element with one potential degree of freedom at each vertex. \\
-$\Omega$ & Computational domain & Rectangle $[0,L_x]\times[0,L_y]$. \\
+$\Omega$ & Computational domain & Either the legacy rectangle $[0,L_x]\times[0,L_y]$ or Module 9 substrate $[-1.5,1.5]\,\mathrm{mm}\times[-0.5,0]\,\mathrm{mm}$. \\
 $\phi$ & Electrostatic potential & Primary FEM unknown, stored at mesh nodes in volts. \\
 $\Evec$ & Electric field & Postprocessed as $\Evec=-\nabla\phi$, in volts per meter. \\
 $\rho$ & Space-charge density & Volumetric source in coulombs per cubic meter. \\
@@ -89,6 +87,7 @@ $K$ & Stiffness matrix & Unconstrained sparse global Poisson matrix. \\
 $K_{\mathrm{bc}}$ & Boundary-modified matrix & Matrix after strong Dirichlet constraints are imposed. \\
 $\mathbf{b}$ & Source vector & Assembled right-hand side before boundary modification. \\
 $\phivec$ & Nodal potential vector & Solution of $K_{\mathrm{bc}}\phivec=\mathbf{b}_{\mathrm{bc}}$. \\
+$\bm{\mu}$ & Charge-cloud parameters & $[C_{\mathrm{peak}},x_c,z_c,\sigma_x,\sigma_z]$ for one complete batch configuration. \\
 BC & Boundary condition & Dirichlet potential or natural homogeneous Neumann field condition. \\
 SI & International System of Units & Unit convention used by all Module 2 parameters. \\
 \end{symtable}
@@ -117,14 +116,17 @@ The current path is a \textbf{steady, linear, single-material electrostatic solv
 \subsection{Implemented capabilities}
 
 \begin{itemize}[leftmargin=*]
-  \item Structured rectangular node placement with two counter-clockwise triangles per rectangular cell.
+  \item Legacy structured rectangular meshes and exact reuse of the validated nonuniform Module 9 substrate mesh.
   \item Constant silicon permittivity throughout the domain.
   \item Nodal charge density from electrons, holes, ionized dopants, and one effective Gaussian defect population.
   \item A special uniform-charge source used for analytical verification.
-  \item Strong, constant-valued Dirichlet conditions on any named rectangular side.
+  \item Strong constant-valued Dirichlet conditions on rectangular sides or named Module 9 tags.
   \item Natural homogeneous Neumann conditions on sides that are not Dirichlet.
   \item Sparse global assembly, direct sparse solution with MATLAB's backslash operator, element electric fields, and area-weighted nodal electric fields.
+  \item Explicit free-node residual, fixed-voltage error, and global source/reaction balance diagnostics.
+  \item Transmon field plots with left-electrode, right-electrode, and JJ overlays in $(x,z)$ coordinates.
   \item MAT-file, PNG-figure, and text-summary output through the top-level driver.
+  \item Deterministic 17-configuration pilot dataset with one stiffness assembly, one sparse Cholesky factorization, and complete-case train/validation/test splits.
 \end{itemize}
 
 \subsection{Important current limitations}
@@ -132,17 +134,19 @@ The current path is a \textbf{steady, linear, single-material electrostatic solv
 \begin{itemize}[leftmargin=*]
   \item The implementation does \emph{not} assemble a nonzero Neumann boundary integral. The fields \texttt{params.bc.*.dphidn} are descriptive placeholders for the present zero-flux cases. Changing one to a nonzero value does not change the solution.
   \item Permittivity is supplied as one scalar. Spatially varying or tensor permittivity is not yet supported.
-  \item Dirichlet values are scalar constants per side; a spatially varying contact profile is not accepted by the current boundary collector.
+  \item Dirichlet values are scalar constants per side or named tag; a spatially varying contact profile is not accepted by the current boundary collector.
   \item The default defect source is generated internally. A nodal defect map from Module 3 is not yet an input option in this standalone source builder.
   \item The solver does not solve carrier statistics or trap occupancy self-consistently. It accepts concentrations and an effective defect charge number as prescribed inputs.
-  \item An all-Neumann problem is singular. At least one potential reference constraint is required; the standard cases constrain both left and right sides.
+  \item The thin metal films remain zero-thickness boundary tags. This electrostatic solve does not resolve metal or oxide thickness as bulk elements.
+  \item The JJ tag is a scoring/interface location, not a resolved Josephson constitutive model.
+  \item An all-Neumann problem is singular. The solver now stops explicitly when no Dirichlet nodes are found.
 \end{itemize}
 
 \section{Software requirements and starting location}
 
 \subsection{Required software}
 
-The Module 2 FEM path calls core MATLAB operations only: structures, sparse matrices, the backslash linear solver, basic plotting, file I/O, and path management. It does not call the Deep Learning Toolbox and does not require the Module 2 PINN files. Geant4 is also not required for the four standalone FEM cases.
+The Module 2 FEM path calls core MATLAB operations only: structures, sparse matrices, backslash and sparse Cholesky solves, basic plotting, file I/O, and path management. It does not call the Deep Learning Toolbox and does not require the Module 2 PINN files. Geant4 is also not required for the six standalone FEM cases or the batch dataset generator.
 
 The practical requirements are:
 \begin{itemize}[leftmargin=*]
@@ -194,7 +198,7 @@ This is equivalent to
 result = main_module2_electrostatics('localized_defect_charge');
 \end{lstlisting}
 
-\subsection{Run all four built-in FEM cases}
+\subsection{Run all six built-in FEM cases}
 
 \begin{lstlisting}[style=projectmatlab]
 setup_project_paths
@@ -203,8 +207,25 @@ r0 = main_module2_electrostatics('zero_charge');
 r1 = main_module2_electrostatics('linear_potential');
 r2 = main_module2_electrostatics('uniform_space_charge');
 r3 = main_module2_electrostatics('localized_defect_charge');
+r4 = main_module2_electrostatics('transmon_laplace');
+r5 = main_module2_electrostatics('transmon_trapped_charge');
 \end{lstlisting}
 The same output filenames are overwritten when the same case is rerun. Distinct built-in case names do not overwrite one another because the case name prefixes every generated file.
+
+\subsection{Generate the 17-case Module 9 pilot dataset}
+
+The batch generator is a separate user-facing driver. It does not create one result structure or one set of figures per configuration:
+\begin{lstlisting}[style=projectmatlab]
+setup_project_paths
+test_module2_batch_fem_dataset_2d
+[dataset, report] = main_module2_batch_fem_dataset();
+\end{lstlisting}
+The default call saves one compact MAT-file and one text manifest. It creates no PNGs and opens no figures. To export only four explicitly configured audit cases, opt in deliberately:
+\begin{lstlisting}[style=projectmatlab]
+options = default_module2_batch_fem_options_2d();
+options.makeRepresentativePlots = true;
+[dataset, report] = main_module2_batch_fem_dataset(options);
+\end{lstlisting}
 
 \subsection{Run one case from a system terminal}
 
@@ -241,6 +262,8 @@ In this direct-solver path, \texttt{makePlots} and \texttt{saveMat} are not read
 \matlabfile{linear_potential} & $\rho=0$; left potential $0$ V and right potential $1$ V. & Exact Laplace solution $\phi=x/L_x$ with uniform $E_x=-1/L_x$. This checks mesh assembly, Dirichlet insertion, and field sign. \\
 \matlabfile{uniform_space_charge} & Explicit $\rho_{0}=5.0\times10^{-4}$ C/m$^3$; left and right potentials zero. & Nearly one-dimensional quadratic solution $\phi=\rho_0x(L_x-x)/(2\varepsilon_{\mathrm{Si}})$. This checks the source vector. \\
 \matlabfile{localized_defect_charge} & Positive Gaussian effective defect population centered in the device; grounded left and right contacts. & Finite positive potential perturbation and localized positive charge. This is a physical sanity case, not an exact-solution verification. \\
+\matlabfile{transmon_laplace} & Module 9 mesh; $\rho=0$; $0$ V on \texttt{left\_electrode} and $1$ mV on \texttt{right\_electrode}; all other boundaries natural. & Mixed-boundary Laplace field on the chip cross-section. This verifies named-tag constraints, electrode separation, maximum range, residual, and reaction balance. \\
+\matlabfile{transmon_trapped_charge} & Module 9 mesh; both named electrodes grounded; positive Gaussian defect charge centered $20\,\mu$m below the JJ. & Positive localized potential perturbation on the shared transmon mesh. This tests charge mapping, tagged grounding, residual, and global source/reaction balance. \\
 \bottomrule
 \end{longtable}
 
@@ -263,20 +286,30 @@ is a valid direct-solver route, but it bypasses the driver's automatic saving, p
 \midrule
 \endhead
 \matlabfile{matlab/main_module2_electrostatics.m} & User-facing driver. Selects a built-in case, runs the solver, creates the output directory, saves results, makes plots, writes a summary, and prints scalar diagnostics. \\
+\matlabfile{matlab/main_module2_batch_fem_dataset.m} & User-facing multi-configuration driver. Generates, validates, and saves one Module 9-aware dataset; representative plots are explicit opt-in outputs. \\
 \matlabfile{matlab/setup_project_paths.m} & Adds the driver, cases, tests, PINN directory, and all source subdirectories to the MATLAB path. \\
-\matlabfile{matlab/src/module2_electrostatics/default_module2_params.m} & Defines constants, geometry, mesh density, source parameters, boundary conditions, output controls, and the four supported case modifications. \\
+\matlabfile{matlab/src/module2_electrostatics/default_module2_params.m} & Defines constants, geometry mode, source parameters, side/tag boundary conditions, output controls, and six supported case modifications. \\
 \matlabfile{matlab/src/module2_electrostatics/solve_poisson_defect_space_charge_2d.m} & Numerical orchestrator. Calls mesh generation, charge evaluation, assembly, boundary processing, sparse solve, and field postprocessing. \\
+\matlabfile{matlab/src/module2_electrostatics/resolve_module2_mesh_2d.m} & Selects the legacy rectangle or validates and reuses a supplied Module 9 geometry; synchronizes domain and substrate permittivity metadata. \\
 \matlabfile{matlab/src/module2_electrostatics/make_rectangular_tri_mesh_2d.m} & Creates nodes, counter-clockwise T3 connectivity, coordinate vectors, dimensions, and left/right/top/bottom boundary-node sets. \\
 \matlabfile{matlab/src/module2_electrostatics/build_space_charge_module2_2d.m} & Evaluates the nodal source $\rho$. Uses explicit \texttt{rho\_uniform} when present; otherwise evaluates carriers, dopants, and a Gaussian effective defect population. \\
 \matlabfile{matlab/src/module2_electrostatics/assemble_poisson_fem_2d.m} & Loops over triangles, forms local stiffness and source contributions, scatters them into a sparse global matrix and right-hand side, and stores element areas and centroids. \\
+\matlabfile{matlab/src/module2_electrostatics/assemble_poisson_source_rhs_2d.m} & Reuses stored triangle areas to assemble only the new source vector for each batch configuration. \\
 \matlabfile{matlab/src/module2_electrostatics/compute_element_stiffness_triangle.m} & Calculates signed area, shape-function gradients, and $K_e=\varepsilon A_e(\nabla N)(\nabla N)^T$. Rejects non-positive element orientation. \\
 \matlabfile{matlab/src/module2_electrostatics/compute_element_source_triangle.m} & Calculates the consistent T3 source vector using the triangle mass-like matrix multiplied by the three nodal charge values. \\
-\matlabfile{matlab/src/module2_electrostatics/get_module2_dirichlet_nodes.m} & Collects nodes and scalar values from sides whose type is \texttt{'dirichlet'}. Resolves duplicate corner nodes in side order: left, right, bottom, top. \\
+\matlabfile{matlab/src/module2_electrostatics/get_module2_dirichlet_nodes.m} & Collects nodes and scalar values from rectangle sides and named Module 9 tags. Rejects missing, empty, or mutually conflicting constraints. \\
 \matlabfile{matlab/src/module2_electrostatics/apply_dirichlet_bc.m} & Adjusts the right-hand side for known values, zeros constrained rows and columns, and inserts unit diagonal equations. \\
 \matlabfile{matlab/src/module2_electrostatics/compute_electric_field_from_potential_2d.m} & Computes elementwise $-\nabla\phi$ and area-weighted nodal averages. \\
+\matlabfile{matlab/src/module2_electrostatics/compute_module2_fem_diagnostics_2d.m} & Computes free-node residual, Dirichlet error, constraint reactions, and discrete global source/reaction balance. \\
 \matlabfile{matlab/src/module2_electrostatics/plot_module2_result_2d.m} & Writes potential, space-charge, and electric-field-magnitude PNG figures. \\
 \matlabfile{matlab/src/module2_electrostatics/write_module2_summary.m} & Writes geometry, mesh, material, source, potential, field, and boundary-node scalar values to a text file. \\
-\matlabfile{matlab/cases/case_module2_*.m} & Convenience parameter factories for the four built-in cases. \\
+\matlabfile{matlab/src/module2_electrostatics/default_module2_batch_fem_options_2d.m} & Defines dataset name, design, fixed electrode voltages, output controls, representative cases, and validation tolerances. \\
+\matlabfile{matlab/src/module2_electrostatics/make_module2_batch_parameter_design_2d.m} & Defines the deterministic 17-case Gaussian parameter matrix and complete-case split indices. \\
+\matlabfile{matlab/src/module2_electrostatics/generate_module2_batch_fem_dataset_2d.m} & Builds one operator, performs one sparse Cholesky factorization, solves all source vectors, and returns the compact dataset contract without file I/O or plotting. \\
+\matlabfile{matlab/src/module2_electrostatics/validate_module2_batch_fem_dataset_2d.m} & Checks schema, shapes, finiteness, disjoint complete-case splits, tagged voltages, JJ treatment, residuals, balance, and factorization reuse. \\
+\matlabfile{matlab/src/module2_electrostatics/write_module2_batch_fem_summary.m} & Writes the dataset manifest, split membership, solver counts, and worst diagnostics. \\
+\matlabfile{matlab/src/module2_electrostatics/plot_module2_batch_fem_case_2d.m} & Saves one selected charge/potential audit figure; never called by the numerical generator. \\
+\matlabfile{matlab/cases/case_module2_*.m} & Convenience parameter factories for all six built-in cases. \\
 \matlabfile{matlab/tests/test_module2_*.m} & Standalone FEM verification and sanity tests. PINN and CPINN tests with similar prefixes are outside this note's scope. \\
 \bottomrule
 \end{longtable}
@@ -287,18 +320,44 @@ For \texttt{main\_module2\_electrostatics('localized\_defect\_charge')}, the cal
 \begin{enumerate}[leftmargin=*]
   \item The driver checks the input and supplies \texttt{'localized\_defect\_charge'} when no name is given.
   \item \texttt{default\_module2\_params} creates the complete parameter structure and applies the selected case branch.
-  \item \texttt{solve\_poisson\_defect\_space\_charge\_2d} creates the mesh.
+  \item \texttt{resolve\_module2\_mesh\_2d} creates the legacy rectangle or validates/reuses the Module 9 geometry.
   \item \texttt{build\_space\_charge\_module2\_2d} evaluates one charge value per node.
   \item \texttt{assemble\_poisson\_fem\_2d} forms unconstrained \texttt{K} and \texttt{rhs}.
-  \item \texttt{get\_module2\_dirichlet\_nodes} resolves the constrained node list and potential values.
+  \item \texttt{get\_module2\_dirichlet\_nodes} resolves side- or tag-based constrained nodes and rejects conflicting values.
   \item \texttt{apply\_dirichlet\_bc} forms \texttt{Kbc} and \texttt{rhsbc}.
   \item MATLAB solves \texttt{phi = Kbc \textbackslash{} rhsbc}.
   \item \texttt{compute\_electric\_field\_from\_potential\_2d} computes element and nodal fields.
-  \item The solver returns a \texttt{result} structure containing inputs, matrices, solution, fields, and diagnostics.
+  \item \texttt{compute\_module2\_fem\_diagnostics\_2d} evaluates the unconstrained free-node residual, exact boundary error, and global reaction balance.
+  \item The solver returns a \texttt{result} structure containing inputs, selected geometry, matrices, solution, fields, boundary provenance, and diagnostics.
   \item The driver saves the MAT-file, creates three figures, writes the text summary, and prints a completion report.
 \end{enumerate}
 
 This separation is useful while debugging: call the solver directly to isolate numerical behavior, and call the driver when testing the complete input/output workflow.
+
+\section{Batch FEM dataset contract and execution sequence}
+
+The pilot parameterization is
+\begin{equation}
+\bm{\mu}=\left[C_{\mathrm{peak}},x_c,z_c,\sigma_x,\sigma_z\right],
+\end{equation}
+for one elliptical Gaussian effective-defect cloud. The deterministic design contains a zero control and 16 charged cases spanning amplitude, depth, lateral displacement, and anisotropic width. Its 11 training, three validation, and three test entries are indices of \emph{complete configurations}; nodes from a held-out configuration are never placed in the training set.
+
+The efficient path is:
+\begin{enumerate}[leftmargin=*]
+  \item build and validate one Module 9 geometry;
+  \item resolve the left and right electrode nodes once, with both voltages grounded for this first dataset;
+  \item assemble the silicon stiffness matrix $K$ once and apply the tagged boundary rows and columns once;
+  \item compute one sparse Cholesky factor $K_{\mathrm{bc}}=LL^T$;
+  \item for each row of $\bm{\mu}$, evaluate nodal $\rho$, assemble only the source vector, apply the fixed-value right-hand-side correction, and solve $L\mathbf{y}=\mathbf{b}_{\mathrm{bc}}$ followed by $L^T\phivec=\mathbf{y}$;
+  \item record compact scalar residual, boundary, balance, and range diagnostics;
+  \item validate the aggregate contract and save one MAT-file.
+\end{enumerate}
+
+The saved structure stores \texttt{mesh} and \texttt{tags} once. The matrices \texttt{rho} and \texttt{phi} contain one row per mesh node and one column per complete case. The matrix \texttt{parameters} contains one row per case and five columns; its column names and units are stored separately. The fields \texttt{trainCases}, \texttt{validationCases}, and \texttt{testCases} identify whole columns. The stiffness matrix, Cholesky factor, and full residual vectors are intentionally omitted because the conditional PINN does not need them and they would inflate every saved dataset.
+
+\begin{notebox}
+\textbf{Linearity decision.} The pilot keeps both electrode voltages fixed at zero. For the current linear Poisson equation, nonzero contact-voltage contributions can later be supplied exactly through precomputed Laplace basis solutions and superposition. The first conditional PINN therefore learns the defect-charge response without wasting capacity on a contribution already known analytically.
+\end{notebox}
 
 \section{Parameter reference}
 
@@ -337,6 +396,9 @@ All physical inputs are in SI units unless noted otherwise. The default values b
 \texttt{Ly} & $4\times10^{-6}$ & m & Domain length in $y$. \\
 \texttt{nx} & $41$ & nodes & Number of structured node locations along $x$. Must be at least two. \\
 \texttt{ny} & $21$ & nodes & Number of structured node locations along $y$. Must be at least two. \\
+\texttt{geometryMode} & \texttt{rectangle} & -- & Selects \texttt{rectangle} or \texttt{module9\_transmon}. The transmon cases set this automatically. \\
+\texttt{module9Geometry} & empty & structure & Optional prebuilt geometry. When supplied, Module 2 reuses its node coordinates, connectivity, and tags exactly. \\
+\texttt{coordinateNames} & \texttt{\{x,y\}} & -- & Becomes \texttt{\{x,z\}} for Module 9 cases. \\
 \bottomrule
 \end{longtable}
 The node count is $N= n_xn_y$, and the triangle count is
@@ -344,6 +406,16 @@ The node count is $N= n_xn_y$, and the triangle count is
 N_e=2(n_x-1)(n_y-1).
 \end{equation}
 Increasing \texttt{nx} and \texttt{ny} improves spatial resolution but increases matrix size, assembly time, solution time, and output size.
+
+For \texttt{module9\_transmon}, \texttt{nx} and \texttt{ny} are synchronized from the accepted nonuniform geometry and the legacy rectangular mesh generator is bypassed. To prove exact shared-mesh reuse:
+\begin{lstlisting}[style=projectmatlab]
+shared = build_module9_transmon_geometry_2d();
+p = default_module2_params('transmon_laplace');
+p.module9Geometry = shared;
+r = solve_poisson_defect_space_charge_2d(p);
+assert(isequal(r.mesh.nodes, shared.mesh.nodes))
+assert(isequal(r.mesh.elems, shared.mesh.elems))
+\end{lstlisting}
 
 \subsection{Carrier, dopant, and defect charge}
 
@@ -400,7 +472,7 @@ params.bc.top.dphidn = 0.0;
 \end{lstlisting}
 Only the \texttt{'dirichlet'} branches are explicitly processed. All other sides contribute the natural homogeneous boundary term of the weak form. A nonzero \texttt{dphidn} value is not yet integrated.
 
-Corner nodes can belong to two Dirichlet sides. The collector visits sides in the order left, right, bottom, top and retains the first value encountered for a duplicated node. Avoid incompatible values at a shared corner unless this precedence is intentional.
+For transmon cases, \matlabfile{params.bc.named} points to \matlabfile{electrode.left_electrode} and \matlabfile{electrode.right_electrode}. The collector combines side and named-tag nodes, removes compatible duplicates, and throws an error if the same node receives incompatible voltages. It never applies a boundary condition to \matlabfile{jj_sensitive}.
 
 \subsection{Output controls}
 
@@ -478,6 +550,7 @@ The numerical solver returns a structure with the following top-level fields.
 \endhead
 \texttt{result.params} & Complete parameter structure used for the solve. \\
 \texttt{result.mesh} & Nodes, element connectivity, coordinate vectors, dimensions, domain lengths, and four boundary-node sets. \\
+\texttt{result.geometry} & Validated Module 9 geometry, tags, materials, and schema for transmon cases; empty for legacy rectangles. \\
 \texttt{result.rho} & $N\times1$ nodal charge-density vector. \\
 \texttt{result.K} & Unconstrained sparse stiffness matrix. \\
 \texttt{result.rhs} & Unconstrained assembled source vector. \\
@@ -485,9 +558,11 @@ The numerical solver returns a structure with the following top-level fields.
 \texttt{result.rhsbc} & Boundary-modified right-hand side. \\
 \texttt{result.fixedNodes} & Constrained global node indices. \\
 \texttt{result.fixedValues} & Prescribed potentials corresponding to \texttt{fixedNodes}. \\
+\texttt{result.bcInfo} & Provenance for each side- or named-tag constraint and the final fixed-node count. \\
 \texttt{result.phi} & Solved nodal potential vector. \\
 \texttt{result.field} & Element and nodal electric-field arrays, magnitudes, centroids, and areas. \\
 \texttt{result.elementData} & Element areas and centroids recorded during assembly. \\
+\texttt{result.diagnostics} & Free-node residual, Dirichlet error, constraint reactions, assembled source, and global balance. \\
 \texttt{result.maxAbsPhi} & Maximum absolute nodal potential. \\
 \texttt{result.maxAbsE} & Maximum area-averaged nodal field magnitude. \\
 \bottomrule
@@ -536,6 +611,15 @@ bcError = max(abs(result.phi(result.fixedNodes) - ...
                   result.fixedValues));
 fprintf('Maximum Dirichlet error = %.3e V\n', bcError);
 \end{lstlisting}
+
+The solver computes this quantity and the two conservation diagnostics automatically:
+\begin{lstlisting}[style=projectmatlab]
+result.diagnostics.freeResidualRelative
+result.diagnostics.dirichletErrorInf
+result.diagnostics.globalBalanceRelative
+result.bcInfo.entries
+\end{lstlisting}
+The global check sums the Dirichlet constraint reactions and the assembled volume source. With homogeneous natural boundaries, that sum should be zero to solver tolerance.
 
 \subsection{Matrix structure and conditioning}
 
@@ -587,7 +671,7 @@ For a case named \texttt{<case>}, the default driver writes:
   \item \matlabfile{<case>_summary.txt}: scalar run summary.
 \end{itemize}
 
-The output directory is \matlabfile{matlab/outputs/module2_2d/}. After a run, check:
+Legacy outputs use \matlabfile{matlab/outputs/module2_2d/}; the two transmon cases use \matlabfile{matlab/outputs/module2_transmon_2d/}. Transmon figures use millimetres, label the vertical coordinate $z$, and overlay the two electrode groups plus the JJ-sensitive interval. After a run, check:
 \begin{enumerate}[leftmargin=*]
   \item the summary reports the requested domain and mesh;
   \item the number of nodes is \texttt{nx*ny};
@@ -604,6 +688,23 @@ loaded = load(fullfile('outputs', 'module2_2d', ...
 loaded.result.maxAbsE
 \end{lstlisting}
 
+The batch driver uses \matlabfile{matlab/outputs/module2_batch_fem_2d/} and writes:
+\begin{itemize}[leftmargin=*]
+  \item \matlabfile{module2_transmon_gaussian_batch_v1.mat}: complete dataset structure;
+  \item \matlabfile{module2_transmon_gaussian_batch_summary.txt}: case manifest, split membership, operator reuse counts, and worst diagnostics;
+  \item \matlabfile{<case>_batch_fem_audit.png}: only when representative plotting is explicitly enabled.
+\end{itemize}
+Load and inspect the aggregate contract with:
+\begin{lstlisting}[style=projectmatlab]
+loaded = load(fullfile('outputs', 'module2_batch_fem_2d', ...
+    'module2_transmon_gaussian_batch_v1.mat'));
+size(loaded.dataset.parameters)   % expected: 17 by 5
+size(loaded.dataset.phi)          % expected: nNodes by 17
+loaded.dataset.trainCases
+loaded.dataset.validationCases
+loaded.dataset.testCases
+\end{lstlisting}
+
 \section{Verification tests}
 
 \subsection{Run the FEM-only test suite}
@@ -611,11 +712,13 @@ loaded.result.maxAbsE
 From \matlabfile{matlab/}:
 \begin{lstlisting}[style=projectmatlab]
 setup_project_paths
-test_module2_zero_charge_2d
-test_module2_linear_potential_2d
-test_module2_uniform_space_charge_2d
-test_module2_localized_defect_charge_2d
+test_module2_fem_all_2d
 \end{lstlisting}
+This master runner executes the four legacy tests, the four focused Module 2-on-Module 9 integration tests, and the five-component batch-dataset suite. For a focused diagnosis, use:
+\begin{itemize}[leftmargin=*]
+  \item \matlabfile{test_module2_transmon_integration_2d} for the geometry-aware single-case path;
+  \item \matlabfile{test_module2_batch_fem_dataset_2d} for factorized dataset generation.
+\end{itemize}
 The following similarly named tests validate different code paths and are outside this FEM test group:
 \begin{itemize}[leftmargin=*]
   \item \matlabfile{test_module2_pinn_electrostatics};
@@ -629,7 +732,12 @@ femTests = { ...
     @test_module2_zero_charge_2d, ...
     @test_module2_linear_potential_2d, ...
     @test_module2_uniform_space_charge_2d, ...
-    @test_module2_localized_defect_charge_2d};
+    @test_module2_localized_defect_charge_2d, ...
+    @test_module2_transmon_tagged_bc_2d, ...
+    @test_module2_transmon_trapped_charge_2d, ...
+    @test_module2_transmon_mesh_reuse_2d, ...
+    @test_module2_transmon_boundary_guards_2d, ...
+    @test_module2_batch_fem_dataset_2d};
 
 for k = 1:numel(femTests)
     feval(femTests{k});
@@ -651,6 +759,15 @@ end
 \matlabfile{test_module2_linear_potential_2d} & Maximum nodal error below $10^{-10}$ V & Linear T3 basis reproduces the exact charge-free linear solution. \\
 \matlabfile{test_module2_uniform_space_charge_2d} & Relative maximum potential error below $5\times10^{-3}$ & Source assembly approaches the analytical one-dimensional quadratic solution on the default mesh. \\
 \matlabfile{test_module2_localized_defect_charge_2d} & Finite potential, positive maximum source, and positive maximum potential & Localized positive charge produces a physically plausible response. This is a sanity test, not a convergence proof. \\
+\matlabfile{test_module2_transmon_tagged_bc_2d} & Exact $0/1$ mV tag voltages, disjoint electrodes, bounded potential, residual and balance below $10^{-9}$, and three PNG smoke outputs & Module 2 consumes the named electrode tags without shorting through the JJ and all geometry-aware plot paths execute. \\
+\matlabfile{test_module2_transmon_trapped_charge_2d} & Positive finite response, exact grounded tags, residual and balance below $10^{-9}$ & Localized defect charge is evaluated on the Module 9 mesh and drives the expected sign. \\
+\matlabfile{test_module2_transmon_mesh_reuse_2d} & Node coordinates, connectivity, and electrode edge IDs match exactly & A prebuilt shared Module 9 object is passed through without remeshing or retagging. \\
+\matlabfile{test_module2_transmon_boundary_guards_2d} & Unknown tag and conflicting-voltage error identifiers are caught & Misspelled tags cannot fall back silently, and one node cannot receive incompatible constraints. \\
+\matlabfile{test_module2_batch_dataset_contract_2d} & All aggregate validation checks pass & Dataset shapes, fields, tags, voltages, scalar diagnostics, and public $(x,z)$ parameter naming satisfy the saved contract. \\
+\matlabfile{test_module2_batch_factorization_reuse_2d} & One stiffness assembly, one factorization, and one solve per case & The batch path reuses the operator rather than repeating the expensive setup work. \\
+\matlabfile{test_module2_batch_single_case_equivalence_2d} & Potential agrees with the validated single-case path to relative tolerance $10^{-11}$ & Factorized reuse changes execution strategy without changing the electrostatic solution. \\
+\matlabfile{test_module2_batch_split_integrity_2d} & Splits are disjoint and cover every case once & No configuration-level leakage is introduced before conditional-PINN training. \\
+\matlabfile{test_module2_batch_reproducible_design_2d} & Repeated design construction is identical & The 17-case pilot design is deterministic and auditable. \\
 \bottomrule
 \end{longtable}
 
@@ -659,7 +776,7 @@ Every test calls \texttt{setup\_project\_paths}, disables plots and MAT-file sav
 \subsection{Batch-test command}
 
 \begin{lstlisting}[style=projectshell]
-matlab -batch "cd('C:/path/to/RadiationEffects_proj2/matlab'); setup_project_paths; test_module2_zero_charge_2d; test_module2_linear_potential_2d; test_module2_uniform_space_charge_2d; test_module2_localized_defect_charge_2d;"
+matlab -batch "cd('C:/path/to/RadiationEffects_proj2/matlab'); setup_project_paths; test_module2_fem_all_2d;"
 \end{lstlisting}
 
 \subsection{Mesh-refinement check}
@@ -726,14 +843,14 @@ If edits are not reflected in execution, check \texttt{which -all}, then use \te
 \midrule
 \endhead
 \texttt{Undefined function} for a Module 2 file & Project paths were not added, or MATLAB is in the wrong extracted copy. & Run \texttt{setup\_project\_paths}; inspect \texttt{which ... -all}. \\
-\texttt{Unknown Module 2 case name} & The driver accepts only the four strings in the default-parameter switch. & Use an exact built-in name or call the solver with an overridden parameter structure. \\
+\texttt{Unknown Module 2 case name} & The driver accepts only the six strings in the default-parameter switch. & Use an exact built-in name or call the solver with an overridden parameter structure. \\
 \texttt{Triangle has non-positive area} & Connectivity was changed to clockwise order, or the mesh contains a degenerate element. & Inspect the reported element coordinates and restore counter-clockwise connectivity. \\
 Singular or nearly singular matrix warning & No Dirichlet reference potential, disconnected mesh, or invalid constraints. & Confirm \texttt{fixedNodes} is nonempty and the mesh is connected. \\
 Changing \texttt{dphidn} has no effect & Nonzero Neumann boundary integration is not implemented. & Keep natural flux zero or extend assembly with the correct boundary integral. \\
 Changing defect parameters has no effect & \texttt{rho\_uniform} exists and bypasses the general source calculation. & Remove the field or start from a non-uniform-source case. \\
 NaN or Inf in charge & Zero/invalid Gaussian width or nonfinite input concentration. & Require positive \texttt{Cdef\_sigma\_x/y} and inspect every source field. \\
 Unexpected potential sign & Charge sign, effective defect charge, or field convention was misread. & Inspect \texttt{rho}; remember positive source with grounded contacts gives a positive potential, while $\Evec=-\nabla\phi$. \\
-Unexpected corner potential & Two Dirichlet sides prescribe different values at one corner. & Remove the conflict or account for left/right/bottom/top first-occurrence precedence. \\
+Unexpected corner potential & Two Dirichlet sources prescribe different values at one node. & Make the values compatible; the collector now rejects conflicting constraints explicitly. \\
 No output files after a direct solver call & Saving, plotting, and summary writing are driver responsibilities. & Call the three output functions explicitly or use the top-level driver. \\
 Plot creation fails in a headless environment & Graphics renderer is unavailable even for invisible figures. & Use the direct solver route and omit \texttt{plot\_module2\_result\_2d}; inspect numerical arrays and summaries. \\
 Excessive memory or long solve time & \texttt{nx} and \texttt{ny} create too many nodes/elements for the environment. & Start with the defaults, refine gradually, and monitor \texttt{whos result}. \\
@@ -747,7 +864,7 @@ There are two useful levels of customization.
 
 \subsection{One-off experiment}
 
-Do not edit the parameter factory. Create and override a structure in a script, call the solver, inspect the result, and save it under a unique name. This is the recommended exploratory path because it cannot silently alter the four regression cases.
+Do not edit the parameter factory. Create and override a structure in a script, call the solver, inspect the result, and save it under a unique name. This is the recommended exploratory path because it cannot silently alter the six built-in cases.
 
 \subsection{New named regression or demonstration case}
 
@@ -757,7 +874,7 @@ For a permanent named case:
   \item Set every field that differs from the common defaults.
   \item Optionally add a convenience wrapper in \matlabfile{matlab/cases/}.
   \item Add a test in \matlabfile{matlab/tests/} with a quantitative pass criterion.
-  \item Run all four existing FEM tests to detect regressions.
+  \item Run \texttt{test\_module2\_fem\_all\_2d} to detect legacy or transmon regressions.
   \item Run the new case through the top-level driver and inspect every output.
   \item Document the case name, units, reference solution or expected trend, and limitations.
 \end{enumerate}
@@ -796,7 +913,8 @@ Use the following order when changing the FEM code:
   \item \textbf{Boundary and sign check:} run \texttt{test\_module2\_linear\_potential\_2d}.
   \item \textbf{Source integration check:} run \texttt{test\_module2\_uniform\_space\_charge\_2d}.
   \item \textbf{Localized-source sanity:} run \texttt{test\_module2\_localized\_defect\_charge\_2d}.
-  \item \textbf{Algebraic checks:} inspect residual, symmetry, fixed-node error, and finiteness.
+  \item \textbf{Named-tag integration:} run \texttt{test\_module2\_transmon\_integration\_2d}.
+  \item \textbf{Algebraic checks:} inspect residual, symmetry, fixed-node error, global reaction balance, and finiteness.
   \item \textbf{Mesh refinement:} establish convergence of the reported quantity.
   \item \textbf{Physical scale check:} compare charge, potential, and field magnitudes with an independent estimate.
   \item \textbf{Coupling check:} when importing fields, verify units, interpolation, sign, and total-charge consistency.
@@ -812,17 +930,23 @@ Before sending or presenting a Module 2 FEM result, record:
 \begin{itemize}[leftmargin=*]
   \item repository/archive version and MATLAB version;
   \item case name and any parameter overrides;
+  \item geometry mode and, for transmon cases, Module 9 schema;
   \item $L_x$, $L_y$, \texttt{nx}, and \texttt{ny};
   \item permittivity and every nonzero charge contribution;
-  \item boundary types and values;
+  \item boundary types, named tag sources, and values;
   \item passed tests and mesh-refinement evidence;
-  \item algebraic residual and fixed-boundary error;
+  \item algebraic residual, fixed-boundary error, and global reaction balance;
   \item output filenames and the exact quantity plotted;
+  \item for batch data, parameter design version, complete-case split indices, operator/factorization counts, and worst per-case diagnostics;
   \item known limitations, especially prescribed sources and absent nonzero-Neumann support.
 \end{itemize}
 
-\section{Next implementation note}
+\section{Next development gate}
 
-The next document in this documentation sequence should be a separate \textbf{Module 2 PINN implementation note}. It should cover the PINN driver, the six functions in \matlabfile{matlab/pinn/}, Deep Learning Toolbox requirements, collocation and boundary datasets, loss weights, optimizer options, FEM anchors, prediction, verification figures, test commands, and training diagnostics. Those topics are intentionally not mixed into this FEM note.
+After the complete FEM suite passes, generate the 17-case pilot and inspect its text validation summary:
+\begin{lstlisting}[style=projectmatlab]
+[dataset, report] = main_module2_batch_fem_dataset();
+\end{lstlisting}
+The next coding gate is to adapt the Module 2 PINN to the Module 9 domain and this saved complete-case contract. The PINN must sample the substrate interior and named electrode segments, preserve the JJ as an interface rather than a short, normalize shifted $(x,z)$ coordinates and the five conditional parameters, and use the saved FEM potentials as reference/anchor data. The existing \matlabfile{module2_pinn_implementation_note.pdf} documents the current rectangular single-case PINN and must be revised when that conversion is implemented. Do not scale to hundreds of FEM configurations until this small end-to-end conditional PINN path passes on held-out pilot cases.
 
 \end{document}

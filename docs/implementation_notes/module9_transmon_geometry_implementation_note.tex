@@ -62,7 +62,7 @@
 \vspace{0.8em}
 
 \begin{overviewbox}
-\textbf{Purpose and scope.} This is the operational companion to the Module 9 physics note. It documents the geometry-only MATLAB layer: the code-ready transmon coordinates, the substrate mesh, named surface tags, automated validation, visualization, saved outputs, and the exact test procedure. It does \emph{not} claim that Modules 2--6 or the Module 2 PINN already solve physics on this geometry. Those integrations are deliberately gated follow-on tasks.
+\textbf{Purpose and scope.} This is the operational companion to the Module 9 physics note. It documents the geometry-owning MATLAB layer: the code-ready transmon coordinates, substrate mesh, named surface tags, automated validation, visualization, saved outputs, and exact test procedure. Module 2 FEM and its factorized multi-configuration dataset generator now consume this accepted geometry and its named electrode tags. Modules 3--6 and the Module 2 PINN remain deliberately gated follow-on integrations.
 \end{overviewbox}
 
 \begin{notebox}
@@ -99,6 +99,8 @@ Module 9 currently supplies a reusable geometry description rather than a new fi
   \item validates the dimensions and topology, then creates a schematic view and a solver-facing mesh/tag view.
 \end{enumerate}
 
+The geometry layer remains independent of the physics assembly. The Module 2 FEM integration calls \matlabfile{resolve_module2_mesh_2d.m}, validates this object, and reuses \texttt{geom.mesh} and \texttt{geom.tags} without changing them.
+
 The implementation follows the corrected, code-ready convention in \matlabfile{docs/physics_notes/module9_transmon_geometry_microwave_package_fem_domains.pdf}. The large pads, junction leads, and JJ-sensitive interval form one geometrically connected centerline chain. The left and right solver electrode groups nevertheless remain disjoint because the JJ is excluded from both groups.
 
 \subsection{What is intentionally not implemented}
@@ -106,9 +108,9 @@ The implementation follows the corrected, code-ready convention in \matlabfile{d
 \begin{itemize}[leftmargin=*]
   \item The curved wire-bond arcs are not mesh regions or tags. Their future electrical or thermal effects must enter at the bond-pad tags through a flux, source, Robin condition, or lumped link.
   \item The $100\,\mathrm{nm}$ aluminum, $80\,\mathrm{nm}$ trap, and $1\,\mathrm{\mu m}$ backside patch are not resolved as bulk elements. Their physical thicknesses are metadata attached to surface regions.
-  \item No electrostatic, thermal, defect, carrier, or coupled solve is called by the Module 9 driver.
+  \item No electrostatic, thermal, defect, carrier, or coupled solve is called by the Module 9 driver itself. Module 2 FEM is invoked separately through its own driver.
   \item The present code does not use MATLAB PDE Toolbox. It constructs the nodes, triangles, boundary edges, and tags directly with core MATLAB operations.
-  \item There is no visual regression test. A person must inspect the two generated figures.
+  \item There is no image-comparison visual regression test. A plotting smoke test checks that both figure paths execute, but a person must still inspect the two generated figures.
 \end{itemize}
 
 \begin{physicsbox}
@@ -129,7 +131,7 @@ The implementation follows the corrected, code-ready convention in \matlabfile{d
 \midrule
 \endhead
 \matlabfile{matlab/main_module9_transmon_geometry_2d.m} & Main driver. Builds the geometry, throws on failed validation, makes the output directory, optionally generates two figures, saves a MAT-file and summary text, and returns the complete result. \\
-\matlabfile{matlab/tests/test_module9_transmon_geometry_2d.m} & Master Module 9 test runner. Calls the four focused regression tests in a fixed order. This is the normal test command. \\
+\matlabfile{matlab/tests/test_module9_transmon_geometry_2d.m} & Master Module 9 test runner. Calls the five focused regression tests in a fixed order. This is the normal test command. \\
 \bottomrule
 \end{longtable}
 
@@ -164,8 +166,9 @@ The master test runner calls:
 \begin{enumerate}[leftmargin=*]
   \item \matlabfile{test_module9_geometry_dimensions_2d.m};
   \item \matlabfile{test_module9_geometry_connectivity_2d.m};
-  \item \matlabfile{test_module9_geometry_tags_2d.m}; and
-  \item \matlabfile{test_module9_geometry_no_wire_arc_2d.m}.
+  \item \matlabfile{test_module9_geometry_tags_2d.m};
+  \item \matlabfile{test_module9_geometry_no_wire_arc_2d.m}; and
+  \item \matlabfile{test_module9_geometry_plotting_2d.m}.
 \end{enumerate}
 
 \subsection{Execution flow}
@@ -412,6 +415,7 @@ Use this order for a fresh project copy:
   \item Run the driver with figures enabled.
   \item Inspect the Command Window validation count.
   \item Inspect both PNG files manually.
+  \pagebreak[3]
   \item Open the summary text and load the MAT-file.
   \item Perform the direct probes in this note before modifying coordinates.
 \end{enumerate}
@@ -432,6 +436,7 @@ test_module9_geometry_dimensions_2d passed.
 test_module9_geometry_connectivity_2d passed.
 test_module9_geometry_tags_2d passed: 27 checks validated.
 test_module9_geometry_no_wire_arc_2d passed.
+test_module9_geometry_plotting_2d passed.
 All Module 9 reduced-geometry tests passed.
 \end{lstlisting}
 
@@ -501,6 +506,10 @@ This test proves interval contact or overlap in the reduced centerline geometry.
 \subsection{No-wire-arc test}
 
 \matlabfile{test_module9_geometry_no_wire_arc_2d.m} makes the model reduction executable rather than merely descriptive. It requires the include flag to be false, the omission tag to report no wire arc, no wire-arc region field to exist, both bond-pad tags to remain nonempty, and the replacement description to refer to a boundary/lumped representation.
+
+\subsection{Plotting smoke test}
+
+\matlabfile{test_module9_geometry_plotting_2d.m} builds both figures with \texttt{figureVisible='off'}, verifies that each plotting function returns a valid figure handle, and confirms that the mesh/tag figure contains line objects. It specifically protects against graphics-API compatibility failures in the solver-mesh drawing path. It does not export PNG files and does not judge labels, colors, placement, clipping, or visual correctness; manual inspection remains required.
 
 \subsection{The 27 aggregate validator checks}
 
@@ -603,7 +612,7 @@ disp(fieldnames(geometry.tags))
 disp(geometry.tags.electrode)
 \end{lstlisting}
 
-The MAT-file intentionally excludes graphics handles. It is the object a future Module 2--6 integration should load or receive directly.
+The MAT-file intentionally excludes graphics handles. It can be loaded and assigned to \matlabfile{params.module9Geometry} for exact Module 2 mesh reuse. Future Modules 3--6 should consume the same object rather than reconstructing independent meshes.
 
 \section{Independent probes before trusting or modifying the geometry}
 
@@ -751,11 +760,12 @@ Electrode tags overlap & The JJ was accidentally included in both electrode unio
 Trap containment fails & The normal-trap interval extends off the right pad or toward the left electrode. Restore containment before using the geometry. \\
 No-wire test fails & A curved wire was added as a region/tag, the omission flag changed, or the bond-pad replacement locations disappeared. Revisit the deliberate reduced-wiring model. \\
 No PNG files & Check \texttt{makePlots}, \texttt{saveFigures}, output-directory permissions, and graphics availability. Remember that \texttt{out.files} paths exist even when saving is disabled. \\
+\texttt{triangulation} says input 1 must be double & In version (13), an axes-first \texttt{triplot} call could be misparsed by some MATLAB releases. Version (14) draws unique mesh edges explicitly and does not call \texttt{triplot}. Confirm \texttt{which plot\_module9\_transmon\_mesh\_tags\_2d -all} resolves to the corrected project, then rerun the plotting smoke test. \\
 Figures open but look vertically thick & Expected in the schematic. Use the mesh/tag figure for solver truth; do not interpret schematic height quantitatively. \\
 JJ invisible in full-chip panel & Expected at true scale. Inspect the lower zoom panel or query \texttt{tags.top.jj\_sensitive}. \\
 Summary or MAT missing & Check \texttt{saveSummary} and \texttt{saveMat}; verify with \texttt{isfile}; confirm the driver reached output writing after validation. \\
 Output was overwritten & The same output directory and deterministic filenames were reused. Assign a unique \texttt{params.outputDir}. \\
-Tests pass but a plot is wrong & The tests do not compare images. Treat manual visual inspection as a separate acceptance gate and diagnose the relevant plotting function. \\
+Tests pass but a plot is wrong & The plotting smoke test checks execution, not image content. Treat manual visual inspection as a separate acceptance gate and diagnose the relevant plotting function. \\
 \bottomrule
 \end{longtable}
 
@@ -805,30 +815,53 @@ The accepted geometry becomes an upstream shared object. Integration should proc
   \item Preserve the baseline output and test transcript before changing physics code.
 \end{itemize}
 
-\subsection{Gate 2: connect Module 2 FEM}
+\subsection{Gate 2: connect Module 2 FEM --- implemented}
 
-Preserve every legacy rectangular Module 2 case while adding a geometry selection and a transmon case. Required changes are:
+The implementation preserves every legacy rectangular Module 2 case and adds two transmon cases. The completed changes are:
 
 \begin{longtable}{>{\RaggedRight\arraybackslash}p{0.43\textwidth} >{\RaggedRight\arraybackslash}p{0.48\textwidth}}
 \toprule
-\textbf{Existing or new location} & \textbf{Required change} \\
+\textbf{Existing or new location} & \textbf{Implemented change} \\
 \midrule
 \endfirsthead
 \toprule
-\textbf{Existing or new location} & \textbf{Required change} \\
+\textbf{Existing or new location} & \textbf{Implemented change} \\
 \midrule
 \endhead
-\matlabfile{default_module2_params.m} & Add legacy-rectangle versus Module 9 geometry selection and tagged-electrode BC settings. \\
-\matlabfile{solve_poisson_defect_space_charge_2d.m} & Accept a supplied mesh/geometry instead of always constructing the old rectangle. \\
-\matlabfile{get_module2_dirichlet_nodes.m} & Consume \texttt{left\_electrode} and \texttt{right\_electrode} tags rather than whole chip sides. \\
-\matlabfile{plot_module2_result_2d.m} & Overlay Module 9 tags and label coordinates $(x,z)$. \\
-\matlabfile{main_module2_electrostatics.m} and \matlabfile{matlab/cases/} & Add a named transmon trapped-charge case without changing existing cases. \\
-\matlabfile{assemble_poisson_fem_2d.m} & Extend scalar permittivity only when nodal or elementwise material coefficients are actually needed. \\
-\matlabfile{matlab/tests/} & Add Module 2-on-Module 9 tests for tag BCs, electrode separation, source sign, field direction, and legacy regression. \\
+\matlabfile{default_module2_params.m} & Selects legacy rectangle versus Module 9 geometry and defines named-electrode BC settings. \\
+\matlabfile{resolve_module2_mesh_2d.m} & Builds or accepts a supplied Module 9 object, validates it, and synchronizes domain/material metadata. \\
+\matlabfile{solve_poisson_defect_space_charge_2d.m} & Consumes the resolved geometry and returns it with the FEM solution. \\
+\matlabfile{get_module2_dirichlet_nodes.m} & Consumes \texttt{left\_electrode} and \texttt{right\_electrode}; rejects missing, empty, or conflicting tags. \\
+\matlabfile{plot_module2_result_2d.m} & Overlays Module 9 tags and labels coordinates $(x,z)$ in millimetres. \\
+\matlabfile{main_module2_electrostatics.m} and \matlabfile{matlab/cases/} & Add \texttt{transmon\_laplace} and \texttt{transmon\_trapped\_charge}. \\
+\matlabfile{compute_module2_fem_diagnostics_2d.m} & Reports free-node residual, exact tagged-voltage error, and global source/reaction balance. \\
+\matlabfile{matlab/tests/} & Adds named-BC, trapped-charge, exact shared-mesh reuse, and legacy-plus-transmon master tests. \\
 \bottomrule
 \end{longtable}
 
-\subsection{Gate 3: first tagged thermal validation}
+Accept this gate locally with:
+\begin{lstlisting}[style=projectmatlab]
+setup_project_paths
+test_module2_fem_all_2d
+laplace = main_module2_electrostatics('transmon_laplace');
+trapped = main_module2_electrostatics('transmon_trapped_charge');
+\end{lstlisting}
+Inspect all six PNGs in \matlabfile{outputs/module2_transmon_2d/}. The colored top-surface overlays must coincide with the intended left electrode, JJ, and right electrode, and both text summaries must report small residual and balance diagnostics.
+
+\subsection{Gate 3: build the complete-case FEM dataset --- implemented}
+
+The batch path now defines a deterministic 17-configuration pilot design for
+$[C_{\mathrm{peak}},x_c,z_c,\sigma_x,\sigma_z]$. It reuses one Module 9 mesh, one tagged-boundary stiffness matrix, and one sparse Cholesky factorization. The saved MAT-file stores the mesh and tags once, stores charge and potential by complete case, and records disjoint training, validation, and test case indices.
+
+\begin{notebox}
+\textbf{Accept this gate before PINN work.} Run \texttt{test\_module2\_batch\_fem\_dataset\_2d}, then \texttt{[dataset,report] = main\_module2\_batch\_fem\_dataset()}. Confirm that every aggregate check passes and that the summary reports one stiffness assembly, one factorization, 17 solves, and disjoint complete-case splits. Routine plots remain disabled.
+\end{notebox}
+
+\subsection{Gate 4: adapt the Module 2 PINN after dataset acceptance}
+
+The present Module 2 PINN assumes a simple rectangle, scalar permittivity, and boundary samples over complete sides. Adapt its sampling, boundary loss, shifted $(x,z)$ normalization, five conditional parameters, and reference-data loader to the accepted batch contract. Preserve the JJ as an interface rather than a short, split only by complete charge configuration, and keep the rectangular PINN regression operational. Do not scale to hundreds of FEM cases until the 17-case end-to-end path passes.
+
+\subsection{Gate 5: first tagged thermal validation}
 
 Use the bond-pad and backside-sink tags in an intentionally simple thermal test:
 \begin{equation}
@@ -840,17 +873,9 @@ Use the bond-pad and backside-sink tags in an intentionally simple thermal test:
 \end{equation}
 This is the first clean test of segmented flux/source and sink boundary handling.
 
-\subsection{Gate 4: propagate one shared mesh through Modules 3--6}
+\subsection{Gate 6: propagate one shared mesh through Modules 3--6}
 
 Module 3 should accept the external mesh; Module 4 should consume bond-pad and sink tags; Module 5 needs a genuine quasiparticle diffusion--reaction extension rather than relabeling electron--hole transport; and Module 6 should construct the Module 9 object once and pass the same mesh/tags to every participating module.
-
-\subsection{Gate 5: adapt the PINN last}
-
-The present Module 2 PINN assumes a simple rectangle, scalar permittivity, and boundary samples over complete sides. Adapt its sampling, boundary loss, input metadata, and reference data only after the tagged Module 2 FEM path has passed its own tests.
-
-\begin{notebox}
-\textbf{Immediate next task after geometry acceptance.} Connect Module 2 FEM to the shared Module 9 mesh and the named left/right electrode tags while preserving all legacy rectangular tests. Do not begin the PINN conversion at the same time.
-\end{notebox}
 
 \section{Minimal acceptance and handoff checklist}
 
