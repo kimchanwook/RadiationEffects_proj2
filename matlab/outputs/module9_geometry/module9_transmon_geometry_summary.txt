@@ -1,0 +1,67 @@
+Module 9 reduced 2D transmon geometry summary
+================================================
+
+Schema: module9_transmon_geometry_2d_v1
+All stored geometry lengths use SI metres.
+
+Substrate x range: [-0.0015, 0.0015] m
+Substrate z range: [-0.0005, 0] m
+Substrate area: 1.5e-06 m^2 (1.5 mm^2)
+Al thickness: 1e-07 m
+Trap thickness: 8e-08 m
+Backside-sink effective thickness: 1e-06 m
+
+Named regions and surface intervals
+- left_pad           x=[-0.00063,-3e-05] m; z=[+0,+1e-07] m; side=top; material=aluminum
+- right_pad          x=[+3e-05,+0.00063] m; z=[+0,+1e-07] m; side=top; material=aluminum
+- left_lead          x=[-4.05e-05,-5e-07] m; z=[+0,+1e-07] m; side=top; material=aluminum
+- right_lead         x=[+5e-07,+4.05e-05] m; z=[+0,+1e-07] m; side=top; material=aluminum
+- jj_sensitive       x=[-5e-07,+5e-07] m; z=[+0,+1e-07] m; side=top; material=effective_josephson_junction
+- normal_trap        x=[+0.00045,+0.00055] m; z=[+1e-07,+1.8e-07] m; side=top; material=normal_metal_trap
+- left_bond_pad      x=[-0.00148,-0.0014] m; z=[+0,+1e-07] m; side=top; material=aluminum
+- right_bond_pad     x=[+0.0014,+0.00148] m; z=[+0,+1e-07] m; side=top; material=aluminum
+- backside_sink      x=[-0.00015,+0.00015] m; z=[-0.0005,-0.000499] m; side=bottom; material=backside_cu_au_sink
+
+Mesh
+- nodes: 11970
+- triangles: 23236
+- x coordinates: 315
+- z coordinates: 38
+
+Validation
+- passed: true
+- checks: 27/27 passed
+  [PASS] substrate_width
+  [PASS] substrate_thickness
+  [PASS] substrate_area
+  [PASS] all_required_x_coordinates_present
+  [PASS] positive_triangle_areas
+  [PASS] left_pad_touches_left_lead
+  [PASS] left_lead_touches_jj
+  [PASS] jj_touches_right_lead
+  [PASS] right_lead_touches_right_pad
+  [PASS] trap_contained_in_right_pad
+  [PASS] trap_does_not_bridge_electrodes
+  [PASS] left_pad_tag_length
+  [PASS] right_pad_tag_length
+  [PASS] left_lead_tag_length
+  [PASS] jj_tag_length
+  [PASS] right_lead_tag_length
+  [PASS] normal_trap_tag_length
+  [PASS] left_bond_pad_tag_length
+  [PASS] right_bond_pad_tag_length
+  [PASS] backside_sink_tag_length
+  [PASS] pad_gap_width
+  [PASS] jj_width
+  [PASS] backside_sink_width
+  [PASS] bond_pad_widths
+  [PASS] thin_film_z_ranges_stored
+  [PASS] curved_wire_arcs_omitted
+  [PASS] tag_edge_ids_valid
+
+Modeling decisions
+- Substrate is the only bulk FEM domain.
+- Nanometre metal stacks are tagged surface segments.
+- JJ is a sensitive interface, not an imposed electrical short.
+- Curved bond-wire arcs are not meshed.
+- Wire effects enter later at left_bond_pad/right_bond_pad tags.

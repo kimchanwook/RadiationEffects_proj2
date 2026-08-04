@@ -1,0 +1,21 @@
+Module 2 electrostatics FEM summary
+===================================
+Case: transmon_trapped_charge
+Geometry mode: module9_transmon
+Domain coordinate 1: [-1.500000e-03, 1.500000e-03] m
+Domain coordinate 2: [-5.000000e-04, 0.000000e+00] m
+Mesh: nx = 315, ny/nz = 38, nodes = 11970, triangles = 23236
+eps_si = 1.035940e-10 F/m
+rho min/max = 0.000000e+00 / 3.203712e-03 C/m^3
+phi min/max = 0.000000e+00 / 7.349064e-03 V
+|E| max = 4.383882e+02 V/m
+Dirichlet nodes: 139
+Free-node residual (relative): 2.484962e-16
+Dirichlet error (infinity norm): 0.000000e+00 V
+Global source/reaction balance (relative): 0.000000e+00
+Module 9 schema: module9_transmon_geometry_2d_v1
+Substrate material: high_resistivity_silicon
+Named Dirichlet entries:
+  - tag.electrode.left_electrode: 0.000000e+00 V on 69 nodes
+  - tag.electrode.right_electrode: 0.000000e+00 V on 70 nodes
+JJ treatment: scoring/interface tag; not a Dirichlet short.
