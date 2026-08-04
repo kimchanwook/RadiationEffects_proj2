@@ -5,5 +5,6 @@ test_module9_geometry_dimensions_2d;
 test_module9_geometry_connectivity_2d;
 test_module9_geometry_tags_2d;
 test_module9_geometry_no_wire_arc_2d;
+test_module9_geometry_plotting_2d;
 fprintf('All Module 9 reduced-geometry tests passed.\n');
 end
