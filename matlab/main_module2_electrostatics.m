@@ -9,6 +9,8 @@ function result = main_module2_electrostatics(caseName)
 %   Example:
 %       setup_project_paths
 %       result = main_module2_electrostatics('localized_defect_charge');
+%       laplace = main_module2_electrostatics('transmon_laplace');
+%       trapped = main_module2_electrostatics('transmon_trapped_charge');
 
 if nargin < 1 || isempty(caseName)
     caseName = 'localized_defect_charge';
@@ -36,5 +38,10 @@ fprintf('  nodes      : %d\n', size(result.mesh.nodes,1));
 fprintf('  triangles  : %d\n', size(result.mesh.elems,1));
 fprintf('  phi range  : [%.4e, %.4e] V\n', min(result.phi), max(result.phi));
 fprintf('  max |E|    : %.4e V/m\n', result.maxAbsE);
+fprintf('  geometry   : %s\n', result.params.geometryMode);
+fprintf('  free resid : %.4e (relative)\n', ...
+    result.diagnostics.freeResidualRelative);
+fprintf('  balance    : %.4e (relative)\n', ...
+    result.diagnostics.globalBalanceRelative);
 fprintf('  output dir : %s\n', outputDir);
 end

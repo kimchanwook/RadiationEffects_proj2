@@ -8,9 +8,12 @@ Tool split
 
 Current implementation status
 -----------------------------
-This package now includes nine working code paths:
+This package now includes ten working code paths:
 
-1. Module 2: first 2D finite-element electrostatic Poisson implementation
+1. Module 2: 2D finite-element electrostatic Poisson implementation on both
+   the legacy rectangle and the shared Module 9 transmon substrate mesh
+1a. Module 2 batch FEM: factorized multi-configuration dataset generation on
+   the shared Module 9 mesh
 1b. Module 2 PINN: standalone physics-inspired neural-network Poisson surrogate demo
 2. Module 3: first 2D defect evolution implementation plus a linear-triangle FEM defect diffusion-reaction path
 2b. Module 3 causal PINN: physical-time causal training for the same diffusion-reaction initial-value problem
@@ -23,11 +26,29 @@ This package now includes nine working code paths:
 
 Module 2 electrostatics pieces now included:
 - structured rectangular triangular mesh generation
+- validated Module 9 nonuniform substrate-mesh injection and exact mesh reuse
 - linear triangular finite-element assembly for the 2D Poisson equation
 - defect-dependent space-charge evaluation from effective charged defects
 - strong Dirichlet boundary-condition insertion and natural zero-Neumann edges
+- named left/right transmon-electrode conditions with the JJ kept separate
 - electric-field postprocessing from the solved electrostatic potential
-- verification cases for zero charge, linear Laplace solution, uniform space charge, and localized defect charge
+- free-node residual, fixed-voltage error, and global source/reaction balance
+- verification cases for zero charge, linear Laplace solution, uniform space
+  charge, localized defect charge, tagged transmon Laplace, and transmon
+  trapped charge
+
+
+Module 2 batch FEM pieces now included:
+- deterministic 17-case pilot design for one elliptical Gaussian charge cloud
+- public conditional parameters [C_peak, x_c, z_c, sigma_x, sigma_z]
+- one validated Module 9 mesh reused for every complete configuration
+- one stiffness assembly and one sparse Cholesky factorization per batch
+- per-case source-vector assembly and factorized triangular solves
+- compact MAT contract with mesh/tags stored once and rho/phi stored by case
+- disjoint train, validation, and test indices assigned by whole configuration
+- scalar residual, tagged-voltage, and global-balance diagnostics per case
+- no routine plotting, with explicit opt-in representative audit plots
+- regression against the existing single-case transmon trapped-charge solver
 
 
 Module 2 PINN pieces now included:
@@ -95,8 +116,9 @@ Module 9 reduced-geometry pieces now included:
 - separate left/right electrode groups so the JJ-sensitive interface is not an electrical short
 - explicit omission of curved wire-bond arcs, with bond pads retained for later boundary conditions
 - presentation schematic with exaggerated film heights and true solver mesh/tag visualization
-- dimension, connectivity, tag-length, and no-wire-arc validation tests
-- no changes yet to Modules 2-6, Module 2 PINN, or the coupled solvers
+- dimension, connectivity, tag-length, no-wire-arc, and plotting smoke tests
+- consumed by Module 2 FEM; no changes yet to Modules 3-6, Module 2 PINN, or
+  the coupled solver
 
 Legacy Module 4a baseline pieces retained:
 - explicit transient heat-equation stepping for a single temperature field
@@ -107,63 +129,30 @@ Recommended run order
 ---------------------
 The setup script now also adds the `tests` folder to the MATLAB path, so test functions can be called by name from the MATLAB project root.
 
-1. `setup_project_paths`
-2. `main_module2_electrostatics('localized_defect_charge')`
-3. `main_module2_electrostatics('linear_potential')`
-4. `main_module2_electrostatics('uniform_space_charge')`
-5. `main_module2_pinn_electrostatics('localized_defect_charge')`
-6. `main_module3_2d_defect_evolution('gaussian_diffusion')`
-7. `main_module3_2d_defect_evolution('pure_annealing')`
-8. `main_module3_fem_defect_evolution('gaussian_diffusion')`
-9. `main_module3_fem_defect_evolution('pure_annealing')`
-10. `main_module3_CPINN_Defect_Evolution('pure_annealing')`
-11. `main_module4_2d_ballistic_diffusive_thermal('uniform_equilibrium')`
-12. `main_module4_2d_ballistic_diffusive_thermal('localized_pulse')`
-13. `main_module4_2d_ballistic_diffusive_thermal('boundary_heating')`
-14. `main_module4_fem_ballistic_diffusive_thermal('uniform_equilibrium')`
-15. `main_module4_fem_ballistic_diffusive_thermal('gaussian_diffusion')`
-16. `main_module4_fem_ballistic_diffusive_thermal('uniform_source')`
-17. `main_module5_drift_diffusion('uniform_no_field')`
-18. `main_module5_drift_diffusion('lifetime_recombination')`
-19. `main_module5_drift_diffusion('gaussian_diffusion')`
-20. `main_module5_drift_diffusion('field_drift')`
-21. `main_module6_multiphysics('smoke')`
-22. `main_module6_multiphysics('defect_field_coupling')`
-23. `main_module6_multiphysics('thermal_feedback')`
-24. `main_module9_transmon_geometry_2d`
-25. `main_module4a_2d_continuum_thermal('uniform_equilibrium')`  % archived Fourier baseline
-26. `test_module2_zero_charge_2d`
-27. `test_module2_linear_potential_2d`
-28. `test_module2_uniform_space_charge_2d`
-29. `test_module2_localized_defect_charge_2d`
-30. `test_module2_pinn_electrostatics`
-31. `test_module3_gaussian_diffusion_2d`
-32. `test_module3_pure_annealing_2d`
-33. `test_module3_fem_gaussian_diffusion_2d`
-34. `test_module3_fem_pure_annealing_2d`
-35. `test_module3_fem_uniform_state_2d`
-36. `test_module3_cpinn_pure_annealing`
-37. `test_module4_bd_uniform_equilibrium_2d`
-38. `test_module4_bd_localized_pulse_2d`
-39. `test_module4_bd_boundary_heating_2d`
-40. `test_module4_fem_uniform_equilibrium_2d`
-41. `test_module4_fem_gaussian_diffusion_2d`
-42. `test_module4_fem_uniform_source_2d`
-43. `test_module5_fem_uniform_no_field_2d`
-44. `test_module5_fem_lifetime_recombination_2d`
-45. `test_module5_fem_gaussian_diffusion_2d`
-46. `test_module5_fem_field_drift_sign_2d`
-47. `test_module6_fem_smoke_2d`
-48. `test_module6_fem_charge_consistency_2d`
-49. `test_module9_transmon_geometry_2d`
-50. `test_module4a_uniform_equilibrium_2d`
-51. `test_module4a_hotspot_diffusion_2d`
-52. `test_module4a_steady_source_2d`
+Start every session with `setup_project_paths`. For the newly integrated path,
+run these commands first:
+
+- `test_module9_transmon_geometry_2d`
+- `test_module2_fem_all_2d`
+- `main_module2_electrostatics('transmon_laplace')`
+- `main_module2_electrostatics('transmon_trapped_charge')`
+- `test_module2_batch_fem_dataset_2d`
+- `[dataset, report] = main_module2_batch_fem_dataset()`
+
+The legacy Module 2 cases remain available as `zero_charge`,
+`linear_potential`, `uniform_space_charge`, and `localized_defect_charge`.
+The PINN entry point remains `main_module2_pinn_electrostatics`; it has not yet
+been adapted to Module 9. Module 3-6, Module 4a, and their existing tests keep
+the same commands documented in their module-specific implementation notes.
 
 Outputs written automatically
 -----------------------------
 Module 2 outputs:
 - `matlab/outputs/module2_2d/`
+- `matlab/outputs/module2_transmon_2d/`
+
+Module 2 batch FEM outputs:
+- `matlab/outputs/module2_batch_fem_2d/`
 
 Module 2 PINN outputs:
 - `matlab/outputs/module2_pinn_2d/`
@@ -196,6 +185,8 @@ Generated files include:
 - `*_potential.png` (Module 2)
 - `*_space_charge.png` (Module 2)
 - `*_electric_field_magnitude.png` (Module 2)
+- `module2_transmon_gaussian_batch_v1.mat` (Module 2 batch FEM)
+- `module2_transmon_gaussian_batch_summary.txt` (Module 2 batch FEM)
 - `*_pinn_potential.png` (Module 2 PINN)
 - `*_pinn_abs_potential_error.png` (Module 2 PINN)
 - `*_pinn_pde_residual.png` (Module 2 PINN)
@@ -230,11 +221,16 @@ The current Module 2 solver is steady-state linear finite-element assembly. The 
 
 Near-term next steps
 --------------------
-- run `main_module9_transmon_geometry_2d` and `test_module9_transmon_geometry_2d` in MATLAB
-- connect Module 2 to the Module 9 mesh and named electrode tags without changing the legacy rectangle cases
+- run `test_module2_batch_fem_dataset_2d` and generate the 17-case pilot MAT
+  file in MATLAB
+- inspect the validation report and optionally export only the configured
+  representative audit plots
+- adapt the Module 2 PINN to named Module 9 boundary segments and consume the
+  validated complete-case batch dataset
+- scale to hundreds of FEM configurations only after the small conditional
+  PINN path passes on the pilot dataset
 - after Module 2 FEM validation, add the bond-pad heating to backside-sink thermal test in Module 4
 - pass one shared Module 9 mesh/tags structure through Modules 3-6
-- adapt the Module 2 PINN only after the tagged FEM chain is stable
 - run the Module 3 causal-PINN regression test and the Module 3, Module 4, Module 5, and Module 6 FEM verification tests in MATLAB
 - compare Module 4 FEM results against the structured-grid ballistic-diffusive path and archived Fourier baseline
 - couple Module 4 FEM temperature output into Module 3 and Module 5 coefficient updates
