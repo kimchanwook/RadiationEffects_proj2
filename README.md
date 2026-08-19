@@ -13,7 +13,7 @@ This repository builds a physics-based framework linking radiation energy deposi
 ## Module architecture
 
 - Module 1 - interaction-resolved Geant4 radiation deposition campaign in both the original silicon target and a separate full 3D transmon-chip/package geometry
-- Module 2 - 2D electrostatics with defect-dependent space charge using a first linear-triangle FEM Poisson solver
+- Module 2 - 2D electrostatics with an arbitrary nodal total-charge-field input, a linear-triangle FEM Poisson solver, and a field-to-field PINN target mapping `rho(nodes) -> phi(nodes)`; Gaussian sources are retained only as synthetic field generators
 - Module 3 - 2D defect diffusion-reaction evolution and annealing with material-aware kinetic coefficients; includes the original structured-grid path, a linear-triangle FEM path, a detailed causal-PIN tutorial, and an executable MATLAB causal-PINN driver with ordered physical-time residual weighting
 - Module 4 - 2D ballistic-diffusive thermal transport in silicon; includes the original structured-grid path and a new linear-triangle FEM path
 - Module 5 - 2D drift-diffusion carrier transport with defect-assisted recombination using a first linear-triangle FEM path
@@ -71,7 +71,7 @@ This package now includes:
 - updated top-level `project_plan` and `README`
 - Module 1 physics note defining the Geant4 energy-deposition source term and its reduced 2D mapping
 - second standalone Module 1 Geant4 application, `geant4/module1_transmon_edep`, implementing the Module 9 full 3D transmon geometry with CPW resonator, coupling capacitor, pads/leads/JJ, normal-metal trap, backside sink, wiring, bond pads, wire bonds, interactive particle-gun control, and per-component deposition scoring
-- Module 2 expanded physics note, three LaTeX/Beamer `summary_slides` pages for baseline 2D electrostatics with defect space charge, four additional `summary_slides` pages for Module 2 PINN, four additional `summary_slides` pages for Module 2 CPINN, superconductivity electrostatics extension note, first MATLAB FEM Poisson path, triangular mesh generation, electrostatic verification tests, PINN electrostatics demo, and causal-PINN electrostatics continuation demo
+- Module 2 expanded physics note, three LaTeX/Beamer `summary_slides` pages for baseline 2D electrostatics with defect space charge, four additional `summary_slides` pages for Module 2 PINN, four additional `summary_slides` pages for Module 2 CPINN, superconductivity electrostatics extension note, first MATLAB FEM Poisson path, explicit arbitrary nodal charge-field contract, field-to-field batch dataset pipeline, triangular mesh generation, electrostatic verification tests, legacy pointwise PINN electrostatics demo, and causal-PINN electrostatics continuation demo
 - Module 3 expanded physics note, three LaTeX/Beamer `summary_slides` pages for baseline 2D defect diffusion-reaction evolution and annealing, superconductivity defect-evolution extension note, FEM weak form, mass/diffusion/reaction matrices, backward-Euler time stepping, verified structured-grid path, material-aware kinetic-coefficient framework, first linear-triangle FEM path, `module3_cPIN.tex/.pdf`, and `main_module3_CPINN_Defect_Evolution.m`, an executable causal-PINN implementation with nondimensional automatic-differentiation residuals, ordered time slices, stop-gradient exponential weights, an epsilon schedule, analytic/FEM references, and causal diagnostics
 - archived legacy Module 4a/4b thermal notes and baseline MATLAB path for reference
 - new Module 4 architecture centered on 2D ballistic-diffusive thermal transport
@@ -96,7 +96,7 @@ This package now includes:
 2. Convert Geant4 output into a defect-generation map or initial defect field.
 3. Evolve the defect field in MATLAB with Module 3; use the structured-grid/FEM paths as numerical references, or run `main_module3_CPINN_Defect_Evolution('pure_annealing')` for the causal-PINN benchmark.
 4. Solve the thermal field with Module 4 using the reduced ballistic-diffusive model.
-5. Use the defect field in Module 2 to compute electrostatics.
+5. Combine defect/carrier/dopant spatial fields into the Module 2 nodal total-charge field and solve the field mapping `rho -> phi`; no Gaussian fit is required for coupled inputs.
 6. Use electrostatics, thermal fields, and defect fields in Module 5 for carrier transport.
 7. Couple Modules 2-5 in Module 6.
 8. Use Module 7/8 for reduced-fidelity scaling, statistical extrapolation, importance scoring, or hybrid multiresolution prediction.
