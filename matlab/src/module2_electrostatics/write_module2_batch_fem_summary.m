@@ -1,6 +1,6 @@
 function write_module2_batch_fem_summary( ...
     dataset, validation, summaryFile, datasetFile)
-% WRITE_MODULE2_BATCH_FEM_SUMMARY Write an auditable plain-text manifest.
+% WRITE_MODULE2_BATCH_FEM_SUMMARY Write an auditable field-dataset manifest.
 
 fid = fopen(summaryFile, 'w');
 if fid < 0
@@ -9,11 +9,18 @@ if fid < 0
 end
 cleanup = onCleanup(@() fclose(fid)); %#ok<NASGU>
 
-fprintf(fid, 'Module 2 Module 9-aware batch FEM dataset\n');
-fprintf(fid, '=========================================\n\n');
+fprintf(fid, 'Module 2 field-to-field FEM dataset\n');
+fprintf(fid, '===================================\n\n');
 fprintf(fid, 'Dataset name: %s\n', dataset.name);
 fprintf(fid, 'Schema: %s\n', dataset.schema);
-fprintf(fid, 'Parameterization: %s\n', dataset.parameterization);
+fprintf(fid, 'Canonical input: %s [%s]\n', ...
+    dataset.inputRepresentation, dataset.inputUnits);
+fprintf(fid, 'Canonical output: %s [%s]\n', ...
+    dataset.outputRepresentation, dataset.outputUnits);
+if isfield(dataset, 'syntheticGenerator')
+    fprintf(fid, 'Pilot field generator: %s\n', dataset.syntheticGenerator.type);
+    fprintf(fid, 'Generator role: %s\n', dataset.syntheticGenerator.role);
+end
 fprintf(fid, 'Cases: %d\n', dataset.nCases);
 fprintf(fid, 'Train / validation / test: %d / %d / %d\n', ...
     numel(dataset.trainCases), numel(dataset.validationCases), ...
@@ -41,22 +48,31 @@ fprintf(fid, 'Worst relative free residual: %.8e\n', ...
     validation.maxFreeResidualRelative);
 fprintf(fid, 'Worst relative global balance: %.8e\n', ...
     validation.maxGlobalBalanceRelative);
-fprintf(fid, 'Worst direct tagged-BC error [V]: %.8e\n\n', ...
+fprintf(fid, 'Worst direct Dirichlet error [V]: %.8e\n\n', ...
     validation.maxDirichletErrorInf);
 
-fprintf(fid, 'Parameter columns\n');
-for k = 1:numel(dataset.parameterNames)
-    fprintf(fid, '  %d. %s [%s]\n', k, ...
-        dataset.parameterNames{k}, dataset.parameterUnits{k});
-end
-
-fprintf(fid, '\nCase manifest\n');
-fprintf(fid, ['  id  split       case name                       ', ...
-    'C_peak       x_c          z_c          sigma_x      sigma_z\n']);
-for k = 1:dataset.nCases
-    fprintf(fid, '  %2d  %-10s  %-30s  %.3e  % .3e  % .3e  %.3e  %.3e\n', ...
-        k, split_name(dataset, k), dataset.caseNames{k}, ...
-        dataset.parameters(k, :));
+if isfield(dataset, 'syntheticGenerator')
+    fprintf(fid, ['Synthetic-generator metadata (NOT neural-surrogate ', ...
+        'input columns)\n']);
+    for k = 1:numel(dataset.syntheticGenerator.parameterNames)
+        fprintf(fid, '  %d. %s [%s]\n', k, ...
+            dataset.syntheticGenerator.parameterNames{k}, ...
+            dataset.syntheticGenerator.parameterUnits{k});
+    end
+    fprintf(fid, '\nCase manifest\n');
+    fprintf(fid, ['  id  split       case name                       ', ...
+        'C_peak       x_c          z_c          sigma_x      sigma_z\n']);
+    for k = 1:dataset.nCases
+        fprintf(fid, '  %2d  %-10s  %-30s  %.3e  % .3e  % .3e  %.3e  %.3e\n', ...
+            k, split_name(dataset, k), dataset.caseNames{k}, ...
+            dataset.syntheticGenerator.parameters(k, :));
+    end
+else
+    fprintf(fid, 'Case manifest\n');
+    for k = 1:dataset.nCases
+        fprintf(fid, '  %4d  %-10s  %s\n', ...
+            k, split_name(dataset, k), dataset.caseNames{k});
+    end
 end
 end
 

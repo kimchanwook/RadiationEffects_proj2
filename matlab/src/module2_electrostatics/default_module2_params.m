@@ -45,16 +45,17 @@ params.Ly = 4e-6;                      % y-length [m]
 params.nx = 41;                        % number of grid points in x
 params.ny = 21;                        % number of grid points in y
 
-% Default semiconductor concentrations [m^-3]. These can be overwritten or
-% set by a case file. Only their signed combination enters rho.
+% Default semiconductor concentrations [m^-3] used by built-in synthetic
+% demonstration cases. Coupled production use should normally construct an
+% explicit nodal charge field with compose_module2_charge_field_2d.
 params.n = 0.0;
 params.p = 0.0;
 params.ND_plus = 0.0;
 params.NA_minus = 0.0;
 
-% Effective single-defect population. In coupled use, replace Cdef with a
-% field imported from Module 3 and set zdef according to the reduced charge
-% state being modeled.
+% Effective single-defect population used only by the built-in synthetic
+% Gaussian field generator. These scalar parameters are not the canonical
+% Module 2 input contract; arbitrary nodal rho fields are accepted directly.
 params.Cdef_background = 0.0;
 params.Cdef_peak = 2.0e20;             % peak defect concentration [m^-3]
 params.Cdef_x0 = 0.50 * params.Lx;

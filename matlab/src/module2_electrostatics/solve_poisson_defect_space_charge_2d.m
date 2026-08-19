@@ -1,14 +1,29 @@
-function result = solve_poisson_defect_space_charge_2d(params)
+function result = solve_poisson_defect_space_charge_2d(params, chargeField)
 % SOLVE_POISSON_DEFECT_SPACE_CHARGE_2D Run the Module 2 FEM Poisson solver.
 %
-%   result = SOLVE_POISSON_DEFECT_SPACE_CHARGE_2D(params) resolves either the
-%   legacy rectangular mesh or the validated Module 9 transmon geometry,
-%   evaluates the defect-dependent space charge, assembles the finite-element
-%   electrostatic matrix, imposes side- or tag-based Dirichlet boundaries,
-%   solves for potential, and postprocesses the electric field.
+%   result = SOLVE_POISSON_DEFECT_SPACE_CHARGE_2D(params,chargeField)
+%   solves the electrostatic problem for an arbitrary nodal total
+%   charge-density field. chargeField may be either
+%
+%       - a module2_charge_field_v1 structure, or
+%       - a numeric nNodes-by-1 rho vector [C/m^3].
+%
+%   This explicit field input is the canonical Module 2 contract.
+%
+%   result = SOLVE_POISSON_DEFECT_SPACE_CHARGE_2D(params) remains supported
+%   for legacy named cases. In that compatibility path, the old scalar/
+%   Gaussian parameters are first converted into a synthetic nodal field by
+%   GENERATE_MODULE2_GAUSSIAN_CHARGE_FIELD_2D, after which the FEM solve is
+%   identical to the arbitrary-field path.
 
 [mesh, geometry, params] = resolve_module2_mesh_2d(params);
-rho = build_space_charge_module2_2d(mesh.nodes, params);
+
+if nargin < 2 || isempty(chargeField)
+    chargeField = generate_module2_gaussian_charge_field_2d(mesh, params);
+else
+    chargeField = validate_module2_charge_field_2d(mesh, chargeField);
+end
+rho = chargeField.rho;
 
 [K, rhs, elementData] = assemble_poisson_fem_2d(mesh, rho, params.eps_si);
 [fixedNodes, fixedValues, bcInfo] = ...
@@ -34,7 +49,8 @@ end
 result.params = storedParams;
 result.mesh = mesh;
 result.geometry = geometry;
-result.rho = rho;
+result.chargeField = chargeField;
+result.rho = rho; % Convenience alias retained for downstream compatibility.
 result.K = K;
 result.rhs = rhs;
 result.Kbc = Kbc;

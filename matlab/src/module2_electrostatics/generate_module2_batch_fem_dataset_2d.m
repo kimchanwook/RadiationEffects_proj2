@@ -1,8 +1,16 @@
 function dataset = generate_module2_batch_fem_dataset_2d(options)
-% GENERATE_MODULE2_BATCH_FEM_DATASET_2D Solve many sources with one operator.
+% GENERATE_MODULE2_BATCH_FEM_DATASET_2D Build the default field-to-field set.
 %
-%   This function performs no plotting and no file I/O. It is therefore safe
-%   for tests, parameter sweeps, and later scripted dataset expansion.
+%   The numerical training contract is now
+%
+%       rho(:,case)  ->  phi(:,case),
+%
+%   where both arrays live on the same fixed Module 9 FEM mesh. The default
+%   17-case pilot still uses Gaussian parameters only to SYNTHESIZE rho
+%   fields. Those generator parameters are retained as provenance metadata
+%   and are not the intended neural-network inputs.
+%
+%   This function performs no plotting and no file I/O.
 
 if nargin < 1 || isempty(options)
     options = default_module2_batch_fem_options_2d();
@@ -17,168 +25,65 @@ baseParams.module9Geometry = options.module9Geometry;
 baseParams.bc.named.left_electrode.value = options.leftElectrodeVoltage;
 baseParams.bc.named.right_electrode.value = options.rightElectrodeVoltage;
 
-% Geometry, mesh, boundary nodes, and the electrostatic stiffness matrix are
-% resolved exactly once for the entire batch.
+% Resolve one accepted geometry so every synthetic input field is sampled on
+% exactly the same FEM nodes as the resulting potential field.
 [mesh, geometry, baseParams] = resolve_module2_mesh_2d(baseParams);
-if any(design.parameters(:, 2) < geometry.domain.xRange(1)) || ...
-        any(design.parameters(:, 2) > geometry.domain.xRange(2)) || ...
-        any(design.parameters(:, 3) < geometry.domain.zRange(1)) || ...
-        any(design.parameters(:, 3) > geometry.domain.zRange(2))
+mu = design.generatorParameters;
+if any(mu(:, 2) < geometry.domain.xRange(1)) || ...
+        any(mu(:, 2) > geometry.domain.xRange(2)) || ...
+        any(mu(:, 3) < geometry.domain.zRange(1)) || ...
+        any(mu(:, 3) > geometry.domain.zRange(2))
     error('Module2BatchFEM:ChargeCenterOutsideDomain', ...
-        'Every Gaussian center must lie inside the supplied Module 9 domain.');
-end
-[fixedNodes, fixedValues, bcInfo] = ...
-    get_module2_dirichlet_nodes(mesh, baseParams, geometry);
-if isempty(fixedNodes)
-    error('Module2BatchFEM:NoDirichletNodes', ...
-        'The batch operator requires at least one tagged Dirichlet node.');
-end
-
-zeroRho = zeros(size(mesh.nodes, 1), 1);
-[K, ~, elementData] = assemble_poisson_fem_2d( ...
-    mesh, zeroRho, baseParams.eps_si);
-[Kbc, ~] = apply_dirichlet_bc( ...
-    K, zeros(size(mesh.nodes, 1), 1), fixedNodes, fixedValues);
-
-% Kbc is symmetric positive definite after strong Dirichlet enforcement.
-% Cholesky exposes an explicit, countable one-time factorization and avoids
-% refactorization inside MATLAB's backslash operator for every case.
-factorizationStart = tic;
-[L, cholFlag] = chol(Kbc, 'lower');
-factorizationSeconds = toc(factorizationStart);
-if cholFlag ~= 0
-    error('Module2BatchFEM:FactorizationFailure', ...
-        'The tagged-boundary FEM matrix is not positive definite (flag %d).', ...
-        cholFlag);
+        'Every synthetic Gaussian center must lie inside the Module 9 domain.');
 end
 
 numNodes = size(mesh.nodes, 1);
-numCases = size(design.parameters, 1);
-phi = zeros(numNodes, numCases);
-if options.storeRho
-    rhoAll = zeros(numNodes, numCases);
-else
-    rhoAll = [];
-end
-diagnostics = repmat(empty_case_diagnostics(), numCases, 1);
-solveSeconds = zeros(numCases, 1);
-
+numCases = size(mu, 1);
+rhoMatrix = zeros(numNodes, numCases);
 for k = 1:numCases
-    caseParams = apply_parameter_row(baseParams, design.parameters(k, :));
-    rho = build_space_charge_module2_2d(mesh.nodes, caseParams);
-    rhs = assemble_poisson_source_rhs_2d( ...
-        mesh, rho, elementData.areas);
-
-    % Apply the same fixed values to a new right-hand side without modifying
-    % or rebuilding Kbc. This is algebraically identical to apply_dirichlet_bc.
-    rhsbc = rhs - K(:, fixedNodes) * fixedValues;
-    rhsbc(fixedNodes) = fixedValues;
-
-    solveStart = tic;
-    y = L \ rhsbc;
-    phi(:, k) = L' \ y;
-    solveSeconds(k) = toc(solveStart);
-
-    fullDiagnostics = compute_module2_fem_diagnostics_2d( ...
-        K, rhs, phi(:, k), fixedNodes, fixedValues);
-    diagnostics(k) = compact_diagnostics( ...
-        fullDiagnostics, phi(:, k), rho);
-    if options.storeRho
-        rhoAll(:, k) = rho;
-    end
+    caseParams = apply_generator_row(baseParams, mu(k, :));
+    chargeField = generate_module2_gaussian_charge_field_2d(mesh, caseParams);
+    rhoMatrix(:, k) = chargeField.rho;
 end
 
-storedParams = baseParams;
-storedParams.module9Geometry = [];
+% Reinject the already validated geometry so the generic field-batch solver
+% reuses the exact same mesh object rather than constructing a new one.
+baseParams.module9Geometry = geometry;
+splits.trainCases = design.trainCases;
+splits.validationCases = design.validationCases;
+splits.testCases = design.testCases;
+dataset = solve_module2_nodal_charge_batch_2d( ...
+    baseParams, rhoMatrix, design.caseNames, splits);
 
-dataset.schema = 'module2_batch_fem_dataset_v1';
 dataset.name = options.datasetName;
 dataset.optionsSchema = options.schema;
 dataset.designSchema = design.schema;
-dataset.geometryMode = baseParams.geometryMode;
-dataset.coordinateNames = baseParams.coordinateNames;
-dataset.domain = geometry.domain;
-dataset.materials.substrate = geometry.materials.substrate;
-dataset.mesh = mesh;
-dataset.tags = geometry.tags;
-dataset.parameterization = 'single_elliptical_gaussian';
-dataset.parameterNames = design.parameterNames;
-dataset.parameterUnits = design.parameterUnits;
-dataset.parameters = design.parameters;
-dataset.caseNames = design.caseNames;
-dataset.nCases = numCases;
-dataset.rho = rhoAll;
-dataset.phi = phi;
-dataset.diagnostics = diagnostics;
-dataset.trainCases = design.trainCases(:).';
-dataset.validationCases = design.validationCases(:).';
-dataset.testCases = design.testCases(:).';
+dataset.syntheticGenerator.type = ...
+    'single_elliptical_gaussian_defect_concentration';
+dataset.syntheticGenerator.role = ...
+    'training_field_generation_only_not_surrogate_input';
+dataset.syntheticGenerator.parameterNames = design.generatorParameterNames;
+dataset.syntheticGenerator.parameterUnits = design.generatorParameterUnits;
+dataset.syntheticGenerator.parameters = design.generatorParameters;
 dataset.boundaryConditions.leftTag = 'electrode.left_electrode';
 dataset.boundaryConditions.rightTag = 'electrode.right_electrode';
 dataset.boundaryConditions.leftVoltage = options.leftElectrodeVoltage;
 dataset.boundaryConditions.rightVoltage = options.rightElectrodeVoltage;
 dataset.boundaryConditions.otherBoundaries = 'homogeneous_natural_neumann';
 dataset.boundaryConditions.jjTreatment = 'scoring_interface_only';
-dataset.fixedNodes = fixedNodes;
-dataset.fixedValues = fixedValues;
-dataset.bcInfo = bcInfo;
-dataset.baseParams = storedParams;
-dataset.provenance.stiffnessAssemblyCount = 1;
-dataset.provenance.sourceAssemblyCount = numCases;
-dataset.provenance.factorizationCount = 1;
-dataset.provenance.linearSolveCount = numCases;
-dataset.provenance.factorizationMethod = 'sparse_cholesky';
-dataset.provenance.factorizationSeconds = factorizationSeconds;
-dataset.provenance.solveSeconds = solveSeconds;
-dataset.provenance.stiffnessNnz = nnz(K);
-dataset.provenance.meshReusedForEveryCase = true;
-dataset.provenance.numericalGeneratorCreatesPlots = false;
+dataset.provenance.syntheticFieldGeneratorCount = numCases;
 end
 
-function params = apply_parameter_row(params, mu)
-% APPLY_PARAMETER_ROW Map the public five-parameter contract to FEM names.
+function params = apply_generator_row(params, mu)
+% APPLY_GENERATOR_ROW Map Gaussian-generator metadata to legacy field names.
 params.Cdef_peak = mu(1);
 params.Cdef_x0 = mu(2);
 params.Cdef_y0 = mu(3);       % second solver coordinate is z for Module 9
 params.Cdef_sigma_x = mu(4);
-params.Cdef_sigma_y = mu(5);  % sigma_z in the public dataset contract
-end
-
-function item = empty_case_diagnostics()
-% EMPTY_CASE_DIAGNOSTICS Fixed scalar schema for compact per-case auditing.
-item.freeResidualInf = 0.0;
-item.freeResidualRelative = 0.0;
-item.dirichletErrorInf = 0.0;
-item.constraintReactionSum = 0.0;
-item.assembledSourceSum = 0.0;
-item.globalBalance = 0.0;
-item.globalBalanceRelative = 0.0;
-item.minPhi = 0.0;
-item.maxPhi = 0.0;
-item.maxAbsPhi = 0.0;
-item.minRho = 0.0;
-item.maxRho = 0.0;
-end
-
-function item = compact_diagnostics(fullItem, phi, rho)
-% COMPACT_DIAGNOSTICS Omit full residual vectors from the saved dataset.
-item = empty_case_diagnostics();
-item.freeResidualInf = fullItem.freeResidualInf;
-item.freeResidualRelative = fullItem.freeResidualRelative;
-item.dirichletErrorInf = fullItem.dirichletErrorInf;
-item.constraintReactionSum = fullItem.constraintReactionSum;
-item.assembledSourceSum = fullItem.assembledSourceSum;
-item.globalBalance = fullItem.globalBalance;
-item.globalBalanceRelative = fullItem.globalBalanceRelative;
-item.minPhi = min(phi);
-item.maxPhi = max(phi);
-item.maxAbsPhi = max(abs(phi));
-item.minRho = min(rho);
-item.maxRho = max(rho);
+params.Cdef_sigma_y = mu(5);  % sigma_z in generator metadata
 end
 
 function validate_options(options)
-% VALIDATE_OPTIONS Reject malformed parameter designs before expensive work.
 required = {'datasetName', 'design', 'module9Geometry', ...
     'leftElectrodeVoltage', 'rightElectrodeVoltage', 'storeRho'};
 for k = 1:numel(required)
@@ -187,43 +92,43 @@ for k = 1:numel(required)
             'Missing batch option: %s', required{k});
     end
 end
+if ~isequal(logical(options.storeRho), true)
+    error('Module2BatchFEM:RhoRequiredForFieldContract', ...
+        ['rho storage is mandatory because rho is the v2 field-to-field ', ...
+         'surrogate input.']);
+end
 
 design = options.design;
-requiredDesign = {'parameterNames', 'parameterUnits', 'parameters', ...
-    'caseNames', 'trainCases', 'validationCases', 'testCases'};
+requiredDesign = {'generatorParameterNames', 'generatorParameterUnits', ...
+    'generatorParameters', 'caseNames', 'trainCases', ...
+    'validationCases', 'testCases'};
 for k = 1:numel(requiredDesign)
     if ~isfield(design, requiredDesign{k})
         error('Module2BatchFEM:InvalidDesign', ...
-            'Parameter design is missing field: %s', requiredDesign{k});
+            'Gaussian field-generator design is missing field: %s', ...
+            requiredDesign{k});
     end
 end
 
-if size(design.parameters, 2) ~= 5 || ...
-        size(design.parameters, 1) ~= numel(design.caseNames)
+mu = design.generatorParameters;
+if size(mu, 2) ~= 5 || size(mu, 1) ~= numel(design.caseNames)
     error('Module2BatchFEM:InvalidDesignSize', ...
-        'Design parameters must be nCases-by-5 and match caseNames.');
+        'Generator parameters must be nCases-by-5 and match caseNames.');
 end
-if any(~isfinite(design.parameters(:))) || ...
-        any(design.parameters(:, 1) < 0) || ...
-        any(any(design.parameters(:, 4:5) <= 0))
+if any(~isfinite(mu(:))) || any(mu(:, 1) < 0) || ...
+        any(any(mu(:, 4:5) <= 0))
     error('Module2BatchFEM:InvalidDesignValues', ...
-        'Design values must be finite, C_peak >= 0, and widths > 0.');
+        'Generator values must be finite, C_peak >= 0, and widths > 0.');
+end
+expectedNames = {'C_peak', 'x_c', 'z_c', 'sigma_x', 'sigma_z'};
+if ~isequal(design.generatorParameterNames, expectedNames)
+    error('Module2BatchFEM:UnexpectedGeneratorParameterOrder', ...
+        ['The v2 Gaussian pilot requires generator metadata order ', ...
+         '[C_peak, x_c, z_c, sigma_x, sigma_z].']);
 end
 if numel(unique(design.caseNames)) ~= numel(design.caseNames)
     error('Module2BatchFEM:DuplicateCaseNames', ...
-        'Every batch case name must be unique.');
-end
-expectedNames = {'C_peak', 'x_c', 'z_c', 'sigma_x', 'sigma_z'};
-if ~isequal(design.parameterNames, expectedNames)
-    error('Module2BatchFEM:UnexpectedParameterOrder', ...
-        ['The v1 dataset contract requires parameter order ', ...
-         '[C_peak, x_c, z_c, sigma_x, sigma_z].']);
-end
-if ~isscalar(options.storeRho) || ...
-        ~(islogical(options.storeRho) || isnumeric(options.storeRho)) || ...
-        ~ismember(double(options.storeRho), [0, 1])
-    error('Module2BatchFEM:InvalidStoreRho', ...
-        'options.storeRho must be a scalar logical flag.');
+        'Every batch field case name must be unique.');
 end
 if ~isscalar(options.leftElectrodeVoltage) || ...
         ~isscalar(options.rightElectrodeVoltage) || ...
