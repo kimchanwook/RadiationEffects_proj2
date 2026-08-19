@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.26 (TeX Live 2025/dev/Debian) (preloaded format=pdflatex 2026.2.6)  15 MAY 2026 23:36
+This is pdfTeX, Version 3.141592653-2.6-1.40.26 (TeX Live 2025/dev/Debian) (preloaded format=pdflatex 2026.2.6)  19 AUG 2026 01:36
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -888,7 +888,7 @@ Package: translations 2022/02/05 v1.12 internationalization of LaTeX2e packages
 \l__siunitx_unit_position_int=\count353
 \l__siunitx_unit_total_int=\count354
 )
-Package hyperref Info: Option `colorlinks' set `true' on input line 18.
+Package hyperref Info: Option `colorlinks' set `true' on input line 44.
 )
 Package translations Info: No language package found. I am going to use `englis
 h' as default language. on input line 14.
@@ -1103,8 +1103,8 @@ Overfull \hbox (7.81583pt too wide) in alignment at lines 35--65
  [] [] [] 
  []
 
-[3{/usr/share/texmf/fonts/enc/dvips/lm/lm-mathit.enc}{/usr/share/texmf/fonts/en
-c/dvips/lm/lm-rm.enc}] [4{/usr/share/texmf/fonts/enc/dvips/lm/lm-mathsy.enc}]
+[3{/usr/share/texmf/fonts/enc/dvips/lm/lm-mathit.enc}] [4{/usr/share/texmf/font
+s/enc/dvips/lm/lm-rm.enc}{/usr/share/texmf/fonts/enc/dvips/lm/lm-mathsy.enc}]
 
 [5]
 LaTeX Font Info:    Trying to load font information for TS1+lmr on input line 1
@@ -1155,29 +1155,31 @@ File: ts1lmr.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
 
 [26]
 
-[27] [28]
+[27]
 
-[29]
+[28] [29]
 
 [30]
 
-[31] (./module2_2d_electrostatics_defect_space_charge.aux)
+[31]
+
+[32] (./module2_2d_electrostatics_defect_space_charge.aux)
  ***********
 LaTeX2e <2024-11-01> patch level 2
 L3 programming layer <2025-01-18>
  ***********
 Package rerunfilecheck Info: File `module2_2d_electrostatics_defect_space_charg
 e.out' has not changed.
-(rerunfilecheck)             Checksum: BDAA268C3F91849FD2D7970FDB3416B3;14175.
+(rerunfilecheck)             Checksum: A4E44F0DE40DCBF3D5E08F98045C759E;14419.
  ) 
 Here is how much of TeX's memory you used:
- 32192 strings out of 473197
- 647974 string characters out of 5718606
- 1036809 words of memory out of 5000000
- 54533 multiletter control sequences out of 15000+600000
- 626187 words of font info for 169 fonts, out of 8000000 for 9000
+ 32205 strings out of 473197
+ 648135 string characters out of 5718606
+ 1037875 words of memory out of 5000000
+ 54535 multiletter control sequences out of 15000+600000
+ 626353 words of font info for 171 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 121i,13n,124p,1042b,1205s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ 121i,13n,124p,1042b,1164s stack positions out of 10000i,1000n,20000p,200000b,200000s
 </usr/share/texmf/fonts/type1/public/lm/lmbx10.pfb></usr/share/texmf/fonts/ty
 pe1/public/lm/lmbx12.pfb></usr/share/texmf/fonts/type1/public/lm/lmex10.pfb></u
 sr/share/texmf/fonts/type1/public/lm/lmmi10.pfb></usr/share/texmf/fonts/type1/p
@@ -1189,11 +1191,11 @@ fb></usr/share/texmf/fonts/type1/public/lm/lmri10.pfb></usr/share/texmf/fonts/t
 ype1/public/lm/lmsy10.pfb></usr/share/texmf/fonts/type1/public/lm/lmsy8.pfb></u
 sr/share/texmf/fonts/type1/public/lm/lmtt10.pfb></usr/share/texmf/fonts/type1/p
 ublic/lm/lmtt12.pfb>
-Output written on module2_2d_electrostatics_defect_space_charge.pdf (31 pages, 
-379557 bytes).
+Output written on module2_2d_electrostatics_defect_space_charge.pdf (32 pages, 
+386332 bytes).
 PDF statistics:
- 749 PDF objects out of 1000 (max. 8388607)
- 673 compressed objects within 7 object streams
- 243 named destinations out of 1000 (max. 500000)
- 38365 words of extra memory for PDF output out of 42996 (max. 10000000)
+ 764 PDF objects out of 1000 (max. 8388607)
+ 687 compressed objects within 7 object streams
+ 250 named destinations out of 1000 (max. 500000)
+ 38373 words of extra memory for PDF output out of 42996 (max. 10000000)
 

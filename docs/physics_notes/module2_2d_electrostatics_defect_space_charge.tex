@@ -206,6 +206,50 @@ Then the full charge density becomes
 \end{equation}
 This compact equation is often sufficient to explore how defect accumulation or annealing alters depletion and field profiles.
 
+
+\section{Canonical spatial-field input contract}
+
+The physical equations above determine what enters Poisson's equation. The software interface should preserve that same physics without forcing the charge distribution into a special low-dimensional shape. The canonical Module 2 input is therefore the complete spatial total-charge field
+\begin{equation}
+\rho(x,y),
+\end{equation}
+or, on the FEM mesh,
+\begin{equation}
+\boxed{
+\bm{\rho}=\left[\rho_1,\rho_2,\ldots,\rho_N\right]^T
+}
+\end{equation}
+with one value in C/m$^3$ at every active mesh node.
+
+The individual physical contributions may themselves be spatial fields,
+\begin{equation}
+\bm{p},\quad \bm{n},\quad \bm{N}_D^+,\quad \bm{N}_A^-,\quad \bm{C}_i,
+\end{equation}
+and are combined pointwise before the electrostatic solve:
+\begin{equation}
+\boxed{
+\bm{\rho}
+=q\left(
+\bm{p}-\bm{n}+\bm{N}_D^+-\bm{N}_A^-+
+\sum_i \bm{z}_i\odot\bm{C}_i
+\right).
+}
+\label{eq:nodal_charge_contract}
+\end{equation}
+Here $\odot$ denotes pointwise multiplication. Any scalar concentration is simply interpreted as a uniform field over the mesh.
+
+This means Module 2 does \emph{not} require a list of individual defect coordinates, nor does it require that the charge field be Gaussian. Microscopic defect information must first be coarse-grained into continuum concentrations or total charge density on the Module 2 mesh. Once $\bm{\rho}$ has been formed, the electrostatic solver only needs that field and the material/boundary data.
+
+\subsection*{Role of the Gaussian model}
+
+The previously used single-Gaussian defect description is retained only as a controlled synthetic field generator:
+\begin{equation}
+(C_{\mathrm{peak}},x_c,y_c,\sigma_x,\sigma_y)
+\longrightarrow
+\bm{\rho}_{\mathrm{synthetic}}.
+\end{equation}
+Those five parameters are useful for producing reproducible verification and training cases, but they are no longer the Module 2 input contract. Imported non-Gaussian fields, multi-cluster fields, and future Module 3/Module 5 fields all enter through the same $\bm{\rho}$ interface.
+
 \section{Derivation of the project Poisson equation}
 
 Starting from the general electrostatic equation,
@@ -335,11 +379,11 @@ These relations are useful because they show immediately that the electrostatic 
 
 \subsection{Input from Module 3}
 
-Module 3 provides the evolving defect concentrations $C_i(x,y,t)$. Module 2 converts these into $\rho_{\mathrm{def}}$ through the effective charge-state map. Thus any diffusion, clustering, or annealing event in Module 3 modifies the electrostatic source term in Module 2.
+Module 3 provides evolving spatial defect-concentration fields $C_i(x,y,t)$. Module 2 maps those fields into a nodal defect-charge contribution and combines it with any carrier and dopant fields to form the canonical total-charge input $\bm{\rho}$. Thus diffusion, clustering, or annealing in Module 3 modifies the full spatial source field rather than merely changing a few Gaussian parameters.
 
 \subsection{Input from Module 4}
 
-Temperature from Module 4 can influence defect charge states and carrier statistics. In a reduced first pass, one may keep the defect charge map fixed or temperature-independent. In a richer model, temperature can change occupancies or ionization fractions.
+Temperature from Module 4 can influence defect charge states and carrier statistics. In a reduced first pass, one may keep the spatial charge map fixed or temperature-independent. In a richer model, temperature can modify the component fields or the effective charge factors before they are combined into $\bm{\rho}$.
 
 \subsection{Output to Module 5}
 
@@ -1124,14 +1168,18 @@ The current implementation is organized as follows:
 \midrule
 \endhead
 \texttt{main\_module2\_electrostatics.m} & Top-level driver for Module 2 test cases and plots. \\
-\texttt{default\_module2\_params.m} & Defines physical constants, mesh size, defect-charge parameters, and boundary conditions. \\
+\texttt{default\_module2\_params.m} & Defines physical constants, geometry defaults, synthetic demonstration parameters, and boundary conditions. \\
+\texttt{make\_module2\_charge\_field\_2d.m} & Packages and validates the canonical arbitrary nodal total-charge field. \\
+\begin{tabular}[t]{@{}l@{}}\texttt{compose\_module2\_charge}\\\texttt{\_field\_2d.m}\end{tabular} & Combines scalar or nodal $p,n,N_D^+,N_A^-,C_{\mathrm{def}},z_{\mathrm{def}}$ inputs into total nodal $\rho$. \\
+\begin{tabular}[t]{@{}l@{}}\texttt{generate\_module2\_gaussian}\\\texttt{\_charge\_field\_2d.m}\end{tabular} & Generates a controlled Gaussian-based synthetic charge field for tests and dataset construction. \\
+\texttt{build\_space\_charge\_module2\_2d.m} & Legacy compatibility wrapper around the synthetic Gaussian field generator. \\
 \texttt{make\_rectangular\_tri\_mesh\_2d.m} & Builds the rectangular triangular mesh and boundary node sets. \\
-\texttt{build\_space\_charge\_module2\_2d.m} & Converts carriers, dopants, and defect concentration into nodal $\rho$. \\
 \begin{tabular}[t]{@{}l@{}}\texttt{compute\_element}\\\texttt{\_stiffness\_triangle.m}\end{tabular} & Computes $K^{(e)}$ for a three-node triangular element. \\
 \begin{tabular}[t]{@{}l@{}}\texttt{compute\_element}\\\texttt{\_source\_triangle.m}\end{tabular} & Computes $\bm{b}^{(e)}$ from nodal charge density. \\
 \texttt{assemble\_poisson\_fem\_2d.m} & Assembles the global FEM matrix and source vector. \\
 \texttt{apply\_dirichlet\_bc.m} & Imposes known contact potentials strongly. \\
-\begin{tabular}[t]{@{}l@{}}\texttt{solve\_poisson\_defect}\\\texttt{\_space\_charge\_2d.m}\end{tabular} & Orchestrates mesh creation, charge assembly, linear solve, and field calculation. \\
+\begin{tabular}[t]{@{}l@{}}\texttt{solve\_poisson\_defect}\\\texttt{\_space\_charge\_2d.m}\end{tabular} & Accepts an explicit nodal charge field, then orchestrates assembly, boundary handling, linear solve, and field calculation. \\
+\begin{tabular}[t]{@{}l@{}}\texttt{solve\_module2\_nodal}\\\texttt{\_charge\_batch\_2d.m}\end{tabular} & Reuses one FEM operator and factorization for many arbitrary $\bm{\rho}\rightarrow\bm{\Phi}$ field pairs. \\
 \begin{tabular}[t]{@{}l@{}}\texttt{compute\_electric\_field}\\\texttt{\_from\_potential\_2d.m}\end{tabular} & Computes element and nodal electric fields from the solved potential. \\
 \bottomrule
 \end{longtable}

@@ -1,4 +1,4 @@
-PWD /mnt/data/reproj2_work/RadiationEffects_proj2_0513_2/docs/physics_notes
+PWD /mnt/data/radproj_field2field/RadiationEffects_proj2/docs/physics_notes
 INPUT /etc/texmf/web2c/texmf.cnf
 INPUT /usr/share/texmf/web2c/texmf.cnf
 INPUT /usr/share/texlive/texmf-dist/web2c/texmf.cnf
@@ -78,6 +78,7 @@ INPUT /usr/share/texlive/texmf-dist/tex/latex/mathtools/mhsetup.sty
 INPUT /usr/share/texlive/texmf-dist/tex/latex/mathtools/mhsetup.sty
 INPUT /usr/share/texlive/texmf-dist/tex/latex/tools/bm.sty
 INPUT /usr/share/texlive/texmf-dist/tex/latex/tools/bm.sty
+INPUT /usr/share/texlive/texmf-dist/tex/latex/physics/physics.sty
 INPUT /usr/share/texlive/texmf-dist/tex/latex/physics/physics.sty
 INPUT /usr/share/texlive/texmf-dist/tex/latex/physics/physics.sty
 INPUT /usr/share/texlive/texmf-dist/tex/latex/l3packages/xparse/xparse.sty
@@ -268,6 +269,7 @@ INPUT /usr/share/texlive/texmf-dist/tex/latex/ragged2e/ragged2e.sty
 INPUT /usr/share/texlive/texmf-dist/tex/latex/ragged2e/ragged2e.sty
 INPUT /usr/share/texlive/texmf-dist/tex/latex/setspace/setspace.sty
 INPUT /usr/share/texlive/texmf-dist/tex/latex/setspace/setspace.sty
+INPUT /usr/share/texlive/texmf-dist/tex/latex/siunitx/siunitx.sty
 INPUT /usr/share/texlive/texmf-dist/tex/latex/siunitx/siunitx.sty
 INPUT /usr/share/texlive/texmf-dist/tex/latex/siunitx/siunitx.sty
 INPUT /usr/share/texlive/texmf-dist/tex/latex/translations/translations.sty
