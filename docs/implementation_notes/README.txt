@@ -9,10 +9,14 @@ Current notes
 - module9_transmon_geometry_implementation_note.tex/.pdf: detailed how-to guide
   for running, testing, visually inspecting, probing, modifying, accepting,
   and handing the reduced Module 9 geometry to Module 2 FEM.
-- module2_pinn_implementation_note.tex/.pdf: detailed how-to guide for running,
-  testing, probing, tuning, and diagnosing the single-case Module 2 PINN with
-  optional FEM anchors.
-- module2_fem_implementation_note.tex/.pdf: detailed how-to guide for running,
+- module2_pinn_implementation_note.tex/.pdf: detailed guide for the current
+  legacy single-case Module 2 PINN plus the documented migration target to the
+  field-to-field rho(nodes)->phi(nodes) surrogate; includes the discrete FEM
+  physics-residual target and adaptive loss-weighting transition; the executable
+  neural code is explicitly identified as the retained legacy prototype.
+- module2_fem_implementation_note.tex/.pdf: detailed how-to guide for the
+  arbitrary nodal total-charge-field FEM interface, field-to-field batch data,
+  synthetic Gaussian field generator, and regression verification path; also covers
   testing, probing, modifying, and diagnosing the legacy-rectangle and
   Module 9 transmon finite-element electrostatics paths, including the
   factorized multi-configuration FEM dataset pipeline.

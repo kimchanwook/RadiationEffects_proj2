@@ -1,62 +1,93 @@
 # Module 2 FEM implementation note
 
-> The detailed, authoritative operational guide is now
-> `module2_fem_implementation_note.tex/.pdf`. This Markdown file is retained as
-> a concise overview for compatibility with the earlier documentation set.
+> The detailed, authoritative operational guide is
+> `module2_fem_implementation_note.tex/.pdf`. This Markdown file is a concise
+> compatibility overview.
 
-This note summarizes the implemented MATLAB path for Module 2.
+## Current input contract
+
+Module 2 now accepts an **arbitrary nodal total-charge-density field** as its
+canonical physics input:
+
+```text
+rho(nodes) -> FEM Poisson solve -> phi(nodes)
+```
+
+`rho` contains one value in C/m^3 for every active FEM node. The solver does
+not require Gaussian center/width/amplitude parameters.
+
+Physical component maps can be combined first:
+
+```text
+rho = q * (p - n + ND_plus - NA_minus + zdef .* Cdef)
+```
+
+where each component may be a scalar or a nodal field. The helper
+`compose_module2_charge_field_2d.m` performs this composition.
+
+## Gaussian source role
+
+The previous Gaussian source model is retained only as a **synthetic field
+generator** for controlled tests and pilot training data. Its parameters are
+provenance metadata, not the final field-surrogate inputs.
 
 ## Governing equation
-
-The solver computes the electrostatic potential `phi` from
 
 ```text
 div(eps_si grad(phi)) = -rho
 ```
 
-where `rho` is assembled from carriers, dopants, and effective charged-defect populations.
-
 ## Discretization
 
-The current solver uses a Galerkin finite-element method with three-node linear triangular elements on a rectangular domain. The nodal unknown is electrostatic potential. For each element,
+The current solver uses a Galerkin FEM with three-node linear triangular
+elements. For each element,
 
 ```text
 K_e(a,b) = integral_e eps_si grad(N_a) dot grad(N_b) dA
 b_e(a)   = integral_e N_a rho dA
 ```
 
-For a linear triangle, the gradients of the shape functions are constant inside the element, so the element electric field is also constant.
+## Main field-contract files
 
-## Boundary conditions
-
-Dirichlet conditions are imposed strongly at selected boundary nodes. The default cases use left/right contacts as Dirichlet boundaries. Top/bottom boundaries are homogeneous natural Neumann boundaries unless otherwise specified.
-
-## Main files
-
-- `matlab/main_module2_electrostatics.m`
-- `matlab/src/module2_electrostatics/default_module2_params.m`
-- `matlab/src/module2_electrostatics/make_rectangular_tri_mesh_2d.m`
-- `matlab/src/module2_electrostatics/build_space_charge_module2_2d.m`
-- `matlab/src/module2_electrostatics/assemble_poisson_fem_2d.m`
-- `matlab/src/module2_electrostatics/compute_element_stiffness_triangle.m`
-- `matlab/src/module2_electrostatics/compute_element_source_triangle.m`
-- `matlab/src/module2_electrostatics/apply_dirichlet_bc.m`
+- `matlab/src/module2_electrostatics/make_module2_charge_field_2d.m`
+- `matlab/src/module2_electrostatics/validate_module2_charge_field_2d.m`
+- `matlab/src/module2_electrostatics/compose_module2_charge_field_2d.m`
+- `matlab/src/module2_electrostatics/generate_module2_gaussian_charge_field_2d.m`
 - `matlab/src/module2_electrostatics/solve_poisson_defect_space_charge_2d.m`
-- `matlab/src/module2_electrostatics/compute_electric_field_from_potential_2d.m`
+- `matlab/src/module2_electrostatics/solve_module2_nodal_charge_batch_2d.m`
+- `matlab/src/module2_electrostatics/generate_module2_batch_fem_dataset_2d.m`
 
-## Verification tests
+`build_space_charge_module2_2d.m` remains as a compatibility wrapper for the
+older pointwise PINN code and legacy scripts.
 
-- `test_module2_zero_charge_2d.m`
-- `test_module2_linear_potential_2d.m`
-- `test_module2_uniform_space_charge_2d.m`
-- `test_module2_localized_defect_charge_2d.m`
+## Field-to-field batch dataset
 
-## Next coupling step
-
-The present implementation creates a local Gaussian charged-defect population internally. The next step is to replace that synthetic field with a defect concentration field exported from Module 3 and evaluate
+The current dataset schema is:
 
 ```text
-rho_def = q * sum_i z_i C_i(x,y,t)
+module2_field_to_field_fem_dataset_v2
 ```
 
-on the Module 2 mesh.
+with mandatory matrices
+
+```text
+rho : nNodes x nCases
+phi : nNodes x nCases
+```
+
+Train/validation/test splits are made by complete field cases. The default
+17-field pilot uses Gaussian-generated charge maps, but those Gaussian
+parameters are stored only under `syntheticGenerator`.
+
+## Verification tests added for the new contract
+
+- `test_module2_explicit_charge_field_2d.m`
+- `test_module2_charge_component_fields_2d.m`
+- existing analytical, Module 9, and batch tests remain in the suite
+
+## Coupling implication
+
+Module 3 and Module 5 can eventually provide their spatial defect/carrier maps
+directly. No Gaussian fit is required between modules. If meshes differ, the
+remaining coupling work is to define and validate interpolation or conservative
+projection before forming the Module 2 total-charge field.

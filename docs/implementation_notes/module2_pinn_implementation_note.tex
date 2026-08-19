@@ -70,7 +70,11 @@
 \end{overviewbox}
 
 \begin{notebox}
-\textbf{Fastest safe start.} Open MATLAB in \matlabfile{RadiationEffects_proj2/matlab/}, run \texttt{setup\_project\_paths}, confirm the Deep Learning Toolbox is available, run the four Module 2 FEM tests, and then run \texttt{test\_module2\_pinn\_electrostatics}. After those preflight checks, train the analytical linear-potential case before the Gaussian defect case.
+\textbf{Architecture migration notice (2026-08-19).} The project-level Module 2 contract has changed to field-to-field learning, $\bm{\rho}\mapsto\bm{\Phi}_{\theta}$. The FEM/data pipeline already accepts arbitrary nodal charge fields and writes v2 complete-field datasets. The executable files documented in this implementation note still implement the older pointwise single-case PINN, $(x,y)\mapsto\phi_{\theta}(x,y)$, and are retained as regression/prototype code until the neural implementation is migrated. Therefore this document is authoritative for how the \emph{current legacy PINN code} runs, while the revised \matlabfile{module2_PINN.pdf} physics note is authoritative for the new target architecture.
+\end{notebox}
+
+\begin{notebox}
+\textbf{Fastest safe start for the legacy prototype.} Open MATLAB in \matlabfile{RadiationEffects_proj2/matlab/}, run \texttt{setup\_project\_paths}, confirm the Deep Learning Toolbox is available, run \texttt{test\_module2\_fem\_all\_2d}, and then run \texttt{test\_module2\_pinn\_electrostatics}. After those preflight checks, train the analytical linear-potential case before the Gaussian defect case.
 \end{notebox}
 
 \ProjectTOC
@@ -142,14 +146,14 @@ The physics note describes three modeling modes. Their status in the executable 
 \textbf{Mode} & \textbf{Definition} & \textbf{Current status} \\
 \midrule
 \endhead
-Mode A & One network learns $\phi(x,y)$ for one fixed source and one fixed boundary configuration. & Implemented. Optional sparse FEM anchors may be added. \\
-Mode B & One supervised network learns a family $(x,y,\boldsymbol{\mu})\mapsto\phi$ from many FEM cases. & Not implemented. \\
-Mode C & One physics-informed surrogate learns a family $(x,y,\boldsymbol{\mu})\mapsto\phi$ using FEM data, PDE residuals, and boundary losses. & Recommended future target, but not implemented. \\
+Mode A & One pointwise network learns $\phi(x,y)$ for one fixed source and one fixed boundary configuration. & Implemented legacy prototype. Optional sparse FEM anchors may be added. \\
+Mode B & One supervised field operator learns $\bm{\rho}\mapsto\bm{\Phi}$ from many complete FEM field pairs. & New target baseline; FEM v2 data contract implemented, neural code not yet implemented. \\
+Mode C & One physics-informed field operator learns $\bm{\rho}\mapsto\bm{\Phi}$ using FEM data plus the discrete FEM residual $K\bm{\Phi}_{\theta}-\bm{b}(\bm{\rho})$ and boundary constraints. & Final target; physics design documented, neural code not yet implemented. \\
 \bottomrule
 \end{longtable}
 
 \begin{physicsbox}
-\textbf{Interpretation rule.} The current code is an implementation and verification benchmark for PINN mechanics. It is not yet the amortized many-query surrogate that would provide the strongest computational speedup. Training a new network for every single FEM case may cost more than solving that case directly with FEM.
+\textbf{Interpretation rule.} The current executable PINN code is an implementation and verification benchmark for pointwise PINN mechanics. It is not the newly selected field-to-field surrogate. Training a new pointwise network for every FEM case may cost more than solving that case directly with FEM; the amortized target is one operator trained over many complete $\bm{\rho}\rightarrow\bm{\Phi}$ pairs.
 \end{physicsbox}
 
 \subsection{Implemented capabilities}
@@ -1118,27 +1122,34 @@ Do not change \texttt{out.params} after training and then reuse \texttt{out.net}
 
 For repeated custom physical studies, improve the API rather than editing defaults for every run. A future dataset function should accept either a validated \texttt{params} structure or a parameter vector $\boldsymbol{\mu}$ and should preserve the exact training-case metadata.
 
-\section{Extending to the many-case surrogate}
+\section{Migration target: field-to-field Module 2 surrogate}
 
-The eventual Module 2 surrogate should add physical parameters to the network input, for example
+The next neural-code revision should not add five Gaussian parameters to the old pointwise input. The project decision is instead to learn the complete spatial operator
 \begin{equation}
-(x,y,\rho_{\mathrm{bg}},A_{\rho},x_c,y_c,\sigma_x,\sigma_y,V_L,V_R)
-\mapsto\phi.
+\boxed{\mathcal{G}_{\theta}:\bm{\rho}\mapsto\bm{\Phi}_{\theta}}.
 \end{equation}
-That extension requires more than looping the current single-case driver. It needs:
+The v2 FEM dataset already stores \texttt{rho} and \texttt{phi} as $N_{\mathrm{nodes}}\times N_{\mathrm{cases}}$ arrays. Gaussian values such as $(C_{\mathrm{peak}},x_c,z_c,\sigma_x,\sigma_z)$ are stored only under synthetic-generator provenance and must not be used as the canonical neural inputs.
+
+The target implementation therefore requires:
 \begin{itemize}[leftmargin=*]
-  \item explicit parameter ranges and normalized parameter inputs;
-  \item training, validation, and held-out test case splits;
-  \item FEM dataset generation across the parameter space;
-  \item collocation and boundary samples tagged with the correct case parameters;
-  \item a loss that evaluates $\rho(x,y;\boldsymbol{\mu})$ and boundary targets for each observation;
-  \item out-of-distribution detection or at least range checks;
-  \item comparison of amortized prediction time against FEM;
-  \item saved training-domain metadata with the network.
+  \item a field architecture appropriate for either a structured raster (CNN/U-Net/FNO) or the existing triangular mesh (graph/mesh operator);
+  \item complete-field minibatches and complete-field train/validation/test splits;
+  \item normalization of $\bm{\rho}$ and $\bm{\Phi}$ using training-set scales only;
+  \item hard or soft treatment of tagged Dirichlet electrode values;
+  \item a differentiable discrete physics residual on free FEM degrees of freedom,
+  \begin{equation}
+  \bm{r}_{\mathrm{PDE}}=K_{FF}\bm{\Phi}_{\theta,F}+K_{FD}\bm{\Phi}_D-\bm{b}_F(\bm{\rho});
+  \end{equation}
+  \item normalized data/PDE/boundary losses followed by adaptive gradient-balanced weighting when needed;
+  \item held-out non-Gaussian fields in addition to Gaussian pilot fields;
+  \item amortized inference-time comparison against FEM;
+  \item saved mesh, normalization, geometry, boundary, and training-domain metadata with the network.
 \end{itemize}
 
+Automatic differentiation will still compute $\nabla_{\theta}\mathcal{L}$ for backpropagation. The preferred field implementation does not require second derivatives of network output with respect to $x$ and $y$ because the spatial Poisson operator is supplied by the verified FEM matrices.
+
 \begin{notebox}
-\textbf{Do not overstate the current result.} A successful current run demonstrates that a smooth MLP can be trained with Poisson, boundary, and optional FEM losses for one case. It does not yet demonstrate generalization to unseen defect distributions or a multi-case surrogate speedup.
+\textbf{Do not overstate the current result.} A successful run of the files documented in the preceding chapters demonstrates the older pointwise PINN mechanics only. Generalization to arbitrary unseen charge maps and field-to-field surrogate speedup must be demonstrated after the migration above.
 \end{notebox}
 
 \section{Recommended verification ladder before using a result}
@@ -1146,7 +1157,7 @@ That extension requires more than looping the current single-case driver. It nee
 \begin{enumerate}[leftmargin=*]
   \item \textbf{Archive and path:} record the project version and confirm one resolved code tree.
   \item \textbf{Toolbox:} confirm every required Deep Learning Toolbox operation.
-  \item \textbf{Reference FEM:} pass all four Module 2 FEM tests.
+  \item \textbf{Reference FEM:} pass \texttt{test\_module2\_fem\_all\_2d}, including the explicit-field and component-field contract tests.
   \item \textbf{PINN plumbing:} pass the PINN smoke test.
   \item \textbf{Boundary and first derivative:} validate \texttt{linear\_potential} analytically.
   \item \textbf{Curvature and source sign:} validate \texttt{uniform\_space\_charge} analytically.
