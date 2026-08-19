@@ -1,15 +1,17 @@
 function [dataset, validation] = main_module2_batch_fem_dataset(options)
-% MAIN_MODULE2_BATCH_FEM_DATASET Generate the Module 9-aware FEM pilot set.
+% MAIN_MODULE2_BATCH_FEM_DATASET Generate the Module 2 field-to-field pilot.
 %
-%   dataset = MAIN_MODULE2_BATCH_FEM_DATASET() creates the deterministic
-%   Gaussian charge-cloud pilot design, reuses one validated Module 9 mesh,
-%   assembles and factorizes the electrostatic operator once, solves every
-%   right-hand side, validates the result, and saves one compact MAT file.
+%   dataset = MAIN_MODULE2_BATCH_FEM_DATASET() creates a deterministic set of
+%   synthetic Gaussian charge fields on one validated Module 9 mesh, solves
+%   the FEM electrostatics for each complete rho field, validates the paired
+%   rho -> phi dataset, and saves one compact MAT file.
+%
+%   IMPORTANT: Gaussian parameters are used only to generate diverse input
+%   fields. The v2 surrogate contract is the full nodal rho field mapped to
+%   the full nodal phi field.
 %
 %   [dataset,validation] = MAIN_MODULE2_BATCH_FEM_DATASET(options) accepts an
 %   edited structure returned by DEFAULT_MODULE2_BATCH_FEM_OPTIONS_2D.
-%   Routine plots are disabled by default so large future sweeps do not open
-%   or save hundreds of figures.
 %
 %   Example:
 %       setup_project_paths
@@ -51,7 +53,8 @@ if options.makeRepresentativePlots
     end
 end
 
-fprintf('Module 2 batch FEM dataset complete.\n');
+fprintf('Module 2 field-to-field batch FEM dataset complete.\n');
+fprintf('  mapping       : rho(nodes) -> phi(nodes)\n');
 fprintf('  cases         : %d (%d train / %d validation / %d test)\n', ...
     dataset.nCases, numel(dataset.trainCases), ...
     numel(dataset.validationCases), numel(dataset.testCases));
